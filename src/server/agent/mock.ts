@@ -1,5 +1,10 @@
 import type { AgentReply } from "@/contracts";
-import type { AgentTaskInput, AgentTaskOutput, DecomposeWishOutput } from "./types";
+import type {
+  AgentTaskInput,
+  AgentTaskOutput,
+  DecomposeWishOutput,
+  GeneratePrincipleOutput,
+} from "./types";
 
 /**
  * 确定性 Mock 实现:无密钥可跑(评测要求),语气遵守慢慢禁用词表。
@@ -53,9 +58,44 @@ function mockReply(input: Extract<AgentTaskInput, { task: "companion_reply" }>):
   }
 }
 
+/** 模板池:第一人称、描述倾向、带暂时语气、≤25 码点、无禁用词 */
+const PRINCIPLE_TEMPLATES: { match: (actions: string[]) => boolean; statement: string }[] = [
+  {
+    match: (a) => a.filter((x) => x === "defer").length >= 2,
+    statement: "我放一晚再决定,好像更踏实",
+  },
+  {
+    match: (a) => a.filter((x) => x === "buy_now").length >= 2,
+    statement: "我花在想了很久的东西上,不太后悔",
+  },
+  {
+    match: (a) => a.filter((x) => x === "skip_this_time").length >= 2,
+    statement: "我好像想先看它会不会进入生活",
+  },
+  { match: () => true, statement: "我不是舍不得花,是想先看清它" },
+];
+
+function mockPrinciple(
+  input: Extract<AgentTaskInput, { task: "generate_principle" }>
+): GeneratePrincipleOutput {
+  const actions = input.stories.map((s) => s.action);
+  const pool = PRINCIPLE_TEMPLATES.filter(
+    (t) => !input.existingStatements.includes(t.statement)
+  );
+  const matched = pool.filter((t) => t.match(actions));
+  const pick = matched[Math.min(input.attempt, matched.length - 1)] ?? PRINCIPLE_TEMPLATES[3];
+  return {
+    statement: pick.statement,
+    evidenceIds: input.stories.slice(-3).map((s) => s.id),
+  };
+}
+
 export function runMockAgentTask(input: AgentTaskInput): AgentTaskOutput {
   if (input.task === "decompose_wish") {
     return { task: "decompose_wish", result: mockDecompose(input.wish, input.nearChoice) };
+  }
+  if (input.task === "generate_principle") {
+    return { task: "generate_principle", result: mockPrinciple(input) };
   }
   return { task: "companion_reply", result: mockReply(input) };
 }
