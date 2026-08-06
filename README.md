@@ -1,42 +1,43 @@
 # 小狗慢慢 · BondPup
 
-**不替你决定、但会记住你如何做决定的钱包陪伴 Agent。**
+不替你决定、但会记住你如何做决定的钱包陪伴 Agent。
 
-慢慢是一只可以聊钱的小狗:四种罐子(生活/安心/梦想/未来)记住当下安排,真实回看形成经你确认的「金钱原则」,让下一次回应真正属于你。
+- 体验:https://bondpup.vercel.app
+- MCP:`https://bondpup.vercel.app/mcp`(Streamable HTTP,兼容 2026-07-28 与 2025-era 两代协议)
 
-- 体验 URL:https://bondpup.vercel.app
-- MCP URL:`https://bondpup.vercel.app/mcp`(Streamable HTTP;2026-07-28 规范原生 + 2025-era 回退,同一端点两代兼容)
-
-## Quick Verify(评审推荐路径)
+## 快速验证
 
 ```bash
 npm install
-npm test              # 确定性计算单元测试(四罐恒等式、月供公式)
-npm run dev           # http://localhost:3000 → Mock 首页(合成示例数据,无需密钥)
-curl http://localhost:3000/health
-bash scripts/verify-mcp.sh   # MCP 两代协议验证:tools/list + plan_jars + initialize 回退
+npm test                     # 单元测试
+npm run dev                  # http://localhost:3000
+bash scripts/verify-mcp.sh   # MCP 链路验证
 ```
 
-MCP 图形化验收:`npx @modelcontextprotocol/inspector@latest` → Streamable HTTP → `http://localhost:3000/mcp`。
+图形化调试:`npx @modelcontextprotocol/inspector@latest` → Streamable HTTP → `http://localhost:3000/mcp`。全程无需模型密钥。
 
-## 架构一览
+## 目录结构
 
 | 目录 | 职责 |
 |---|---|
-| `src/contracts/` | ★合同冻结区(2026-08-06 冻结):全部数据对象 zod schema、状态机九态、错误契约。改动走契约变更单 |
-| `src/server/domain/` | 确定性工具层(纯函数):四罐恒等式、月供公式、加法清单、扣罐(计划 8/8) |
-| `src/server/mcp/` | MCP 工具面(≤5 个,直接包装确定性工具层,无需模型密钥可走通) |
-| `src/server/safety/` | 禁用词表与安全校验(校验逻辑计划 8/9) |
-| `src/server/agent/` | 模型适配层(计划 8/7:Claude 原生 /v1/messages + 国产兼容端点) |
-| `src/app/` | 页面与路由:`/`(首页)、`/health`、`/mcp` |
+| `src/contracts/` | 数据对象 zod schema、状态机、错误契约 |
+| `src/server/domain/` | 确定性计算:四罐恒等式、月供、扣罐/撤销、周期切换、结余、原则 |
+| `src/server/safety/` | 安全红线分流、禁用词与回应校验 |
+| `src/server/agent/` | 模型任务层(愿望拆解、陪伴回应、原则生成),无密钥时走确定性 Mock |
+| `src/server/mcp/` | MCP 工具面,包装确定性计算层 |
+| `src/app/` | 页面与 API 路由:`/`、`/api/agent`、`/health`、`/mcp` |
 
-**核心原则**:金额一律整数分(展示 ÷100);**金额=代码算,理由=模型写,结果=用户改并确认**;跨罐永不自动级联;余数进安心罐,未来罐永不自动接收。
+核心原则:金额一律整数分;金额由代码计算,理由由模型生成,改变状态必须用户确认;跨罐永不自动级联。
 
-## MCP 工具面
+## MCP 工具
 
-`create_money_session` → `plan_jars` → `record_money_moment` → `confirm_jar_action`(含撤销)→ `get_money_overview`,全部为确定性实现,无需模型密钥即可走通完整链路。**预览与写入分离**:`plan_jars` 默认只预览,`confirm:true` 才写入并盖 `confirmedAt`;`record_money_moment` 只读提案,扣罐必须经 `confirm_jar_action`。写操作支持 `expectedStateVersion`(带则乐观锁校验)与 `idempotencyKey`(未提供时服务端生成并随响应返回,便于重放去重);每个响应回传完整 `moneyState`,客户端链回即可(服务端不持久化状态)。含风险内容的输入(自伤/借贷/投资)会得到安全回应而非罐子建议,并在 `moneyState.safetyEvents` 留审计(不含原文)。
+`create_money_session` / `plan_jars` / `record_money_moment` / `confirm_jar_action` / `get_money_overview`
+
+- 预览与写入分离:`plan_jars` 默认预览,`confirm:true` 才写入;扣罐必须经 `confirm_jar_action`,可撤销
+- 写操作支持 `expectedStateVersion` 乐观锁与 `idempotencyKey` 幂等
+- 服务端不持久化状态:每个响应回传完整 `moneyState`,客户端链回即可
+- 风险输入(自伤/借贷/投资)返回安全回应而非罐子建议,审计不含原文
 
 ## 环境变量
 
-见 [.env.example](.env.example)。真实密钥只进 Vercel 环境变量,绝不提交仓库。今日骨架无需任何密钥。
-
+见 [.env.example](.env.example),密钥只进部署平台环境变量。
