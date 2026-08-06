@@ -34,7 +34,7 @@ MCP 图形化验收:`npx @modelcontextprotocol/inspector@latest` → Streamable 
 
 ## MCP 工具面
 
-`create_money_session` → `plan_jars`(真) → `record_money_moment` → `confirm_jar_action`(8/8 转真) → `get_money_overview`。写操作带 `expectedStateVersion` + `idempotencyKey`;每个响应回传完整 `moneyState`,客户端链回即可(服务端不持久化状态)。
+`create_money_session` → `plan_jars` → `record_money_moment` → `confirm_jar_action`(含撤销)→ `get_money_overview`,全部为确定性实现,无需模型密钥即可走通完整链路。写操作带 `expectedStateVersion` + `idempotencyKey`;每个响应回传完整 `moneyState`,客户端链回即可(服务端不持久化状态)。
 
 ## 环境变量
 
