@@ -40,7 +40,10 @@ MCP 图形化验收:`npx @modelcontextprotocol/inspector@latest` → Streamable 
 
 见 [.env.example](.env.example)。真实密钥只进 Vercel 环境变量,绝不提交仓库。今日骨架无需任何密钥。
 
-## 协作约定
+## 协作约定(两人君子协议,不设强制分支保护)
 
-- `main` 受保护:PR + 1 批准,Squash merge,禁 force push
-- 目录所有权见 [CODEOWNERS](CODEOWNERS);`src/contracts/` 冻结后改动需 A、B 双方确认
+1. **绝不直接 `git push origin main`**——所有改动走分支。并行开发时一方推错,另一方拉下来直接跑不起来,互相阻塞
+2. **一律走 PR,作为「交接仪式」**——目的不是严格审查,而是信息同步:接口/契约字段变了,对方在 PR 里一眼看到,不用找半天 bug 才发现
+3. **合并用 Squash Merge**——提交历史保持「一需求一提交」;AI 辅助开发下,干净历史让 AI 分析旧代码或回滚时读得懂
+
+目录分工见 [CODEOWNERS](CODEOWNERS)(仅作说明与 PR 自动请求评审,不强制);`src/contracts/` 冻结后改动需 A、B 双方确认。
