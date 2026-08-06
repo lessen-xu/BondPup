@@ -1,5 +1,6 @@
-import type { MoneyState } from "@/contracts";
-import { validatePrincipleCandidate } from "@/server/safety/validate";
+import type { AgentReply, MoneyState } from "@/contracts";
+import { validatePrincipleCandidate, validateReplyText } from "@/server/safety/validate";
+import { detectSafetyRisk, safetyReplyFor } from "@/server/safety/risk";
 import { principleContext, principleEligible } from "@/server/domain/principle";
 import type { AgentTaskInput, AgentTaskOutput, GeneratePrincipleOutput } from "./types";
 import { runMockAgentTask } from "./mock";
@@ -11,8 +12,36 @@ import { runMockAgentTask } from "./mock";
  * - 都没有 → 确定性 Mock(评测「无密钥可跑」要求;也是超时/失败的降级路径)
  * 今天(Day-2)只有 Mock;真实适配层接入时此函数签名不变。
  */
+/** 输出闸兜底文案(无禁用词、一句话):回应两次校验不过就用它,不让违规文本出门 */
+const SAFE_FALLBACK: AgentReply = {
+  text: "我在这儿,你说的我记下了。我们慢慢来。",
+  requiresConfirmation: false,
+};
+
 export async function runAgentTask(input: AgentTaskInput): Promise<AgentTaskOutput> {
-  return runMockAgentTask(input);
+  // 输入闸:自伤/借贷/投资命中红线 → 绕过模型,统一以 companion_reply 形态返回安全回应
+  const userText =
+    input.task === "decompose_wish"
+      ? input.wish
+      : input.task === "companion_reply"
+        ? input.userText
+        : undefined;
+  if (userText) {
+    const hit = detectSafetyRisk(userText);
+    if (hit) {
+      return { task: "companion_reply", result: safetyReplyFor(hit.riskType) };
+    }
+  }
+  const out = runMockAgentTask(input); // 真模型接入后此处按环境变量选 provider,Mock 保留为降级
+  // 输出闸:禁用词/句数不合格 → 重试一次 → 仍不合格用安全兜底,绝不放行违规文本
+  if (out.task === "companion_reply" && validateReplyText(out.result.text).length > 0) {
+    const retry = runMockAgentTask(input);
+    if (retry.task === "companion_reply" && validateReplyText(retry.result.text).length === 0) {
+      return retry;
+    }
+    return { task: "companion_reply", result: SAFE_FALLBACK };
+  }
+  return out;
 }
 
 type PrincipleGenerator = (

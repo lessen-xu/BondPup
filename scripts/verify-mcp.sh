@@ -18,7 +18,7 @@ curl -sS "$MCP" \
 EOF
 echo; echo
 
-echo "== ② 2026-07-28 代 tools/call plan_jars(工资 6500 元示例)=="
+echo "== ②a plan_jars 预览(不写状态)=="
 curl -sS "$MCP" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
@@ -27,6 +27,18 @@ curl -sS "$MCP" \
   -H "Mcp-Name: plan_jars" \
   --data-binary @- <<EOF
 {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"plan_jars","arguments":{"disposable":650000,"livingPlanned":220000,"dreamGoal":{"name":"去看海","amount":960000,"saved":0,"monthsRemaining":12}},$META}}
+EOF
+echo; echo
+
+echo "== ②b plan_jars 确认写入(confirm:true,工资 6500 元示例)=="
+curl -sS "$MCP" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "MCP-Protocol-Version: 2026-07-28" \
+  -H "Mcp-Method: tools/call" \
+  -H "Mcp-Name: plan_jars" \
+  --data-binary @- <<EOF
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"plan_jars","arguments":{"confirm":true,"disposable":650000,"livingPlanned":220000,"dreamGoal":{"name":"去看海","amount":960000,"saved":0,"monthsRemaining":12}},$META}}
 EOF
 echo; echo
 

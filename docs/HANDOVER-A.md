@@ -70,6 +70,12 @@
 - 点开:金额 + `history` 明细(从哪个月哪个罐来)→ 选去哪个罐 → 可填部分金额 → 确认:`moveLeftover(state, { toKind, amount, ... })` → `commit(r.state)`,返回的 `movedNote`(「好,这个月就松一点了。」)直接显示
 - **三条动效红线**:变多不庆祝(不发光不弹窗)、不计数(没有角标)、变少不失落(小狗不垂耳朵)
 
+## 安全与合规(页面必须处理的三件事)
+
+1. **SAFETY_EXIT**:`/api/agent` 的回应可能带 `result.safety = { flagged, exit }`(用户输入命中自伤/借贷/投资红线时,**不管你请求的是什么任务,返回都是 companion_reply 形态的安全回应**)。`flagged:true` → 原样显示 `text`,不再显示购买建议;`exit:true` → 进入安全退出界面(温和、可一键回到 HOME)。合法路由在 `APP_TRANSITIONS`(`@/lib/state/machine`)里,任何屏都可进 SAFETY_EXIT。
+2. **数据导出**(法规义务):`exportMoneyStateJson(state)` from `@/lib/state/money-store` 返回格式化 JSON 字符串,做成「导出我的数据」下载/复制按钮;旁边放已有的 `reset()` 一键清空。
+3. **demo 标识**:真实新会话现在是 `demo:false`,只有 `enterDemo()` 是 `true`——「合成示例数据」角标只在 `state.demo === true` 时显示。另:`profile.ageConfirmed` 字段留给 18+ 确认弹窗;连续使用 2 小时提醒用 `setInterval` 自查即可,这两个纯 UI,你来定样式。
+
 ## 现在页面的处置
 
 `src/app/page.tsx` 是 B 垫的临时占位,整页推倒重做,不用保留任何东西。
