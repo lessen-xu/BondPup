@@ -42,6 +42,34 @@
   ```
   默认建议安心罐;用户可换罐;「只说说,不改余额」= 什么都不调
 
+## 回看页(FOLLOWUP / REVIEW)
+
+- 到期待回看:`dueReviews(state)` from `@/server/domain/story` → 列表展示「当时的决定」
+- 完成回看:`completeReview(state, { storyId, happened, actualAmount?, feelingNote?, expectedStateVersion: state.stateVersion, idempotencyKey: crypto.randomUUID() })` → `commit(r.state)`
+- 三种决定没有高下:「这次先不买」的回看不能被庆祝为更好的选择
+
+## 原则卡(PRINCIPLE)
+
+- 触发时机:`principleEligible(state)`(≥3 条已回看)为 true 时才请求生成
+- 生成:`generatePrincipleCandidate(state)` from `@/server/agent`(async;**返回 null 时什么都不显示**,不解释为什么)
+- 写入候选:`buildCandidate(state, { statement, evidenceIds, ... })`;卡片上「依据」可展开显示那几条故事
+- 三个按钮:像我 / 改说法 / 暂不确定 → `resolvePrinciple(state, { id, decision: "like_me"|"edit"|"defer", editedText? })`
+- 引用:`confirmedPrinciples(state)` → 折叠显示「参考了:1 条你确认过的原则」,可展开可改可删
+
+## 月度回顾屏(CYCLE_REVIEW)
+
+- 进入时机:`isNewCycle(state)` 为 true 的第一次打开,或用户说工资到账;**不做定时推送**
+- 拿候选:`buildCycleReviewProposal(state)` from `@/server/domain/cycle` → 上期数字、重算月供 `dreamMonthly`、方向 `monthlyDirection`、上期结余 `leftover`
+- **月供涨了必须给两个方向**:「想的话可以放 X,也可以把时间往后挪一个月,两个都行」——只说前者就是在催她;`deadlinePassed` 为 true 时不能说「没完成」,问要不要往后挪或就用现在这些先去
+- 用户改完确认:`confirmCycleReview(state, { disposable, livingPlanned, dreamMonthly?, extendMonths?, ... })` → `commit(r.state)`
+- 这一屏是引用原则最自然的落点:「上次你发现___,这次还沿用吗?」
+
+## 碎钻(结余)
+
+- 显示:`state.leftover.amount`(为 0 不显示);三档大小按额度分段,低饱和弱高光
+- 点开:金额 + `history` 明细(从哪个月哪个罐来)→ 选去哪个罐 → 可填部分金额 → 确认:`moveLeftover(state, { toKind, amount, ... })` → `commit(r.state)`,返回的 `movedNote`(「好,这个月就松一点了。」)直接显示
+- **三条动效红线**:变多不庆祝(不发光不弹窗)、不计数(没有角标)、变少不失落(小狗不垂耳朵)
+
 ## 现在页面的处置
 
 `src/app/page.tsx` 是 B 垫的临时占位,整页推倒重做,不用保留任何东西。

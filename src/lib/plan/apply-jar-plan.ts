@@ -27,6 +27,10 @@ export interface ApplyJarPlanInput {
   idempotencyKey?: string;
   /** 起点⑦用户确认时为 true → 写入 cycle.confirmedAt(改过并确认才算数) */
   confirmed?: boolean;
+  /** 用户改过并确认的月供(CYCLE_REVIEW 里用户可调;周期内永不重算);缺省按公式算 */
+  dreamMonthlyOverride?: number;
+  /** 注入时间(跨周期与测试用);缺省当前时间 */
+  now?: Date;
 }
 
 export interface ApplyJarPlanResult {
@@ -41,10 +45,12 @@ function fmtYuan(cents: number): string {
 
 export function applyJarPlan(input: ApplyJarPlanInput): ApplyJarPlanResult {
   const base = input.baseState ?? createInitialMoneyState();
+  const nowDate = input.now ?? new Date();
   const livingPlanned =
     input.livingPlanned ?? (input.livingItems ? computeLivingJar(input.livingItems) : 0);
   const dreamMonthly = input.dreamGoal
-    ? computeMonthlyContribution({
+    ? input.dreamMonthlyOverride ??
+      computeMonthlyContribution({
         goal: { amount: input.dreamGoal.amount, saved: input.dreamGoal.saved },
         monthsRemaining: input.dreamGoal.monthsRemaining,
       })
@@ -56,7 +62,7 @@ export function applyJarPlan(input: ApplyJarPlanInput): ApplyJarPlanResult {
     futurePlanned: input.futurePlanned ?? 0,
   });
 
-  const now = new Date().toISOString();
+  const now = nowDate.toISOString();
   const actualOf = (kind: string) => base.jars.find((j) => j.kind === kind)?.actual ?? 0;
   const jars = [
     {
@@ -91,7 +97,7 @@ export function applyJarPlan(input: ApplyJarPlanInput): ApplyJarPlanResult {
               name: input.dreamGoal.name,
               amount: input.dreamGoal.amount,
               saved: input.dreamGoal.saved,
-              targetMonth: cycleAfter(input.dreamGoal.monthsRemaining),
+              targetMonth: cycleAfter(input.dreamGoal.monthsRemaining, nowDate),
             },
           },
         ]
@@ -115,7 +121,7 @@ export function applyJarPlan(input: ApplyJarPlanInput): ApplyJarPlanResult {
     ...base,
     stateVersion: base.stateVersion + 1,
     cycle: {
-      cycle: currentCycleId(),
+      cycle: currentCycleId(nowDate),
       disposable: input.disposable,
       updatedAt: now,
       ...(input.confirmed ? { confirmedAt: now } : {}),
