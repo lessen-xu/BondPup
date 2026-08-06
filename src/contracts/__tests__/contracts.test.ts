@@ -1,0 +1,59 @@
+import { describe, expect, it } from "vitest";
+import { DecisionStory, MoneyPrinciple, MoneyState } from "@/contracts";
+import { DomainError } from "@/contracts/errors";
+import { applyJarPlan } from "@/lib/plan/apply-jar-plan";
+import { createInitialMoneyState } from "@/lib/mock/money-state";
+import { commitJarDebit } from "@/server/domain/debit";
+
+describe("契约收紧(评估修正)", () => {
+  it("evidenceIds 重复被拒:同一条故事不能当两条证据", () => {
+    const r = MoneyPrinciple.safeParse({
+      id: "p1",
+      statement: "我放一晚再决定,好像更踏实",
+      evidenceIds: ["s1", "s1"],
+      status: "candidate",
+      userEdited: false,
+      createdAt: "2026-08-06T00:00:00Z",
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("intent 超过 120 字被拒(短摘要,不存完整倾诉原文)", () => {
+    const r = DecisionStory.safeParse({
+      id: "s1",
+      intent: "想".repeat(121),
+      action: "note_only",
+      status: "open",
+      createdAt: "2026-08-06T00:00:00Z",
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("旧版状态(无 safetyEvents 字段)仍能解析(default 兼容)", () => {
+    const s = applyJarPlan({ disposable: 650000, livingPlanned: 220000 }).state;
+    const legacy = JSON.parse(JSON.stringify(s)) as Record<string, unknown>;
+    delete legacy.safetyEvents;
+    const parsed = MoneyState.parse(legacy);
+    expect(parsed.safetyEvents).toEqual([]);
+  });
+
+  it("真实新会话 demo:false;合成示例才是 true", () => {
+    expect(createInitialMoneyState().demo).toBe(false);
+    expect(applyJarPlan({ disposable: 650000, livingPlanned: 220000 }).state.demo).toBe(false);
+  });
+
+  it("扣罐金额 0 被拒(不产生无意义版本更新)", () => {
+    const s = applyJarPlan({ disposable: 650000, livingPlanned: 220000 }).state;
+    try {
+      commitJarDebit(s, {
+        jarKind: "comfort",
+        amount: 0,
+        expectedStateVersion: s.stateVersion,
+        idempotencyKey: "zero",
+      });
+      expect.unreachable();
+    } catch (e) {
+      expect((e as DomainError).code).toBe("validation_error");
+    }
+  });
+});

@@ -48,7 +48,7 @@ describe("createDecisionStory", () => {
 
 describe("completeReview", () => {
   it("回看完成:status → reviewed,outcome 落地,计数 +1", () => {
-    let { state } = createDecisionStory(base(), {
+    const { state } = createDecisionStory(base(), {
       intent: "x",
       action: "buy_now",
       reviewInDays: 1,

@@ -1,14 +1,32 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { MoneyState } from "@/contracts";
 import { mockMoneyState } from "@/lib/mock/money-state";
 
 /**
  * 前端 localStorage 是 MoneyState 的真源;服务端不持久化。
- * 只存必要结构化状态与短摘要,不存真实姓名/证件/银行账户/完整倾诉原文。
+ * 只存必要结构化状态与短摘要(长度上限在 contracts 层强制),
+ * 不存真实姓名/证件/银行账户/完整倾诉原文。
  */
 const STORAGE_KEY = "bondpup.moneyState.v1";
+
+let cached: MoneyState | null | undefined;
+const listeners = new Set<() => void>();
+
+function notify(): void {
+  listeners.forEach((l) => l());
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function getSnapshot(): MoneyState | null {
+  if (cached === undefined) cached = loadMoneyState();
+  return cached;
+}
 
 export function loadMoneyState(): MoneyState | null {
   if (typeof window === "undefined") return null;
@@ -23,11 +41,16 @@ export function loadMoneyState(): MoneyState | null {
 }
 
 export function saveMoneyState(state: MoneyState): void {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(MoneyState.parse(state)));
+  const parsed = MoneyState.parse(state);
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+  cached = parsed;
+  notify();
 }
 
 export function clearMoneyState(): void {
   window.localStorage.removeItem(STORAGE_KEY);
+  cached = null;
+  notify();
 }
 
 /** 演示模式:载入合成示例(demo:true,与真实数据同键互斥,清空即退出) */
@@ -37,27 +60,30 @@ export function loadDemoState(): MoneyState {
   return demo;
 }
 
-export function useMoneyState() {
-  const [state, setState] = useState<MoneyState | null>(null);
-  const [ready, setReady] = useState(false);
+/** 数据导出(法规「可复制」义务):A 端做成下载/复制按钮即可 */
+export function exportMoneyStateJson(state: MoneyState): string {
+  return JSON.stringify(MoneyState.parse(state), null, 2);
+}
 
-  useEffect(() => {
-    setState(loadMoneyState());
-    setReady(true);
-  }, []);
+export function useMoneyState() {
+  // useSyncExternalStore:hydration 安全(服务端快照 null/false),不在 effect 里同步 setState
+  const state = useSyncExternalStore(subscribe, getSnapshot, () => null);
+  const ready = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false
+  );
 
   const commit = useCallback((next: MoneyState) => {
     saveMoneyState(next);
-    setState(next);
   }, []);
 
   const reset = useCallback(() => {
     clearMoneyState();
-    setState(null);
   }, []);
 
   const enterDemo = useCallback(() => {
-    setState(loadDemoState());
+    loadDemoState();
   }, []);
 
   return { state, ready, commit, reset, enterDemo };

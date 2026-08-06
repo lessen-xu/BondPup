@@ -1,16 +1,19 @@
 import { MoneyState } from "@/contracts";
 
-/** 当前周期 "YYYY-MM" */
+/** 当前周期 "YYYY-MM"。按本地时区:月初 00:00-08:00(北京时间)不能落到上个月 */
 export function currentCycleId(d: Date = new Date()): string {
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 /** 从当前周期往后 n 个月的周期 id */
 export function cycleAfter(months: number, from: Date = new Date()): string {
-  return currentCycleId(new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth() + months, 1)));
+  return currentCycleId(new Date(from.getFullYear(), from.getMonth() + months, 1));
 }
 
-/** 全新会话的初始状态:无周期、无罐子(无罐子也能和小狗说话,只是不能报告确定余额) */
+/**
+ * 全新会话的初始状态:无周期、无罐子(无罐子也能和小狗说话,只是不能报告确定余额)。
+ * 真实会话 demo:false;合成示例只有 mockMoneyState / enterDemo() 一条路(demo:true)。
+ */
 export function createInitialMoneyState(displayName?: string): MoneyState {
   const now = new Date().toISOString();
   return MoneyState.parse({
@@ -23,7 +26,7 @@ export function createInitialMoneyState(displayName?: string): MoneyState {
     principles: [],
     outfit: { owned: [], equipped: [], unlockSource: {}, assetsVersion: 1 },
     appliedOps: [],
-    demo: true,
+    demo: false,
   });
 }
 

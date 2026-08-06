@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { BudgetCycle, Jar, Leftover } from "./money";
 import { DecisionStory, MoneyPrinciple } from "./story";
-import { OutfitState, UserProfile } from "./user";
+import { OutfitState, SafetyEvent, UserProfile } from "./user";
 
 /**
  * 顶层业务状态。真源在前端 localStorage(或评测方自持),服务端不持久化;
@@ -19,7 +19,9 @@ export const MoneyState = z
     outfit: OutfitState,
     /** 最近应用过的 idempotencyKey,写操作去重用 */
     appliedOps: z.array(z.string()),
-    /** 合成数据明确标识(法规与评审要求) */
+    /** 安全事件审计(不含用户原文;default 兼容旧状态) */
+    safetyEvents: z.array(SafetyEvent).default([]),
+    /** 合成数据明确标识(法规与评审要求);真实新会话为 false,仅演示模式为 true */
     demo: z.boolean(),
   })
   .superRefine((s, ctx) => {

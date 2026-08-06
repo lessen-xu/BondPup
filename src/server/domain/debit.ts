@@ -27,8 +27,8 @@ export interface DebitResult {
  * 允许 actual 超过 planned(记录事实,不说「超支/不够」);永不级联到其他罐。
  */
 export function commitJarDebit(state: MoneyState, req: DebitRequest): DebitResult {
-  if (!Cents.safeParse(req.amount).success) {
-    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)");
+  if (!Cents.safeParse(req.amount).success || req.amount === 0) {
+    throw new DomainError("validation_error", "金额必须是正整数(单位:分)");
   }
   const undoToken = `${UNDO_PREFIX}${req.jarKind}:${req.amount}:${req.idempotencyKey}`;
   if (state.appliedOps.includes(req.idempotencyKey)) {

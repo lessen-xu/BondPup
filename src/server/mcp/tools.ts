@@ -5,6 +5,7 @@ import { Cents, JarKind, MoneyState } from "@/contracts";
 import { DomainError } from "@/contracts/errors";
 import { LivingItems } from "@/server/domain/living";
 import { commitJarDebit, undoJarDebit } from "@/server/domain/debit";
+import { detectSafetyRisk, recordSafetyEvent, safetyReplyFor } from "@/server/safety/risk";
 import { applyJarPlan } from "@/lib/plan/apply-jar-plan";
 import { createInitialMoneyState } from "@/lib/mock/money-state";
 
@@ -21,17 +22,34 @@ import { createInitialMoneyState } from "@/lib/mock/money-state";
  */
 const sessions = new Map<string, MoneyState>();
 
+/**
+ * moneyState 用 unknown 承接、运行时再 parse:
+ * 完整 MoneyState 的 JSON Schema 重复内嵌 5 个工具会让 tools/list 膨胀数十 KB,
+ * 校验严格度不变(resolveState 里 MoneyState.parse),只是不在 schema 里展开。
+ */
 const SessionRef = {
   sessionId: z.string().optional(),
-  moneyState: MoneyState.optional(),
+  moneyState: z
+    .unknown()
+    .optional()
+    .describe("上一步响应返回的完整 moneyState,原样链回(跨实例的主路径)"),
 };
 
-function resolveState(ref: { sessionId?: string; moneyState?: MoneyState }): {
+function resolveState(ref: { sessionId?: string; moneyState?: unknown }): {
   sessionId: string;
   state: MoneyState;
 } {
   const sessionId = ref.sessionId ?? randomUUID();
-  const state = ref.moneyState ?? sessions.get(sessionId) ?? createInitialMoneyState();
+  let state: MoneyState;
+  if (ref.moneyState !== undefined) {
+    const parsed = MoneyState.safeParse(ref.moneyState);
+    if (!parsed.success) {
+      throw new DomainError("validation_error", "moneyState 不合法:请原样链回上一步响应里的 moneyState");
+    }
+    state = parsed.data;
+  } else {
+    state = sessions.get(sessionId) ?? createInitialMoneyState();
+  }
   return { sessionId, state };
 }
 
@@ -94,7 +112,7 @@ export function registerBondPupTools(server: McpServer): void {
     {
       title: "创建慢慢会话",
       description:
-        "创建一个新的陪伴会话。返回 sessionId 与初始 moneyState(demo:true 合成数据标识)。后续工具可传 sessionId,或直接把上一步返回的 moneyState 链回来。",
+        "创建一个新的陪伴会话。返回 sessionId 与初始 moneyState。后续工具可传 sessionId,或直接把上一步返回的 moneyState 链回来(跨实例的主路径)。",
       inputSchema: z.object({ displayName: z.string().optional() }),
     },
     async ({ displayName }) => {
@@ -118,7 +136,7 @@ export function registerBondPupTools(server: McpServer): void {
     {
       title: "四罐分配(恒等式)",
       description:
-        "按四罐恒等式计算本月安排:生活.planned + 安心.planned + 梦想月供 + 未来.planned = 可安排金额;余数进安心罐;未来罐默认 0 且永不自动接收。金额一律为分(非负整数)。写操作:可带 expectedStateVersion 与 idempotencyKey。结果需用户确认才算数。",
+        "按四罐恒等式计算本月安排:生活.planned + 安心.planned + 梦想月供 + 未来.planned = 可安排金额;余数进安心罐;未来罐默认 0 且永不自动接收。金额一律为分(非负整数)。默认只预览(不改状态);confirm=true 才写入(乐观锁 + 幂等,幂等键未提供时服务端生成并随响应返回)。",
       inputSchema: z.object({
         ...SessionRef,
         disposable: Cents,
@@ -126,6 +144,10 @@ export function registerBondPupTools(server: McpServer): void {
         livingItems: LivingItems.optional(),
         dreamGoal: DreamGoalInput.optional(),
         futurePlanned: Cents.default(0),
+        confirm: z
+          .boolean()
+          .default(false)
+          .describe("false=只预览不写状态;true=用户已确认,写入并盖 confirmedAt"),
         expectedStateVersion: z.number().int().min(1).optional(),
         idempotencyKey: z.string().optional(),
       }),
@@ -133,9 +155,31 @@ export function registerBondPupTools(server: McpServer): void {
     async (input) => {
       try {
         const { sessionId, state } = resolveState(input);
+        if (!input.confirm) {
+          // 预览:金额=代码算,结果=用户确认——确认前状态一个字节都不动
+          remember(sessionId, state);
+          const { plan, note } = applyJarPlan({
+            baseState: state,
+            disposable: input.disposable,
+            livingPlanned: input.livingPlanned,
+            livingItems: input.livingItems,
+            dreamGoal: input.dreamGoal,
+            futurePlanned: input.futurePlanned,
+          });
+          return ok({
+            sessionId,
+            preview: true,
+            plan,
+            note,
+            requiresConfirmation: true,
+            howToConfirm: "确认无误后用相同参数加 confirm:true 再调一次",
+            moneyState: state,
+          });
+        }
         if (checkWriteMeta(state, input) === "idempotent") {
           return ok({ sessionId, idempotent: true, moneyState: state });
         }
+        const idempotencyKey = input.idempotencyKey ?? randomUUID();
         const { state: newState, plan, note } = applyJarPlan({
           baseState: state,
           disposable: input.disposable,
@@ -143,14 +187,16 @@ export function registerBondPupTools(server: McpServer): void {
           livingItems: input.livingItems,
           dreamGoal: input.dreamGoal,
           futurePlanned: input.futurePlanned,
-          idempotencyKey: input.idempotencyKey,
+          idempotencyKey,
+          confirmed: true,
         });
         remember(sessionId, newState);
         return ok({
           sessionId,
+          confirmed: true,
           plan,
-          requiresConfirmation: true,
           note,
+          idempotencyKey,
           moneyState: newState,
         });
       } catch (e) {
@@ -175,6 +221,19 @@ export function registerBondPupTools(server: McpServer): void {
     async (input) => {
       try {
         const { sessionId, state } = resolveState(input);
+        // 安全红线输入闸:命中即不给罐子建议,返回安全回应并留审计(不含原文)
+        const hit = detectSafetyRisk(input.description);
+        if (hit) {
+          const reply = safetyReplyFor(hit.riskType);
+          const audited = recordSafetyEvent(state, hit, "mcp_record_money_moment_safety_reply");
+          remember(sessionId, audited);
+          return ok({
+            sessionId,
+            safety: reply.safety,
+            reply: reply.text,
+            moneyState: audited,
+          });
+        }
         remember(sessionId, state);
         if (input.amount === undefined) {
           return ok({
@@ -240,17 +299,19 @@ export function registerBondPupTools(server: McpServer): void {
         if (input.jarKind === undefined || input.amount === undefined) {
           throw new DomainError("validation_error", "确认扣罐需要 jarKind 与 amount");
         }
+        const idempotencyKey = input.idempotencyKey ?? randomUUID();
         const result = commitJarDebit(state, {
           jarKind: input.jarKind,
           amount: input.amount,
           storyId: input.storyId,
           expectedStateVersion: input.expectedStateVersion ?? state.stateVersion,
-          idempotencyKey: input.idempotencyKey ?? randomUUID(),
+          idempotencyKey,
         });
         remember(sessionId, result.state);
         return ok({
           sessionId,
           reply: `已从${JAR_LABEL[input.jarKind]}记下 ${fmtYuan(input.amount)}。想撤销随时说。`,
+          idempotencyKey,
           undoToken: result.undoToken,
           ...(result.overPlan > 0
             ? { overPlanNote: `这个月${JAR_LABEL[input.jarKind]}记的比计划多了 ${fmtYuan(result.overPlan)},数字我先记着,不急着调整。` }
