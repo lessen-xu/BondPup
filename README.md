@@ -4,8 +4,8 @@
 
 慢慢是一只可以聊钱的小狗:四种罐子(生活/安心/梦想/未来)记住当下安排,真实回看形成经你确认的「金钱原则」,让下一次回应真正属于你。
 
-- 体验 URL:_部署后填写_
-- MCP URL:_部署后填写_`/mcp`(Streamable HTTP;2026-07-28 规范原生 + 2025-era 回退,同一端点两代兼容)
+- 体验 URL:https://bondpup.vercel.app
+- MCP URL:`https://bondpup.vercel.app/mcp`(Streamable HTTP;2026-07-28 规范原生 + 2025-era 回退,同一端点两代兼容)
 
 ## Quick Verify(评审推荐路径)
 
