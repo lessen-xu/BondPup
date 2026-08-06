@@ -3,10 +3,10 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { Cents, JarKind, MoneyState } from "@/contracts";
 import { DomainError } from "@/contracts/errors";
-import { computeJars } from "@/server/domain/jars";
-import { computeLivingJar, LivingItems } from "@/server/domain/living";
-import { computeMonthlyContribution } from "@/server/domain/monthly";
-import { createInitialMoneyState, currentCycleId, cycleAfter } from "@/lib/mock/money-state";
+import { LivingItems } from "@/server/domain/living";
+import { commitJarDebit, undoJarDebit } from "@/server/domain/debit";
+import { applyJarPlan } from "@/lib/plan/apply-jar-plan";
+import { createInitialMoneyState } from "@/lib/mock/money-state";
 
 /**
  * MCP 工具面(2026-08-06 冻结,≤5 个,读写分明):
@@ -136,65 +136,21 @@ export function registerBondPupTools(server: McpServer): void {
         if (checkWriteMeta(state, input) === "idempotent") {
           return ok({ sessionId, idempotent: true, moneyState: state });
         }
-        const livingPlanned =
-          input.livingPlanned ?? (input.livingItems ? computeLivingJar(input.livingItems) : 0);
-        const dreamMonthly = input.dreamGoal
-          ? computeMonthlyContribution({
-              goal: { amount: input.dreamGoal.amount, saved: input.dreamGoal.saved },
-              monthsRemaining: input.dreamGoal.monthsRemaining,
-            })
-          : 0;
-        const r = computeJars({
+        const { state: newState, plan, note } = applyJarPlan({
+          baseState: state,
           disposable: input.disposable,
-          livingPlanned,
-          dreamMonthly,
+          livingPlanned: input.livingPlanned,
+          livingItems: input.livingItems,
+          dreamGoal: input.dreamGoal,
           futurePlanned: input.futurePlanned,
-        });
-        const now = new Date().toISOString();
-        const jars = [
-          { id: "jar-living", kind: "living", label: "生活罐", renamable: false, planned: r.living, actual: 0, updatedAt: now },
-          { id: "jar-comfort", kind: "comfort", label: "安心罐", renamable: false, planned: r.comfort, actual: 0, updatedAt: now },
-          ...(input.dreamGoal
-            ? [
-                {
-                  id: "jar-dream",
-                  kind: "dream",
-                  label: input.dreamGoal.name,
-                  renamable: true,
-                  planned: r.dream,
-                  actual: 0,
-                  updatedAt: now,
-                  goal: {
-                    name: input.dreamGoal.name,
-                    amount: input.dreamGoal.amount,
-                    saved: input.dreamGoal.saved,
-                    targetMonth: cycleAfter(input.dreamGoal.monthsRemaining),
-                  },
-                },
-              ]
-            : []),
-          ...(r.future > 0
-            ? [{ id: "jar-future", kind: "future", label: "未来罐", renamable: false, planned: r.future, actual: 0, updatedAt: now }]
-            : []),
-        ];
-        const newState = MoneyState.parse({
-          ...state,
-          stateVersion: state.stateVersion + 1,
-          cycle: { cycle: currentCycleId(), disposable: input.disposable, updatedAt: now },
-          jars,
-          appliedOps: input.idempotencyKey
-            ? [...state.appliedOps.slice(-19), input.idempotencyKey]
-            : state.appliedOps,
+          idempotencyKey: input.idempotencyKey,
         });
         remember(sessionId, newState);
         return ok({
           sessionId,
-          plan: { ...r, dreamMonthly },
+          plan,
           requiresConfirmation: true,
-          note:
-            r.shortfall > 0
-              ? `按这个安排会差 ${fmtYuan(r.shortfall)}。差的部分放在哪里由你来定,我不会自动动别的罐子。`
-              : `剩下的 ${fmtYuan(r.comfort)} 进了安心罐——这是这个月可以不愧疚地用在当下的部分。`,
+          note,
           moneyState: newState,
         });
       } catch (e) {
@@ -245,14 +201,15 @@ export function registerBondPupTools(server: McpServer): void {
   server.registerTool(
     "confirm_jar_action",
     {
-      title: "确认扣罐",
+      title: "确认扣罐 / 撤销",
       description:
-        "确认 record_money_moment 的候选动作并扣罐(actual 增加),返回新 moneyState 与撤销令牌。写操作:带 expectedStateVersion 与 idempotencyKey;罐子不足时把取舍露给用户,绝不静默扣另一个罐。",
+        "确认 record_money_moment 的候选动作并扣罐(actual 增加),返回新 moneyState 与撤销令牌;传 undoToken 则撤销对应扣罐。confirm=false 表示只说说、不改余额。写操作:乐观锁 + 幂等;允许 actual 超过计划(不评判);绝不静默扣另一个罐。",
       inputSchema: z.object({
         ...SessionRef,
-        jarKind: JarKind,
-        amount: Cents,
-        confirm: z.boolean(),
+        jarKind: JarKind.optional(),
+        amount: Cents.optional(),
+        confirm: z.boolean().default(true),
+        undoToken: z.string().optional(),
         storyId: z.string().optional(),
         expectedStateVersion: z.number().int().min(1).optional(),
         idempotencyKey: z.string().optional(),
@@ -261,14 +218,45 @@ export function registerBondPupTools(server: McpServer): void {
     async (input) => {
       try {
         const { sessionId, state } = resolveState(input);
-        remember(sessionId, state);
-        // schema 已冻结;扣罐实现(commitJarDebit:乐观锁/幂等/不级联)按计划 2026-08-08 上线
+        if (input.undoToken) {
+          const undone = undoJarDebit(state, input.undoToken);
+          remember(sessionId, undone);
+          return ok({
+            sessionId,
+            undone: true,
+            reply: "好,这笔当作没记过。",
+            moneyState: undone,
+          });
+        }
+        if (!input.confirm) {
+          remember(sessionId, state);
+          return ok({
+            sessionId,
+            mode: "note_only",
+            reply: "好,只说说,不改余额。",
+            moneyState: state,
+          });
+        }
+        if (input.jarKind === undefined || input.amount === undefined) {
+          throw new DomainError("validation_error", "确认扣罐需要 jarKind 与 amount");
+        }
+        const result = commitJarDebit(state, {
+          jarKind: input.jarKind,
+          amount: input.amount,
+          storyId: input.storyId,
+          expectedStateVersion: input.expectedStateVersion ?? state.stateVersion,
+          idempotencyKey: input.idempotencyKey ?? randomUUID(),
+        });
+        remember(sessionId, result.state);
         return ok({
           sessionId,
-          status: "stub",
-          plannedFor: "2026-08-08",
-          echo: { jarKind: input.jarKind, amount: input.amount, confirm: input.confirm },
-          moneyState: state,
+          reply: `已从${JAR_LABEL[input.jarKind]}记下 ${fmtYuan(input.amount)}。想撤销随时说。`,
+          undoToken: result.undoToken,
+          ...(result.overPlan > 0
+            ? { overPlanNote: `这个月${JAR_LABEL[input.jarKind]}记的比计划多了 ${fmtYuan(result.overPlan)},数字我先记着,不急着调整。` }
+            : {}),
+          ...(result.idempotent ? { idempotent: true } : {}),
+          moneyState: result.state,
         });
       } catch (e) {
         return fail(e);
