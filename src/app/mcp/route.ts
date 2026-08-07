@@ -16,7 +16,7 @@ const guarded = async (req: Request): Promise<Response> => {
     return mcpHandler(req);
   }
   const raw = await req.text();
-  if (raw.length > MAX_MCP_BODY_BYTES) {
+  if (Buffer.byteLength(raw, "utf8") > MAX_MCP_BODY_BYTES) {
     return guardError(413, "validation_error", "请求体过大");
   }
   return mcpHandler(new Request(req.url, { method: req.method, headers: req.headers, body: raw }));

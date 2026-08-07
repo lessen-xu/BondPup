@@ -107,6 +107,95 @@ describe("completeReview", () => {
   });
 });
 
+describe("completeReview 补记账(决定→回看→余额一致)", () => {
+  function decided() {
+    const s = base();
+    return createDecisionStory(s, {
+      intent: "犹豫一双鞋",
+      action: "buy_now",
+      amount: 30000,
+      expectedStateVersion: s.stateVersion,
+      idempotencyKey: "d1",
+    });
+  }
+
+  it("log_decision 的故事回看确认实际买了 → 罐子入账、confirmedJar 落地", () => {
+    const { state } = decided();
+    const r = completeReview(state, {
+      storyId: "story-d1",
+      happened: true,
+      actualAmount: 30000,
+      debitJar: "comfort",
+      expectedStateVersion: state.stateVersion,
+      idempotencyKey: "r1",
+    });
+    expect(r.appliedDebit).toEqual({ jarKind: "comfort", amount: 30000, overPlan: 0 });
+    expect(r.state.jars.find((j) => j.kind === "comfort")!.actual).toBe(30000);
+    expect(r.story.confirmedJar).toBe("comfort");
+  });
+
+  it("金额缺省取故事金额;没发生却要记账 → validation_error", () => {
+    const { state } = decided();
+    const r = completeReview(state, {
+      storyId: "story-d1",
+      happened: true,
+      debitJar: "comfort",
+      expectedStateVersion: state.stateVersion,
+      idempotencyKey: "r1",
+    });
+    expect(r.appliedDebit?.amount).toBe(30000);
+    const { state: s2 } = decided();
+    try {
+      completeReview(s2, {
+        storyId: "story-d1",
+        happened: false,
+        debitJar: "comfort",
+        expectedStateVersion: s2.stateVersion,
+        idempotencyKey: "r2",
+      });
+      expect.unreachable();
+    } catch (e) {
+      expect((e as DomainError).code).toBe("validation_error");
+    }
+  });
+
+  it("已扣过罐的故事(confirm_debit 创建)再补记账 → state_conflict", () => {
+    const s = base();
+    const created = createDecisionStory(s, {
+      intent: "x",
+      action: "buy_now",
+      amount: 10000,
+      confirmedJar: "comfort",
+      expectedStateVersion: s.stateVersion,
+      idempotencyKey: "d2",
+    });
+    try {
+      completeReview(created.state, {
+        storyId: "story-d2",
+        happened: true,
+        debitJar: "comfort",
+        expectedStateVersion: created.state.stateVersion,
+        idempotencyKey: "r1",
+      });
+      expect.unreachable();
+    } catch (e) {
+      expect((e as DomainError).code).toBe("state_conflict");
+    }
+  });
+
+  it("不带 debitJar 的回看照旧只记结果,不动罐子", () => {
+    const { state } = decided();
+    const r = completeReview(state, {
+      storyId: "story-d1",
+      happened: true,
+      expectedStateVersion: state.stateVersion,
+      idempotencyKey: "r1",
+    });
+    expect(r.appliedDebit).toBeUndefined();
+    expect(r.state.jars.find((j) => j.kind === "comfort")!.actual).toBe(0);
+  });
+});
+
 describe("dueReviews", () => {
   it("只返回到期且未回看的;不约回看的不出现", () => {
     let { state } = createDecisionStory(base(), {

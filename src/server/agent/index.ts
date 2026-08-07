@@ -23,6 +23,8 @@ export type AgentRunOutput = AgentTaskOutput & {
   provider?: AgentProvider;
   /** 输入闸命中时的审计草稿(不含原文);持有 moneyState 的一方用 recordSafetyEvent 写入 */
   safetyEvent?: { riskType: string; triggeredRule: string; responseTaken: string };
+  /** 真实 provider 失败降级 Mock 时的原因(不含用户输入),便于排查 */
+  degraded?: { from: "anthropic" | "compat"; reason: string };
 };
 
 function pickProvider(): AgentProvider {
@@ -37,17 +39,29 @@ function pickProvider(): AgentProvider {
   return "mock";
 }
 
+export interface DegradeInfo {
+  from: Exclude<AgentProvider, "mock">;
+  /** 错误类名与截断消息,不含用户输入 */
+  reason: string;
+}
+
 async function runProviderTask(
   input: AgentTaskInput
-): Promise<{ out: AgentTaskOutput; provider: AgentProvider }> {
+): Promise<{ out: AgentTaskOutput; provider: AgentProvider; degraded?: DegradeInfo }> {
   const provider = pickProvider();
   if (provider !== "mock") {
     try {
       const out =
         provider === "anthropic" ? await runAnthropicTask(input) : await runCompatTask(input);
       return { out, provider };
-    } catch {
-      // 超时/限流/解析失败 → 确定性 Mock 降级,体验不断
+    } catch (e) {
+      // 超时/限流/解析失败 → 确定性 Mock 降级,体验不断;原因入日志(不含用户输入),不静默
+      const reason =
+        e instanceof Error ? `${e.name}: ${e.message}`.slice(0, 200) : String(e).slice(0, 120);
+      console.error(
+        JSON.stringify({ event: "provider_degraded", provider, task: input.task, reason })
+      );
+      return { out: runMockAgentTask(input), provider: "mock", degraded: { from: provider, reason } };
     }
   }
   return { out: runMockAgentTask(input), provider: "mock" };
@@ -71,16 +85,16 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutpu
       };
     }
   }
-  const { out, provider } = await runProviderTask(input);
+  const { out, provider, degraded } = await runProviderTask(input);
   // 输出闸:禁用词/句数不合格 → 重试一次 → 仍不合格用安全兜底,绝不放行违规文本
   if (out.task === "companion_reply" && validateReplyText(out.result.text).length > 0) {
     const retry = await runProviderTask(input);
     if (retry.out.task === "companion_reply" && validateReplyText(retry.out.result.text).length === 0) {
-      return { ...retry.out, provider: retry.provider };
+      return { ...retry.out, provider: retry.provider, ...(retry.degraded ? { degraded: retry.degraded } : {}) };
     }
     return { task: "companion_reply", result: SAFE_FALLBACK, provider };
   }
-  return { ...out, provider };
+  return { ...out, provider, ...(degraded ? { degraded } : {}) };
 }
 
 type PrincipleGenerator = (
