@@ -57,8 +57,18 @@ export function commitJarDebit(state: MoneyState, req: DebitRequest): DebitResul
   return { state: newState, undoToken, overPlan: Math.max(0, newActual - jar.planned) };
 }
 
-/** 撤销一笔扣罐:令牌自包含;key 必须还在 appliedOps 里(防伪造/重复撤销) */
-export function undoJarDebit(state: MoneyState, undoToken: string): MoneyState {
+/** 撤销一笔扣罐:令牌自包含;key 必须还在 appliedOps 里(防伪造/重复撤销);带乐观锁 */
+export function undoJarDebit(
+  state: MoneyState,
+  undoToken: string,
+  expectedStateVersion: number
+): MoneyState {
+  if (expectedStateVersion !== state.stateVersion) {
+    throw new DomainError(
+      "state_conflict",
+      `stateVersion 不匹配:期望 ${expectedStateVersion},当前 ${state.stateVersion}`
+    );
+  }
   if (!undoToken.startsWith(UNDO_PREFIX)) {
     throw new DomainError("validation_error", "撤销令牌不合法");
   }

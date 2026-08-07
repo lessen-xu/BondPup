@@ -8,8 +8,21 @@ describe("detectSafetyRisk 输入闸", () => {
   it("自伤 / 借贷 / 投资分别命中,普通消费不命中", () => {
     expect(detectSafetyRisk("最近觉得活着没意思,不想活了")?.riskType).toBe("self_harm");
     expect(detectSafetyRisk("我想开个网贷把这个月撑过去")?.riskType).toBe("debt_loan");
+    expect(detectSafetyRisk("有人推荐我做借贷周转")?.riskType).toBe("debt_loan");
     expect(detectSafetyRisk("要不要拿工资去炒股翻倍")?.riskType).toBe("investment");
     expect(detectSafetyRisk("同事约我出去玩花了 400,有点后悔")).toBeNull();
+  });
+
+  it("归一化:空格/标点/全角变体也命中", () => {
+    expect(detectSafetyRisk("不 想,活 了")?.riskType).toBe("self_harm");
+    expect(detectSafetyRisk("网 贷!")?.riskType).toBe("debt_loan");
+  });
+
+  it("泛化情绪命中 generic_emotion,回应先接情绪再转回钱", () => {
+    expect(detectSafetyRisk("最近天天失眠,压力好大")?.riskType).toBe("generic_emotion");
+    const reply = safetyReplyFor("generic_emotion");
+    expect(reply.safety?.exit).toBe(false);
+    expect(reply.text).toContain("钱");
   });
 });
 
