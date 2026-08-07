@@ -1,3 +1,6 @@
+/* eslint-disable @next/next/no-img-element --
+   手绘场景资产使用绝对定位与百分比尺寸,next/image 的容器约束
+   会破坏舞台布局。资产已预先压缩,尺寸可控。 */
 type LeftoverProps = { amount: number; onOpen: () => void };
 
 export function Leftover({ amount, onOpen }: LeftoverProps) {

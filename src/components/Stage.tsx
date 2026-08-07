@@ -1,35 +1,51 @@
+/* eslint-disable @next/next/no-img-element --
+   手绘场景资产使用绝对定位与百分比尺寸,next/image 的容器约束
+   会破坏舞台布局。资产已预先压缩,尺寸可控。 */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import type { JarKind, MoneyState } from "@/contracts";
 import { layout } from "@/config/layout";
-import { useAlias } from "@/lib/state/alias-store";
-import { useDecisionStore } from "@/lib/state/decision-store";
 import { script, withAlias } from "@/mock/script";
-import { buyScript, reviewScript } from "@/mock/剧本";
-import type { HomeData, HomeJarKind } from "@/types/home";
+import { DEMO } from "@/mock/剧本";
+import { useMoneyState } from "@/lib/state/money-store";
 import { Dog } from "./Dog";
 import { JarGroup } from "./JarGroup";
 import { Leftover } from "./Leftover";
 import { TextEntry } from "./TextEntry";
 import { HandDrawnUnderline } from "./HandDrawnUnderline";
 
-type StageProps = { data: HomeData };
+type StageProps = {
+  state: MoneyState;
+  demoIntro?: boolean;
+  onDismissDemoIntro?: () => void;
+};
 
 const homeComposition = {
-  tableGroup: { left: "35%", bottom: "44%", width: "63%" },
-  dog: { left: "8%", bottom: "17.5%", width: "54.5%" },
+  tableGroup: { left: "35%", bottom: "47%", width: "63%" },
+  dog: { left: "8%", bottom: "18.5%", width: "60%" },
 } as const;
 
-export function Stage({ data }: StageProps) {
+export function Stage({ state, demoIntro = false, onDismissDemoIntro }: StageProps) {
   const router = useRouter();
-  const { alias } = useAlias();
-  const { records, ready: decisionsReady } = useDecisionStore();
-  const [selectedKind, setSelectedKind] = useState<HomeJarKind | null>(null);
-  const hasDueReview = decisionsReady && records.some((record) => (
-    record.status === buyScript.pending && new Date(record.reviewAt).getTime() <= Date.now()
-  ));
+  const { reset } = useMoneyState();
+  const alias = state.profile.displayName?.trim() || "慢慢";
+  const [selectedKind, setSelectedKind] = useState<JarKind | null>(null);
+  const [demoExitPending, setDemoExitPending] = useState(false);
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    const updateNow = () => setNow(Date.now());
+    updateNow();
+    const interval = window.setInterval(updateNow, 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
+  const hasDueReview = useMemo(() => (
+    now !== null && state.stories.some((record) => (
+      record.status === "open" && record.reviewAt !== undefined && Date.parse(record.reviewAt) <= now
+    ))
+  ), [now, state.stories]);
   const stageStyle = {
     "--table-left": homeComposition.tableGroup.left,
     "--table-bottom": homeComposition.tableGroup.bottom,
@@ -46,23 +62,31 @@ export function Stage({ data }: StageProps) {
     <main className="stage-shell">
       <section className="stage" style={stageStyle} aria-label={`小狗${alias}首页`} onClick={() => setSelectedKind(null)}>
         <section className="jar-layer" aria-label="桌面上的四个罐子" onClick={(event) => event.stopPropagation()}>
-          <JarGroup jars={data.jars} selectedKind={selectedKind} onSelect={setSelectedKind} />
+          <JarGroup jars={state.jars} selectedKind={selectedKind} onSelect={setSelectedKind} />
         </section>
 
         <section className="dog-layer" aria-label={alias} onClick={(event) => event.stopPropagation()}>
-          <Dog page="首页" message={withAlias(script.home.bubbleHint, alias)} onActivate={() => router.push("/talk")} />
+          <Dog page="首页" alias={alias} message={withAlias(script.home.bubbleHint, alias)} onActivate={() => router.push("/talk")} />
         </section>
 
-        <img className="dog-food-bowl" src="/assets/狗粮盆.jpg" alt="" aria-hidden="true" />
+        <button className="vault-entry" type="button" onClick={(event) => { event.stopPropagation(); router.push("/vault"); }}>
+          <img src="/assets/小金库.png" alt="" aria-hidden="true" />
+          <span>{alias}的小金库</span>
+        </button>
 
-        <Leftover amount={data.leftover.amount} onOpen={() => router.push("/leftover")} />
+        <Leftover amount={state.leftover.amount} onOpen={() => router.push("/leftover")} />
+
+        {state.demo && <span className="demo-badge">{DEMO.badge}</span>}
+        {state.demo && demoIntro && <aside className="demo-intro" aria-live="polite"><p>{DEMO.enterLine}</p><p>{DEMO.enterSub}</p><button type="button" onClick={(event) => { event.stopPropagation(); onDismissDemoIntro?.(); }}>知道了</button></aside>}
+        {state.demo && <button className="demo-exit" type="button" onClick={(event) => { event.stopPropagation(); setDemoExitPending(true); }}>{DEMO.exitLabel}</button>}
+        {state.demo && demoExitPending && <aside className="demo-confirm" aria-live="polite" onClick={(event) => event.stopPropagation()}><p>{DEMO.exitConfirm}</p><div><button type="button" onClick={() => { reset(); setDemoExitPending(false); router.push("/"); }}>{DEMO.exitYes}</button><button type="button" onClick={() => setDemoExitPending(false)}>{DEMO.exitNo}</button></div></aside>}
 
         <nav className="utility-links" aria-label="页面工具">
           <span className="utility-link">
             <button type="button" onClick={(event) => { event.stopPropagation(); router.push("/settings"); }}>{script.home.settings}</button>
           </span>
           <span className="utility-link">
-            <button type="button" onClick={(event) => { event.stopPropagation(); router.push("/cards"); }}>{script.home.cards}</button>
+            <button type="button" onClick={(event) => { event.stopPropagation(); router.push("/outfit"); }}>{script.home.outfit}</button>
           </span>
         </nav>
 
@@ -71,13 +95,9 @@ export function Stage({ data }: StageProps) {
           <TextEntry className="talk-entry talk-entry-money" onClick={() => router.push("/talk?topic=money")}>{script.home.moneyEntry.replace("想说说", "\n想说说")}</TextEntry>
         </nav>
 
-        <span className="outfit-entry">
-          <button type="button" onClick={(event) => { event.stopPropagation(); router.push("/outfit"); }}>{script.home.outfit}</button>
-        </span>
-
         {hasDueReview && (
           <span className="review-entry">
-            <button type="button" onClick={(event) => { event.stopPropagation(); router.push("/reviews"); }}>{reviewScript.homeEntry}</button>
+            <button type="button" onClick={(event) => { event.stopPropagation(); router.push("/reviews"); }}>{script.home.review}</button>
             <HandDrawnUnderline className="entry-underline" />
           </span>
         )}
