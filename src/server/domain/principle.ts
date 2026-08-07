@@ -1,6 +1,7 @@
 import { DecisionStory, MoneyPrinciple, MoneyState } from "@/contracts";
 import { DomainError } from "@/contracts/errors";
 import { reviewedCount } from "@/server/domain/story";
+import { validatePrincipleStatement } from "@/server/safety/validate";
 
 /**
  * 金钱原则:用户拥有、可撤回的长期记忆,不是模型总结的人格。
@@ -93,8 +94,15 @@ export function resolvePrinciple(state: MoneyState, req: ResolvePrincipleRequest
   if (!existing) {
     throw new DomainError("not_found", "没有找到这条原则");
   }
-  if (req.decision === "edit" && !req.editedText?.trim()) {
-    throw new DomainError("validation_error", "改说法需要新的文字");
+  if (req.decision === "edit") {
+    if (!req.editedText?.trim()) {
+      throw new DomainError("validation_error", "改说法需要新的文字");
+    }
+    // 用户的文字优先,但同样不能是贴标签/说教式的句子——引用时是小狗在复述它
+    const failures = validatePrincipleStatement(req.editedText);
+    if (failures.length > 0) {
+      throw new DomainError("validation_error", `这个说法先不能用:${failures.map((f) => f.message).join(";")}`);
+    }
   }
   const principle = MoneyPrinciple.parse({
     ...existing,

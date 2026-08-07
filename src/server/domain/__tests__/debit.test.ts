@@ -91,7 +91,7 @@ describe("commitJarDebit 扣罐", () => {
 });
 
 describe("undoJarDebit 撤销", () => {
-  it("扣→撤销:金额守恒、key 移除、版本 +1", () => {
+  it("扣→撤销:金额守恒、扣罐 key 移除、撤销自身 key 入账、版本 +1", () => {
     const s = planState();
     const r = commitJarDebit(s, {
       jarKind: "comfort",
@@ -99,13 +99,18 @@ describe("undoJarDebit 撤销", () => {
       expectedStateVersion: s.stateVersion,
       idempotencyKey: "op-1",
     });
-    const undone = undoJarDebit(r.state, r.undoToken, r.state.stateVersion);
-    expect(undone.jars.find((j) => j.kind === "comfort")!.actual).toBe(0);
-    expect(undone.appliedOps).not.toContain("op-1");
-    expect(undone.stateVersion).toBe(r.state.stateVersion + 1);
+    const u = undoJarDebit(r.state, r.undoToken, {
+      expectedStateVersion: r.state.stateVersion,
+      idempotencyKey: "undo-1",
+    });
+    expect(u.undoneKey).toBe("op-1");
+    expect(u.state.jars.find((j) => j.kind === "comfort")!.actual).toBe(0);
+    expect(u.state.appliedOps).not.toContain("op-1");
+    expect(u.state.appliedOps).toContain("undo-1");
+    expect(u.state.stateVersion).toBe(r.state.stateVersion + 1);
   });
 
-  it("重复撤销同一令牌 → not_found", () => {
+  it("撤销自身幂等:同 key 重试原样返回;换 key 再撤 → not_found", () => {
     const s = planState();
     const r = commitJarDebit(s, {
       jarKind: "comfort",
@@ -113,9 +118,21 @@ describe("undoJarDebit 撤销", () => {
       expectedStateVersion: s.stateVersion,
       idempotencyKey: "op-1",
     });
-    const undone = undoJarDebit(r.state, r.undoToken, r.state.stateVersion);
+    const u = undoJarDebit(r.state, r.undoToken, {
+      expectedStateVersion: r.state.stateVersion,
+      idempotencyKey: "undo-1",
+    });
+    const replay = undoJarDebit(u.state, r.undoToken, {
+      expectedStateVersion: 999,
+      idempotencyKey: "undo-1",
+    });
+    expect(replay.idempotent).toBe(true);
+    expect(replay.state.stateVersion).toBe(u.state.stateVersion);
     try {
-      undoJarDebit(undone, r.undoToken, undone.stateVersion);
+      undoJarDebit(u.state, r.undoToken, {
+        expectedStateVersion: u.state.stateVersion,
+        idempotencyKey: "undo-2",
+      });
       expect.unreachable();
     } catch (e) {
       expect((e as DomainError).code).toBe("not_found");
@@ -126,7 +143,7 @@ describe("undoJarDebit 撤销", () => {
     const s = planState();
     for (const bad of ["nonsense", "undo:v1:comfort", "undo:v1:comfort:abc:op-1", "undo:v1:closet:100:op-1"]) {
       try {
-        undoJarDebit(s, bad, s.stateVersion);
+        undoJarDebit(s, bad, { expectedStateVersion: s.stateVersion, idempotencyKey: "u" });
         expect.unreachable();
       } catch (e) {
         expect((e as DomainError).code).toBe("validation_error");

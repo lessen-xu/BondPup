@@ -4,6 +4,10 @@ import { DomainError } from "@/contracts/errors";
 
 const UNDO_PREFIX = "undo:v1:";
 
+export function makeUndoToken(jarKind: JarKind, amount: number, idempotencyKey: string): string {
+  return `${UNDO_PREFIX}${jarKind}:${amount}:${idempotencyKey}`;
+}
+
 export interface DebitRequest {
   jarKind: JarKind;
   /** 单位:分 */
@@ -30,7 +34,7 @@ export function commitJarDebit(state: MoneyState, req: DebitRequest): DebitResul
   if (!Cents.safeParse(req.amount).success || req.amount === 0) {
     throw new DomainError("validation_error", "金额必须是正整数(单位:分)");
   }
-  const undoToken = `${UNDO_PREFIX}${req.jarKind}:${req.amount}:${req.idempotencyKey}`;
+  const undoToken = makeUndoToken(req.jarKind, req.amount, req.idempotencyKey);
   if (state.appliedOps.includes(req.idempotencyKey)) {
     return { state, undoToken, overPlan: 0, idempotent: true };
   }
@@ -57,18 +61,19 @@ export function commitJarDebit(state: MoneyState, req: DebitRequest): DebitResul
   return { state: newState, undoToken, overPlan: Math.max(0, newActual - jar.planned) };
 }
 
-/** 撤销一笔扣罐:令牌自包含;key 必须还在 appliedOps 里(防伪造/重复撤销);带乐观锁 */
+export interface UndoResult {
+  state: MoneyState;
+  /** 被撤销的那笔扣罐的幂等键(上层用它定位关联故事) */
+  undoneKey: string;
+  idempotent?: boolean;
+}
+
+/** 撤销一笔扣罐:令牌自包含;key 必须还在 appliedOps 里(防重复撤销);自身也是幂等写操作 */
 export function undoJarDebit(
   state: MoneyState,
   undoToken: string,
-  expectedStateVersion: number
-): MoneyState {
-  if (expectedStateVersion !== state.stateVersion) {
-    throw new DomainError(
-      "state_conflict",
-      `stateVersion 不匹配:期望 ${expectedStateVersion},当前 ${state.stateVersion}`
-    );
-  }
+  meta: { expectedStateVersion: number; idempotencyKey: string }
+): UndoResult {
   if (!undoToken.startsWith(UNDO_PREFIX)) {
     throw new DomainError("validation_error", "撤销令牌不合法");
   }
@@ -84,6 +89,15 @@ export function undoJarDebit(
   if (!kindParsed.success || !Cents.safeParse(amount).success || !key) {
     throw new DomainError("validation_error", "撤销令牌不合法");
   }
+  if (state.appliedOps.includes(meta.idempotencyKey)) {
+    return { state, undoneKey: key, idempotent: true };
+  }
+  if (meta.expectedStateVersion !== state.stateVersion) {
+    throw new DomainError(
+      "state_conflict",
+      `stateVersion 不匹配:期望 ${meta.expectedStateVersion},当前 ${state.stateVersion}`
+    );
+  }
   if (!state.appliedOps.includes(key)) {
     throw new DomainError("not_found", "没有找到这笔可撤销的记录");
   }
@@ -95,12 +109,13 @@ export function undoJarDebit(
     throw new DomainError("state_conflict", "当前数字对不上,这笔撤销不了");
   }
   const now = new Date().toISOString();
-  return MoneyState.parse({
+  const newState = MoneyState.parse({
     ...state,
     stateVersion: state.stateVersion + 1,
     jars: state.jars.map((j) =>
       j.kind === kindParsed.data ? { ...j, actual: j.actual - amount, updatedAt: now } : j
     ),
-    appliedOps: state.appliedOps.filter((k) => k !== key),
+    appliedOps: [...state.appliedOps.filter((k) => k !== key).slice(-19), meta.idempotencyKey],
   });
+  return { state: newState, undoneKey: key };
 }

@@ -1,13 +1,24 @@
 import { MoneyState } from "@/contracts";
 
-/** 当前周期 "YYYY-MM"。按本地时区:月初 00:00-08:00(北京时间)不能落到上个月 */
+/** 业务时区固定 Asia/Shanghai(UTC+8),不随部署环境(Vercel 是 UTC)漂移 */
+const BUSINESS_TZ_OFFSET_MS = 8 * 3600_000;
+
+function bizYearMonth(d: Date): { y: number; m: number } {
+  const t = new Date(d.getTime() + BUSINESS_TZ_OFFSET_MS);
+  return { y: t.getUTCFullYear(), m: t.getUTCMonth() };
+}
+
+/** 当前周期 "YYYY-MM"(北京时间):月初 00:00-08:00 不能落到上个月 */
 export function currentCycleId(d: Date = new Date()): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const { y, m } = bizYearMonth(d);
+  return `${y}-${String(m + 1).padStart(2, "0")}`;
 }
 
 /** 从当前周期往后 n 个月的周期 id */
 export function cycleAfter(months: number, from: Date = new Date()): string {
-  return currentCycleId(new Date(from.getFullYear(), from.getMonth() + months, 1));
+  const { y, m } = bizYearMonth(from);
+  const t = new Date(Date.UTC(y, m + months, 1));
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 /**

@@ -134,6 +134,28 @@ describe("候选写入与三动作", () => {
     expect(deferred.principle.status).toBe("deferred");
     expect(confirmedPrinciples(deferred.state)).toHaveLength(0);
   });
+
+  it("改说法也过语句校验:说教式文字被拒", () => {
+    let state = stateWithReviewed(3);
+    state = buildCandidate(state, {
+      statement: "我放一晚再决定,好像更踏实",
+      evidenceIds: ["story-c0", "story-c1"],
+      expectedStateVersion: state.stateVersion,
+      idempotencyKey: "p1",
+    }).state;
+    try {
+      resolvePrinciple(state, {
+        id: "principle-p1",
+        decision: "edit",
+        editedText: "你应该少花点",
+        expectedStateVersion: state.stateVersion,
+        idempotencyKey: "e-bad",
+      });
+      expect.unreachable();
+    } catch (e) {
+      expect((e as import("@/contracts/errors").DomainError).code).toBe("validation_error");
+    }
+  });
 });
 
 describe("主闭环集成:决定 → 回看 → 候选 → 确认 → 引用", () => {

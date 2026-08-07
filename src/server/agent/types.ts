@@ -9,14 +9,14 @@ import { AgentReply } from "@/contracts";
  */
 export const DecomposeWishInput = z.object({
   task: z.literal("decompose_wish"),
-  wish: z.string().min(1),
-  nearChoice: z.string().optional(),
+  wish: z.string().min(1).max(500),
+  nearChoice: z.string().max(100).optional(),
 });
 
 export const CompanionReplyInput = z.object({
   task: z.literal("companion_reply"),
   scene: z.enum(["greet", "decision", "note"]),
-  userText: z.string().optional(),
+  userText: z.string().max(500).optional(),
   /** 只传最小摘要,不传完整倾诉原文 */
   stateSummary: z
     .object({

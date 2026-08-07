@@ -42,6 +42,18 @@ describe("契约收紧(评估修正)", () => {
     expect(applyJarPlan({ disposable: 650000, livingPlanned: 220000 }).state.demo).toBe(false);
   });
 
+  it("短缺计划不能确认写入(预览可见缺口,confirm 拒绝伪计划)", () => {
+    expect(
+      applyJarPlan({ disposable: 10000, livingPlanned: 20000 }).plan.shortfall
+    ).toBe(10000);
+    try {
+      applyJarPlan({ disposable: 10000, livingPlanned: 20000, confirmed: true });
+      expect.unreachable();
+    } catch (e) {
+      expect((e as DomainError).code).toBe("validation_error");
+    }
+  });
+
   it("扣罐金额 0 被拒(不产生无意义版本更新)", () => {
     const s = applyJarPlan({ disposable: 650000, livingPlanned: 220000 }).state;
     try {
