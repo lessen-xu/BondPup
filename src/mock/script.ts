@@ -4,14 +4,20 @@ export const script = {
     remove: "删掉", done: "改好了", placeholder: "▢▢▢",
   },
   welcome: {
-    greeting: "你好呀!我是你的小狗,我叫慢慢。",
-    body: "第一次自己管钱,心里有点乱也很正常。想攒、想花、想找到自己的方式,都可以从这里慢慢说起。",
-    closing: "和钱有关的事情,你都可以告诉我。",
+    greeting: "你好呀！我是你的小狗，我叫慢慢。",
+    bodyLines: [
+      "提到「钱」，你现在心里可能有点乱。",
+      "想攒钱又不知道从哪下手，",
+      "想花钱又总有负罪感。",
+    ],
+    closingLines: ["没关系。和钱有关的所有事，你都可以跟我讲。", "我会一直陪着你。"],
+    start: "那开始吧",
   },
   nickname: {
     prompt: "给我起个小名吧〜以后你就这么叫我啦",
     placeholder: "慢慢",
-    closing: "我会陪你慢慢学会和钱相处〜",
+    closing: "我会做你最好的伙伴，陪你慢慢学会和钱自由自在地相处〜",
+    confirm: "就叫这个",
   },
   firstRecord: {
     title: "第一条: {alias}的小本本",
@@ -43,6 +49,7 @@ export const script = {
       inputs: ["这个月大概能安排多少钱?", "有哪些是这个月一定要花的?", "之前有已经存下来的钱吗?"],
       unsure: "我还不确定", calculate: "帮我算一下",
       unsureResponse: "不确定也没关系呀〜先空着,想起来了再填。",
+      livingHint: "房租、水电、通讯、交通、吃饭这些，这个月躲不掉的",
       fixedCosts: ["房租", "水电燃气", "通讯", "交通", "饮食", "其他固定"],
       stepHint: "先估计个大概就好〜",
     },

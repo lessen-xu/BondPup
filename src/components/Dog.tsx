@@ -21,13 +21,8 @@ type DogProps = {
 
 const visiblePokeStates = 互动姿态.filter((dogState) => dogState !== "think");
 
-function dogImageSource() {
-  // 三种互动姿态都在同一张常态立绘上用 CSS 近似,避免不同立绘比例跳动。
-  return DOG_STATE_ASSETS.idle;
-}
-
-function dogVisualState(dogState: DogState) {
-  return dogState === "think" ? "idle" : dogState;
+function dogImageSource(dogState: DogState) {
+  return DOG_STATE_ASSETS[dogState];
 }
 
 export function Dog({ page, state, message, onActivate, talkMode = false, accessory = null, alias = "慢慢" }: DogProps) {
@@ -109,10 +104,10 @@ export function Dog({ page, state, message, onActivate, talkMode = false, access
       {pokeMessage && <p className="poke-bubble" aria-live="polite">{pokeMessage}</p>}
       <button className="dog-hit-area" type="button" onClick={handleClick} aria-label={`和${alias}说话`}>
         <span className="dog-breathe">
-          <span className={`dog-react dog-react-${dogVisualState(displayedState)}`}>
+          <span className={`dog-react dog-react-${displayedState}`}>
             <span className="dog-state-frame">
-              {previousState && <img className={`dog-state-image dog-state-${dogVisualState(previousState)} dog-state-image-previous`} src={dogImageSource()} alt="" aria-hidden="true" />}
-              <img key={displayedState} className={`dog-state-image dog-state-${dogVisualState(displayedState)} dog-state-image-current`} src={dogImageSource()} alt={alias} />
+              {previousState && <img className={`dog-state-image dog-state-${previousState} dog-state-image-previous`} src={dogImageSource(previousState)} alt="" aria-hidden="true" />}
+              <img key={displayedState} className={`dog-state-image dog-state-${displayedState} dog-state-image-current`} src={dogImageSource(displayedState)} alt={alias} />
               {accessory && <img className={`dog-accessory dog-accessory-${accessory}`} src={`/assets/配饰${accessory === "scarf" ? "围巾" : accessory === "flower" ? "小花" : "帽子"}.png`} alt="" aria-hidden="true" />}
             </span>
           </span>
