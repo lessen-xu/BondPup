@@ -66,7 +66,7 @@
 
 ## 碎钻(结余)
 
-- 显示:`state.leftover.amount`(为 0 不显示);三档大小按额度分段,低饱和弱高光
+- 显示:`state.leftover.amount`(为 0 不显示);三档大小用 `leftoverTier(amount)` from `@/lib/leftover-tier`(返回 small/medium/large/null,阈值 100 元/500 元),低饱和弱高光
 - 点开:金额 + `history` 明细(从哪个月哪个罐来)→ 选去哪个罐 → 可填部分金额 → 确认:`moveLeftover(state, { toKind, amount, ... })` → `commit(r.state)`,返回的 `movedNote`(「好,这个月就松一点了。」)直接显示
 - **三条动效红线**:变多不庆祝(不发光不弹窗)、不计数(没有角标)、变少不失落(小狗不垂耳朵)
 
