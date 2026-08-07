@@ -32,7 +32,7 @@
 - 没有 state → 两个入口:「从零开始」(去起点)+「用合成示例体验」(调 `enterDemo()`)
 - 有 state → 小狗 + 罐子 + 碎钻(0 不显示)+ 两个气泡 + 输入框
 - **点小狗开场白**:`POST /api/agent`,`{"task":"companion_reply","scene":"greet"}` → `{result:{text, bubbles}}`
-- **帮我看看要不要买(决策)**:`{"task":"companion_reply","scene":"decision","userText":"...","stateSummary":{"comfortAvailable": 安心罐.planned - 安心罐.actual}}`。**只传安心罐,生活罐永不计入"可以买"**。回应后给三个中性动作:现在买 / 放到明天 / 这次先不买(三个都不许被夸/被劝)
+- **帮我看看要不要买(决策)**:金额数据用 `previewDecision(state, { amount })` from `@/lib/plan/preview-decision`——返回 `comfortAvailable / remaining / shortfall / sources[](差额来源,不预选不排序) / goalImpact?(动梦想罐的影响文本)`,前端零算术。对话回应仍走 `{"task":"companion_reply","scene":"decision","userText":"...","stateSummary":{"comfortAvailable"}}`。**只传安心罐,生活罐永不计入"可以买"**。回应后给三个中性动作:现在买 / 放到明天 / 这次先不买(三个都不许被夸/被劝)
 - **有笔钱想说说(记一笔)**:先 `{"task":"companion_reply","scene":"note"}` 接情绪;用户给金额后确认扣罐:
   ```tsx
   import { commitJarDebit } from "@/server/domain/debit";
