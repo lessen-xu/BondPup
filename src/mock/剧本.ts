@@ -1,6 +1,7 @@
 export const NOTE_MODEL_REPLY = {
   fallback: "嗯,我都听着了。",
   thinkingHint: "",
+  continueLabel: "嗯",
 } as const;
 
 export const moneyNoteScript = {
@@ -105,6 +106,17 @@ export const REVIEW_STEP4 = { closing: "好，我记下了。" } as const;
 export const REVIEW_NAV = { next: "继续", backHome: "返回首页" } as const;
 
 export const HOME_REVIEW_CARD = { subtitle: "我们说今天来看看" } as const;
+
+export const CARDS_PAGE = {
+  empty: "你的第一张已经在里面了。",
+  labels: {
+    confirmed: "已确认",
+    edited: "已修改",
+    unsure: "暂不确定",
+    welcome: "起点",
+  },
+  greeting: "每张卡片都是你对自己的了解。",
+} as const;
 
 export const REVIEW_ACTION_LABELS = {
   buy_now: "现在买",

@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import type { JarKind, MoneyState } from "@/contracts";
+import type { DecisionStory, JarKind, MoneyState } from "@/contracts";
 import { layout } from "@/config/layout";
 import { script, withAlias } from "@/mock/script";
 import { DEMO } from "@/mock/剧本";
@@ -41,11 +41,14 @@ export function Stage({ state, demoIntro = false, onDismissDemoIntro }: StagePro
     const interval = window.setInterval(updateNow, 60_000);
     return () => window.clearInterval(interval);
   }, []);
-  const hasDueReview = useMemo(() => (
-    now !== null && state.stories.some((record) => (
-      record.status === "open" && record.reviewAt !== undefined && Date.parse(record.reviewAt) <= now
-    ))
-  ), [now, state.stories]);
+  const dueReview = useMemo(() => {
+    if (now === null) return null;
+    return state.stories.reduce<DecisionStory | null>((earliest, record) => {
+      if (record.status !== "open" || record.reviewAt === undefined || Date.parse(record.reviewAt) > now) return earliest;
+      if (earliest?.reviewAt !== undefined && Date.parse(earliest.reviewAt) <= Date.parse(record.reviewAt)) return earliest;
+      return record;
+    }, null);
+  }, [now, state.stories]);
   const stageStyle = {
     "--table-left": homeComposition.tableGroup.left,
     "--table-bottom": homeComposition.tableGroup.bottom,
@@ -95,9 +98,9 @@ export function Stage({ state, demoIntro = false, onDismissDemoIntro }: StagePro
           <TextEntry className="talk-entry talk-entry-money" onClick={() => router.push("/talk?topic=money")}>{script.home.moneyEntry.replace("想说说", "\n想说说")}</TextEntry>
         </nav>
 
-        {hasDueReview && (
+        {dueReview && (
           <span className="review-entry">
-            <button type="button" onClick={(event) => { event.stopPropagation(); router.push("/reviews"); }}>{script.home.review}</button>
+            <button type="button" onClick={(event) => { event.stopPropagation(); router.push(`/review?id=${encodeURIComponent(dueReview.id)}`); }}>{script.home.review}</button>
             <HandDrawnUnderline className="entry-underline" />
           </span>
         )}

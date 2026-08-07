@@ -1,28 +1,33 @@
 import { describe, expect, it } from "vitest";
 import { mockMoneyState } from "@/lib/mock/money-state";
-import { previewDecisionLocal } from "../预览";
+import { previewDecision } from "@/lib/plan/preview-decision";
 
-describe("previewDecisionLocal", () => {
+describe("previewDecision", () => {
   it("只用安心罐展示可用金额和购买后的金额", () => {
     const before = structuredClone(mockMoneyState);
 
-    expect(previewDecisionLocal(mockMoneyState, { amount: 120_000 })).toEqual({
+    expect(previewDecision(mockMoneyState, { amount: 120_000 })).toEqual({
       comfortAvailable: 350_000,
       remaining: 230_000,
       shortfall: 0,
-      sources: undefined,
+      sources: [],
       goalImpact: undefined,
     });
     expect(mockMoneyState).toEqual(before);
   });
 
-  it("差额只展示数值,不编造来源和目标影响", () => {
-    expect(previewDecisionLocal(mockMoneyState, { amount: 400_000 })).toEqual({
+  it("差额来源由后端预览按罐子固有顺序提供", () => {
+    const result = previewDecision(mockMoneyState, { amount: 400_000 });
+
+    expect(result).toMatchObject({
       comfortAvailable: 350_000,
       remaining: 0,
       shortfall: 50_000,
-      sources: undefined,
-      goalImpact: undefined,
+      sources: [
+        { jarKind: "living", label: "生活罐", amount: 220_000 },
+        { jarKind: "dream", label: "去看海", amount: 80_000 },
+      ],
     });
+    expect(result.goalImpact).toContain("去看海");
   });
 });

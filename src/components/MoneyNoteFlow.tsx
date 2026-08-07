@@ -15,7 +15,6 @@ type NoteCategory = keyof typeof DAILY_NOTE.responses;
 type NoteStep = "story" | "listen" | "model" | "choices" | "done" | "safety-offtopic" | "safety-stopped";
 
 const MODEL_TIMEOUT_MS = 2500;
-const MODEL_TO_CHOICES_MS = 800;
 
 function isStateConflict(cause: unknown): boolean {
   return Boolean(cause && typeof cause === "object" && "code" in cause && cause.code === "state_conflict");
@@ -124,7 +123,10 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
     setDogThinking(false);
     setModelLoading(false);
     if (nextSafety === "offTopic") setStep("safety-offtopic");
-    else window.setTimeout(() => { if (requestId.current === currentRequest) setStep("choices"); }, MODEL_TO_CHOICES_MS);
+  }
+
+  function continueAfterModelReply() {
+    setStep("choices");
   }
 
   function chooseOffTopic(choice: "yes" | "no") {
@@ -181,7 +183,7 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
         <section className="decision-dialog" aria-live="polite">
           {step === "story" && <div className="decision-step"><p className="decision-dog-bubble">{DAILY_NOTE.intro}</p><input autoFocus className="decision-input" value={storyInput} onChange={(event) => setStoryInput(event.target.value)} placeholder={DAILY_NOTE.placeholder} aria-label={DAILY_NOTE.placeholder} /><p className="talk-status">{DAILY_NOTE.hint.replace("{alias}", alias)}</p><button className="decision-text-action" type="button" onClick={submitStory}>{DAILY_NOTE.submit}<HandDrawnUnderline /></button></div>}
           {step === "listen" && <div className="decision-step"><p className="decision-user-bubble">{story}</p><p className="decision-dog-bubble">{DAILY_NOTE.responses[category].replace("{alias}", alias)}</p><p className="decision-dog-bubble">{DAILY_NOTE.transitions[transitionIndex]}</p><button className="decision-option" type="button" onClick={requestModelReply}>{DAILY_NOTE.done}</button></div>}
-          {step === "model" && <div className="decision-step"><p className="decision-user-bubble">{story}</p>{modelLoading ? <p className="decision-dog-bubble money-note-thinking-bubble" aria-hidden="true">{NOTE_MODEL_REPLY.thinkingHint}</p> : issue ? <><p className="decision-dog-bubble">{issue === "offline" ? ERRORS.offline.line : ERRORS.timeout.line}</p><p className="decision-dog-bubble">{issue === "offline" ? ERRORS.offline.sub : ERRORS.timeout.sub}</p><p className="decision-dog-bubble money-note-model-bubble">{modelReply}</p></> : <p className="decision-dog-bubble money-note-model-bubble">{modelReply}</p>}</div>}
+          {step === "model" && <div className="decision-step"><p className="decision-user-bubble">{story}</p>{modelLoading ? <p className="decision-dog-bubble money-note-thinking-bubble" aria-hidden="true">{NOTE_MODEL_REPLY.thinkingHint}</p> : <>{issue ? <><p className="decision-dog-bubble">{issue === "offline" ? ERRORS.offline.line : ERRORS.timeout.line}</p><p className="decision-dog-bubble">{issue === "offline" ? ERRORS.offline.sub : ERRORS.timeout.sub}</p></> : null}<p className="decision-dog-bubble money-note-model-bubble">{modelReply}</p><button className="flow-primary-action money-note-continue" type="button" onClick={continueAfterModelReply}>{NOTE_MODEL_REPLY.continueLabel}</button></>}</div>}
           {step === "safety-offtopic" && <div className="decision-step"><p className="decision-dog-bubble">{SAFETY.offTopic.line}</p><p className="decision-dog-bubble">{SAFETY.offTopic.body}</p><div className="decision-options"><button className="decision-option" type="button" onClick={() => chooseOffTopic("yes")}>{SAFETY.offTopic.options.yes}</button><button className="decision-option" type="button" onClick={() => chooseOffTopic("no")}>{SAFETY.offTopic.options.no}</button></div></div>}
           {step === "safety-stopped" && <div className="decision-step"><p className="decision-dog-bubble">{offTopicResponse ?? SAFETY.offTopic.noResponse}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>返回首页<HandDrawnUnderline /></button></div>}
           {step === "choices" && <div className="decision-step">{offTopicResponse && <p className="decision-dog-bubble">{offTopicResponse}</p>}<p className="decision-dog-bubble">{DAILY_NOTE.choicesPrompt}</p><div className="decision-options decision-source-options"><button className="decision-option" type="button" disabled={submitting} onClick={remember}>{DAILY_NOTE.remember}</button><button className="decision-option" type="button" onClick={() => { setSavedCopy(DAILY_NOTE.received); setStep("done"); }}>{DAILY_NOTE.talkOnly}</button></div></div>}
