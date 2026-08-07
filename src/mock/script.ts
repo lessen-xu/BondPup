@@ -62,7 +62,7 @@ export const script = {
       stepHint: "下一步还可以直接改罐子里的数字。",
     },
     jars: {
-      question: "我把你的钱分成了四个罐子〜",
+      question: "我把你的钱分成了四个罐头〜",
       living: { note: "这个月已经确定要花的钱" },
       comfort: { note: "这个袋子里装的是你的\"自由许可证\",怎么花都理直气壮〜" },
       dream: { note: "你每往里面放一块钱,它都会\"叮\"地响一声,提醒你离梦想更近了一步。" },
@@ -74,6 +74,9 @@ export const script = {
       futureLow: "这样安心罐就只剩 ▢▢▢ 了,要不要少留一点?",
       futureReduce: "少留一点", stepHint: "每个数字都可以再改。",
       bottom: "四个罐子加起来,正好是这个月能安排的钱。",
+      viewEdit: "知道了,我想改一改",
+      viewAccept: "就这样,不用改",
+      editDone: "改好了",
       confirm: "跟{alias}击个掌,这就出发!",
       back: "我再想想", afterHint: "确认后,这些安排才会记下来。",
     },

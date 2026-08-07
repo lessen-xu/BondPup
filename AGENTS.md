@@ -1,5 +1,11 @@
 # 给 AI 助手的常驻规则
 
+## 工具链
+- 本项目用 npm,不用 pnpm。仓库里只有 package-lock.json
+- 装依赖用 npm ci,起服务用 npm run dev,构建用 npm run build
+- 不要生成 pnpm-lock.yaml,如果出现要删掉
+- 验证必须包含 build,不能只跑 lint 和 tsc
+
 ## 省 token
 - 只读明确提到的文件，不要扫整个项目
 - 回复只说改了哪个文件哪一处，不贴大段代码
