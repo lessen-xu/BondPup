@@ -27,7 +27,13 @@ export type AgentRunOutput = AgentTaskOutput & {
 
 function pickProvider(): AgentProvider {
   if (process.env.ANTHROPIC_API_KEY) return "anthropic";
-  if (process.env.OPENAI_COMPAT_API_KEY && process.env.OPENAI_COMPAT_BASE_URL) return "compat";
+  if (
+    process.env.OPENAI_COMPAT_API_KEY &&
+    process.env.OPENAI_COMPAT_BASE_URL &&
+    process.env.OPENAI_COMPAT_MODEL
+  ) {
+    return "compat";
+  }
   return "mock";
 }
 
@@ -51,7 +57,7 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutpu
   // 输入闸:自伤/借贷/投资/泛化情绪命中 → 绕过模型,统一以 companion_reply 形态返回安全回应
   const userText =
     input.task === "decompose_wish"
-      ? input.wish
+      ? [input.wish, input.nearChoice].filter(Boolean).join(" ")
       : input.task === "companion_reply"
         ? input.userText
         : undefined;

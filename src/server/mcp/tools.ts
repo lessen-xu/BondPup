@@ -1,10 +1,12 @@
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { Cents, JarKind, MoneyState } from "@/contracts";
 import { DomainError } from "@/contracts/errors";
 import { LivingItems } from "@/server/domain/living";
-import { commitJarDebit, undoJarDebit } from "@/server/domain/debit";
+import { commitJarDebit, makeUndoToken, undoJarDebit } from "@/server/domain/debit";
+import { buildCycleReviewProposal, confirmCycleReview, isNewCycle } from "@/server/domain/cycle";
+import { moveLeftover } from "@/server/domain/leftover";
 import { completeReview, createDecisionStory, dueReviews } from "@/server/domain/story";
 import { buildCandidate, principleEligible, resolvePrinciple } from "@/server/domain/principle";
 import { detectSafetyRisk, recordSafetyEvent, safetyReplyFor } from "@/server/safety/risk";
@@ -33,7 +35,7 @@ const sessions = new Map<string, MoneyState>();
  * 校验严格度不变(resolveState 里 MoneyState.parse),只是不在 schema 里展开。
  */
 const SessionRef = {
-  sessionId: z.string().optional(),
+  sessionId: z.string().max(100).optional(),
   moneyState: z
     .unknown()
     .optional()
@@ -52,10 +54,31 @@ function resolveState(ref: { sessionId?: string; moneyState?: unknown }): {
       throw new DomainError("validation_error", "moneyState 不合法:请原样链回上一步响应里的 moneyState");
     }
     state = parsed.data;
+  } else if (ref.sessionId !== undefined && !sessions.has(ref.sessionId)) {
+    // 会话丢失不能伪装成新用户:sessionId 只是同实例缓存句柄,跨实例必须链回 moneyState
+    throw new DomainError(
+      "not_found",
+      "会话不在此实例:请把上一步响应里的完整 moneyState 链回来(sessionId 只是同实例缓存)"
+    );
   } else {
     state = sessions.get(sessionId) ?? createInitialMoneyState();
   }
   return { sessionId, state };
+}
+
+/** proposal 完整性签名:内容由 record_money_moment 签发,confirm 时验签,防改写/伪造 */
+const PROPOSAL_SECRET = process.env.PROPOSAL_SECRET ?? "bondpup-dev-proposal-secret";
+function signProposal(p: {
+  proposalId: string;
+  jarKind: string;
+  amount: number;
+  intent: string;
+  stateVersion: number;
+}): string {
+  return createHmac("sha256", PROPOSAL_SECRET)
+    .update(`${p.proposalId}|${p.jarKind}|${p.amount}|${p.intent}|${p.stateVersion}`)
+    .digest("hex")
+    .slice(0, 32);
 }
 
 function remember(sessionId: string, state: MoneyState): void {
@@ -233,7 +256,7 @@ export function registerBondPupTools(server: McpServer): void {
         "接住一笔消费或情绪:给出候选动作 proposal(无明确依据时默认安心罐),不改任何余额。真正扣罐需把 proposal 原样传给 confirm_action。不带金额时按「只说说」处理。只读。",
       inputSchema: z.object({
         ...SessionRef,
-        description: z.string().min(1),
+        description: z.string().min(1).max(500),
         amount: Cents.optional(),
         jarHint: JarKind.optional(),
       }),
@@ -265,15 +288,16 @@ export function registerBondPupTools(server: McpServer): void {
           });
         }
         const candidateJar: JarKind = input.jarHint ?? "comfort";
+        const proposalBody = {
+          proposalId: randomUUID(),
+          jarKind: candidateJar,
+          amount: input.amount,
+          intent,
+          stateVersion: state.stateVersion,
+        };
         return ok({
           sessionId,
-          proposal: {
-            proposalId: randomUUID(),
-            jarKind: candidateJar,
-            amount: input.amount,
-            intent,
-            stateVersion: state.stateVersion,
-          },
+          proposal: { ...proposalBody, sig: signProposal(proposalBody) },
           requiresConfirmation: true,
           reply: `我先按${JAR_LABEL[candidateJar]}记这 ${fmtYuan(input.amount)},可以吗?也可以换个罐子,或者只说说、不改余额。`,
           moneyState: state,
@@ -290,33 +314,51 @@ export function registerBondPupTools(server: McpServer): void {
     amount: Cents,
     intent: z.string().min(1).max(120),
     stateVersion: z.number().int().min(1),
+    sig: z.string().min(1).describe("record_money_moment 签发的完整性签名,原样带回"),
   });
 
   server.registerTool(
     "confirm_action",
     {
-      title: "确认动作(扣罐/撤销/只说说/回看/原则)",
+      title: "确认动作(扣罐/撤销/决定/回看/原则/周期/碎钻)",
       description:
-        "所有改变状态的用户确认动作走这里,按 action 区分:confirm_debit=确认 record_money_moment 返回的 proposal 并扣罐(可用 chosenJar 换罐,proposal 过期需重新生成);undo=按 undoToken 撤销;note_only=只说说,记一条不改余额的故事;complete_review=完成一次回看(写结果);adopt_principle=对候选原则做 像我/改说法/暂不确定。全部动作必须带 expectedStateVersion 与 idempotencyKey。",
+        "所有改变状态的用户确认动作走这里,按 action 区分:confirm_debit=确认 record_money_moment 返回的 proposal 并扣罐(可用 chosenJar 换罐);undo=按 undoToken 撤销扣罐并抹掉关联故事;note_only=只说说,记一条不改余额的故事;log_decision=记录一个购买决定(现在买/放到明天/这次先不买,不动余额);complete_review=完成一次回看;adopt_principle=对候选原则做 像我/改说法/暂不确定;confirm_cycle=新周期确认(月供重算、结余进碎钻);move_leftover=把碎钻挪进某个罐(可部分)。全部动作必须带 expectedStateVersion 与 idempotencyKey。",
       inputSchema: z.object({
         ...SessionRef,
-        action: z.enum(["confirm_debit", "undo", "note_only", "complete_review", "adopt_principle"]),
+        action: z.enum([
+          "confirm_debit",
+          "undo",
+          "note_only",
+          "log_decision",
+          "complete_review",
+          "adopt_principle",
+          "confirm_cycle",
+          "move_leftover",
+        ]),
         proposal: PendingProposal.optional(),
         chosenJar: JarKind.optional(),
         reviewInDays: z.union([z.literal(1), z.literal(3)]).optional(),
-        undoToken: z.string().optional(),
+        undoToken: z.string().max(200).optional(),
         intent: z.string().min(1).max(120).optional(),
-        storyId: z.string().optional(),
+        decisionAction: z.enum(["buy_now", "defer", "skip_this_time"]).optional(),
+        amount: Cents.optional(),
+        storyId: z.string().max(150).optional(),
         happened: z.boolean().optional(),
         actualAmount: Cents.optional(),
         feelingNote: z.string().max(200).optional(),
         candidate: z
-          .object({ statement: z.string().min(1), evidenceIds: z.array(z.string()).min(2).max(3) })
+          .object({ statement: z.string().min(1).max(50), evidenceIds: z.array(z.string()).min(2).max(3) })
           .optional(),
         decision: z.enum(["like_me", "edit", "defer"]).optional(),
-        editedText: z.string().optional(),
+        editedText: z.string().max(50).optional(),
+        disposable: Cents.optional(),
+        livingPlanned: Cents.optional(),
+        dreamMonthly: Cents.optional(),
+        extendMonths: z.number().int().min(0).max(24).optional(),
+        futurePlanned: Cents.optional(),
+        toKind: JarKind.optional(),
         expectedStateVersion: z.number().int().min(1),
-        idempotencyKey: z.string().min(1),
+        idempotencyKey: z.string().min(1).max(100),
       }),
     },
     async (input) => {
@@ -324,6 +366,17 @@ export function registerBondPupTools(server: McpServer): void {
         const { sessionId, state } = resolveState(input);
         const meta = requireWriteMeta(state, input);
         if (meta.idempotent) {
+          // 幂等重放尽量恢复首次结果(undoToken/storyId 可确定性重建)
+          if (input.action === "confirm_debit" && input.proposal) {
+            const jarKind = input.chosenJar ?? input.proposal.jarKind;
+            return ok({
+              sessionId,
+              idempotent: true,
+              undoToken: makeUndoToken(jarKind, input.proposal.amount, meta.idempotencyKey),
+              storyId: `story-${meta.idempotencyKey}:story`,
+              moneyState: state,
+            });
+          }
           return ok({ sessionId, idempotent: true, moneyState: state });
         }
 
@@ -331,6 +384,10 @@ export function registerBondPupTools(server: McpServer): void {
           case "confirm_debit": {
             if (!input.proposal) {
               throw new DomainError("validation_error", "confirm_debit 需要 record_money_moment 返回的 proposal");
+            }
+            const { sig, ...proposalBody } = input.proposal;
+            if (signProposal(proposalBody) !== sig) {
+              throw new DomainError("validation_error", "proposal 不是本服务签发或内容被改动过,请重新说一笔");
             }
             if (input.proposal.stateVersion !== state.stateVersion) {
               throw new DomainError("state_conflict", "候选动作已过期:状态在这之后变过,请重新说一笔");
@@ -368,9 +425,42 @@ export function registerBondPupTools(server: McpServer): void {
             if (!input.undoToken) {
               throw new DomainError("validation_error", "undo 需要 undoToken");
             }
-            const undone = undoJarDebit(state, input.undoToken, meta.expectedStateVersion);
-            remember(sessionId, undone);
-            return ok({ sessionId, undone: true, reply: "好,这笔当作没记过。", moneyState: undone });
+            const undone = undoJarDebit(state, input.undoToken, {
+              expectedStateVersion: meta.expectedStateVersion,
+              idempotencyKey: meta.idempotencyKey,
+            });
+            // 「这笔当作没记过」= 金额与故事一起抹掉,不留一条会进回看的孤儿故事
+            const cleaned = MoneyState.parse({
+              ...undone.state,
+              stories: undone.state.stories.filter((s) => s.id !== `story-${undone.undoneKey}:story`),
+            });
+            remember(sessionId, cleaned);
+            return ok({ sessionId, undone: true, reply: "好,这笔当作没记过。", moneyState: cleaned });
+          }
+          case "log_decision": {
+            if (!input.intent || !input.decisionAction) {
+              throw new DomainError("validation_error", "log_decision 需要 intent 与 decisionAction");
+            }
+            const { state: withStory, story } = createDecisionStory(state, {
+              intent: input.intent,
+              action: input.decisionAction,
+              amount: input.amount,
+              reviewInDays: input.reviewInDays,
+              expectedStateVersion: meta.expectedStateVersion,
+              idempotencyKey: meta.idempotencyKey,
+            });
+            remember(sessionId, withStory);
+            const replies = {
+              buy_now: "记下了。到时候看看它实际怎么样,就只是看看。",
+              defer: "好,放到明天。到时候想聊就聊,不想聊也没关系。",
+              skip_this_time: "记下了。先不买和买一样,都只是一个决定,回头看看就好。",
+            } as const;
+            return ok({
+              sessionId,
+              reply: replies[input.decisionAction],
+              storyId: story.id,
+              moneyState: withStory,
+            });
           }
           case "note_only": {
             if (!input.intent) {
@@ -443,6 +533,39 @@ export function registerBondPupTools(server: McpServer): void {
               moneyState: resolved.state,
             });
           }
+          case "confirm_cycle": {
+            if (input.disposable === undefined || input.livingPlanned === undefined) {
+              throw new DomainError("validation_error", "confirm_cycle 需要 disposable 与 livingPlanned");
+            }
+            const { state: next } = confirmCycleReview(state, {
+              disposable: input.disposable,
+              livingPlanned: input.livingPlanned,
+              dreamMonthly: input.dreamMonthly,
+              extendMonths: input.extendMonths,
+              futurePlanned: input.futurePlanned,
+              expectedStateVersion: meta.expectedStateVersion,
+              idempotencyKey: meta.idempotencyKey,
+            });
+            remember(sessionId, next);
+            return ok({
+              sessionId,
+              reply: "新的一个月安排好了。上期没花完的都在那堆碎钻里,想挪再挪。",
+              moneyState: next,
+            });
+          }
+          case "move_leftover": {
+            if (!input.toKind || input.amount === undefined) {
+              throw new DomainError("validation_error", "move_leftover 需要 toKind 与 amount");
+            }
+            const moved = moveLeftover(state, {
+              toKind: input.toKind,
+              amount: input.amount,
+              expectedStateVersion: meta.expectedStateVersion,
+              idempotencyKey: meta.idempotencyKey,
+            });
+            remember(sessionId, moved.state);
+            return ok({ sessionId, reply: moved.movedNote, moneyState: moved.state });
+          }
         }
       } catch (e) {
         return fail(e);
@@ -476,6 +599,15 @@ export function registerBondPupTools(server: McpServer): void {
             ...(j.goal ? { goal: j.goal } : {}),
           })),
           leftover: state.leftover.amount,
+          ...(state.leftover.amount > 0 ? { leftoverHistory: state.leftover.history } : {}),
+          ...(state.cycle && isNewCycle(state)
+            ? {
+                cycleReview: {
+                  ...buildCycleReviewProposal(state),
+                  howToConfirm: "用 confirm_action(action=confirm_cycle) 确认新周期安排",
+                },
+              }
+            : {}),
           dueReviews: due.map((s) => ({ storyId: s.id, intent: s.intent, reviewAt: s.reviewAt })),
           reviewedCount: state.stories.filter((s) => s.status === "reviewed").length,
           ...(candidate

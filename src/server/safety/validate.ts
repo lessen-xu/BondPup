@@ -31,13 +31,10 @@ export function validateReplyText(text: string): ValidationFailure[] {
 
 const MAX_STATEMENT_CODEPOINTS = 25;
 
-/** 候选原则:禁用词 / ≤25 字(码点)/ 第一人称 / 证据 2-3 条且必须是已回看的故事 */
-export function validatePrincipleCandidate(
-  candidate: { statement: string; evidenceIds: string[] },
-  stories: DecisionStory[]
-): ValidationFailure[] {
+/** 原则语句本身的规则(候选生成与用户改说法共用):禁用词 / ≤25 码点 / 第一人称 */
+export function validatePrincipleStatement(statement: string): ValidationFailure[] {
   const failures: ValidationFailure[] = [];
-  const s = candidate.statement.trim();
+  const s = statement.trim();
   const hits = findForbiddenWords(s);
   if (hits.length > 0) {
     failures.push({ rule: "forbidden_words", message: `包含禁用词:${hits.join("、")}` });
@@ -48,6 +45,15 @@ export function validatePrincipleCandidate(
   if (!s.includes("我") || s.startsWith("你")) {
     failures.push({ rule: "first_person", message: "必须是第一人称的表述" });
   }
+  return failures;
+}
+
+/** 候选原则:语句规则 + 证据 2-3 条且必须是已回看的故事 */
+export function validatePrincipleCandidate(
+  candidate: { statement: string; evidenceIds: string[] },
+  stories: DecisionStory[]
+): ValidationFailure[] {
+  const failures: ValidationFailure[] = [...validatePrincipleStatement(candidate.statement)];
   if (candidate.evidenceIds.length < 2 || candidate.evidenceIds.length > 3) {
     failures.push({ rule: "evidence", message: "证据必须是 2-3 条故事" });
   } else {

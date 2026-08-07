@@ -93,6 +93,21 @@ assert(p3.payload.idempotent === true && p3.payload.moneyState.stateVersion === 
 const bad = await call("plan_jars", { moneyState: ms, ...planArgs, confirm: true });
 assert(bad.isError && bad.payload.code === "validation_error", "写操作缺元数据 → validation_error");
 
+// 5b. 短缺计划不能确认(不生成伪计划)
+const short = await call("plan_jars", {
+  moneyState: ms,
+  disposable: 10000,
+  livingPlanned: 20000,
+  confirm: true,
+  expectedStateVersion: ms.stateVersion,
+  idempotencyKey: key(),
+});
+assert(short.isError && short.payload.code === "validation_error", "短缺计划 confirm → validation_error");
+
+// 5c. 未知 sessionId 不静默重置
+const ghost = await call("get_money_overview", { sessionId: "ghost-session-000" });
+assert(ghost.isError && ghost.payload.code === "not_found", "未知 sessionId → not_found");
+
 // 6. 说一笔 → proposal
 const r1 = await call("record_money_moment", { moneyState: ms, description: "同事约出去玩花了 400,有点后悔", amount: 40000 });
 const proposal = r1.payload.proposal;
@@ -112,6 +127,19 @@ ms = c1.payload.moneyState;
 assert(ms.jars.find((j) => j.kind === "comfort").actual === 40000, "安心罐 actual=40000");
 assert(ms.stories.length === 1 && ms.stories[0].status === "open", "决策故事已创建");
 
+// 7b. 幂等重放可恢复 undoToken/storyId
+const c1r = await call("confirm_action", {
+  moneyState: ms,
+  action: "confirm_debit",
+  proposal,
+  expectedStateVersion: 2,
+  idempotencyKey: k2,
+});
+assert(
+  c1r.payload.idempotent === true && c1r.payload.undoToken === c1.payload.undoToken && c1r.payload.storyId === c1.payload.storyId,
+  "confirm_debit 幂等重放返回同一 undoToken/storyId"
+);
+
 // 8. 过期 proposal 被拒
 const c2 = await call("confirm_action", {
   moneyState: ms,
@@ -122,16 +150,36 @@ const c2 = await call("confirm_action", {
 });
 assert(c2.isError && c2.payload.code === "state_conflict", "过期 proposal → state_conflict");
 
-// 9. 撤销
+// 8b. 伪造/篡改 proposal 被拒(签名校验)
+const forged = await call("confirm_action", {
+  moneyState: ms,
+  action: "confirm_debit",
+  proposal: { ...proposal, amount: 9999900, stateVersion: ms.stateVersion },
+  expectedStateVersion: ms.stateVersion,
+  idempotencyKey: key(),
+});
+assert(forged.isError && forged.payload.code === "validation_error", "篡改 proposal → 验签失败");
+
+// 9. 撤销(故事一起抹掉)+ 撤销自身幂等
+const undoKey = key();
 const u1 = await call("confirm_action", {
   moneyState: ms,
   action: "undo",
   undoToken: c1.payload.undoToken,
   expectedStateVersion: ms.stateVersion,
-  idempotencyKey: key(),
+  idempotencyKey: undoKey,
 });
 ms = u1.payload.moneyState;
 assert(ms.jars.find((j) => j.kind === "comfort").actual === 0, "撤销后 actual=0");
+assert(!ms.stories.some((s) => s.id === c1.payload.storyId), "撤销后关联故事已抹掉");
+const u1r = await call("confirm_action", {
+  moneyState: ms,
+  action: "undo",
+  undoToken: c1.payload.undoToken,
+  expectedStateVersion: 999,
+  idempotencyKey: undoKey,
+});
+assert(u1r.payload.idempotent === true, "撤销幂等重放");
 
 // 10. 3 条故事 + 回看 → 候选原则
 for (let i = 0; i < 3; i++) {

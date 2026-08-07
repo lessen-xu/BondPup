@@ -1,4 +1,5 @@
 import { MoneyState } from "@/contracts";
+import { DomainError } from "@/contracts/errors";
 import { computeJars, type ComputeJarsResult } from "@/server/domain/jars";
 import { computeLivingJar, type LivingItems } from "@/server/domain/living";
 import { computeMonthlyContribution } from "@/server/domain/monthly";
@@ -61,6 +62,13 @@ export function applyJarPlan(input: ApplyJarPlanInput): ApplyJarPlanResult {
     dreamMonthly,
     futurePlanned: input.futurePlanned ?? 0,
   });
+  if (input.confirmed && r.shortfall > 0) {
+    // 不生成伪计划:缺口只能在预览里看见并由用户调整,不能被确认成"装作没问题"的安排
+    throw new DomainError(
+      "validation_error",
+      `这样安排会差 ${fmtYuan(r.shortfall)},先调整一下再确认——差额从哪里来由你决定,我不会自动动任何罐子`
+    );
+  }
 
   const now = nowDate.toISOString();
   const actualOf = (kind: string) => base.jars.find((j) => j.kind === kind)?.actual ?? 0;
