@@ -321,17 +321,27 @@ button { color: inherit; font: inherit; }
   color: var(--ink);
   align-items: baseline;
   display: inline-flex;
-  font-size: 16px;
+  font-size: 13px;
   justify-content: center;
   line-height: 1.35;
   top: -27%;
 }
 
+/* 槽位约为舞台宽的 13%(63% 桌面 × 21% 槽),字号必须按这个宽度算:
+   13px 名称 / 11px 金额是四罐相邻不咬字的上限(如 2,200 元 vs 800 元) */
 .jar-amount {
   color: var(--muted);
-  font-size: 16px;
+  font-size: 11px;
   line-height: 1.35;
   top: -13%;
+}
+
+/* 梦想罐可由用户命名:超长名字截断省略,不挤压相邻罐(其余罐名固定,不设上限) */
+.jar-slot-dream .jar-name-text {
+  max-width: 4.6em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .jar-edit-pencil { display: inline-block; height: 12px; margin-left: 4px; object-fit: contain; vertical-align: baseline; width: 12px; }
@@ -901,8 +911,8 @@ button { color: inherit; font: inherit; }
 }
 
 /* The labels stay centered on their jars without running into each other. */
-.jar-name { font-size: 14px; }
-.jar-amount { font-size: 13px; }
+.jar-name { font-size: 12px; }
+.jar-amount { font-size: 10px; }
 
 /* Vault page */
 .vault-page-shell { background: var(--paper) url('/assets/paper-texture.png') repeat; }
