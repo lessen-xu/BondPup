@@ -140,6 +140,44 @@ assert(
   "confirm_debit 幂等重放返回同一 undoToken/storyId"
 );
 
+// 7c. 重放时换罐参数不被采信:undoToken 仍指向首次确认的罐子
+const c1x = await call("confirm_action", {
+  moneyState: ms,
+  action: "confirm_debit",
+  proposal,
+  chosenJar: "living",
+  expectedStateVersion: 2,
+  idempotencyKey: k2,
+});
+assert(c1x.payload.undoToken === c1.payload.undoToken, "重放换罐不改变 undoToken(以故事为准)");
+
+// 7d. 超大请求体被拒
+{
+  const res = await fetch(`${BASE}/mcp`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "tools/list",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 999,
+      method: "tools/list",
+      params: {
+        _meta: {
+          "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+          "io.modelcontextprotocol/clientInfo": { name: "smoke", version: "0" },
+          "io.modelcontextprotocol/clientCapabilities": {},
+          padding: "x".repeat(200 * 1024),
+        },
+      },
+    }),
+  });
+  assert(res.status === 413, "超过 128KB 的请求体 → 413");
+}
+
 // 8. 过期 proposal 被拒
 const c2 = await call("confirm_action", {
   moneyState: ms,

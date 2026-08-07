@@ -66,8 +66,14 @@ function resolveState(ref: { sessionId?: string; moneyState?: unknown }): {
   return { sessionId, state };
 }
 
-/** proposal 完整性签名:内容由 record_money_moment 签发,confirm 时验签,防改写/伪造 */
-const PROPOSAL_SECRET = process.env.PROPOSAL_SECRET ?? "bondpup-dev-proposal-secret";
+/**
+ * proposal 完整性签名:内容由 record_money_moment 签发,confirm 时验签,防改写/伪造。
+ * 生产环境必须配置 PROPOSAL_SECRET,未配置时 fail closed(公开的开发缺省值等于没有签名)。
+ */
+const PROPOSAL_SECRET =
+  process.env.PROPOSAL_SECRET ??
+  (process.env.NODE_ENV === "production" ? null : "bondpup-dev-proposal-secret");
+
 function signProposal(p: {
   proposalId: string;
   jarKind: string;
@@ -75,6 +81,9 @@ function signProposal(p: {
   intent: string;
   stateVersion: number;
 }): string {
+  if (!PROPOSAL_SECRET) {
+    throw new DomainError("internal_error", "服务端未配置 PROPOSAL_SECRET,候选动作签发与确认已停用");
+  }
   return createHmac("sha256", PROPOSAL_SECRET)
     .update(`${p.proposalId}|${p.jarKind}|${p.amount}|${p.intent}|${p.stateVersion}`)
     .digest("hex")
@@ -366,16 +375,19 @@ export function registerBondPupTools(server: McpServer): void {
         const { sessionId, state } = resolveState(input);
         const meta = requireWriteMeta(state, input);
         if (meta.idempotent) {
-          // 幂等重放尽量恢复首次结果(undoToken/storyId 可确定性重建)
-          if (input.action === "confirm_debit" && input.proposal) {
-            const jarKind = input.chosenJar ?? input.proposal.jarKind;
-            return ok({
-              sessionId,
-              idempotent: true,
-              undoToken: makeUndoToken(jarKind, input.proposal.amount, meta.idempotencyKey),
-              storyId: `story-${meta.idempotencyKey}:story`,
-              moneyState: state,
-            });
+          // 幂等重放从首次写入的故事恢复结果——不信任重放请求里的参数(chosenJar 可能被换)
+          if (input.action === "confirm_debit") {
+            const storyId = `story-${meta.idempotencyKey}:story`;
+            const story = state.stories.find((s) => s.id === storyId);
+            if (story?.confirmedJar && story.amount !== undefined) {
+              return ok({
+                sessionId,
+                idempotent: true,
+                undoToken: makeUndoToken(story.confirmedJar, story.amount, meta.idempotencyKey),
+                storyId,
+                moneyState: state,
+              });
+            }
           }
           return ok({ sessionId, idempotent: true, moneyState: state });
         }

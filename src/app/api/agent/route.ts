@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   if (!originAllowed(request)) {
     return guardError(403, "validation_error", "来源不允许");
   }
-  if (rateLimited(request)) {
+  if (rateLimited(request, "agent", 30)) {
     return guardError(429, "rate_limited", "请求太频繁,慢慢来");
   }
   let body: unknown;

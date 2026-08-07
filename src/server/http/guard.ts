@@ -17,21 +17,24 @@ export function originAllowed(req: Request): boolean {
   return ALLOWED_ORIGINS.some((r) => r.test(origin));
 }
 
+/** /api/agent:普通对话载荷 */
 export const MAX_BODY_BYTES = 32 * 1024;
+/** /mcp:请求链回完整 moneyState,上限放宽 */
+export const MAX_MCP_BODY_BYTES = 128 * 1024;
 
-/** 每实例滑动窗口限流(Vercel 实例间不共享,作为第一道闸;真实 Key 上线后的预算控制在部署平台再加) */
+/** 每实例滑动窗口限流(Vercel 实例间不共享,作为第一道闸;真实 Key 的预算控制在模型账户侧设限) */
 const WINDOW_MS = 60_000;
-const MAX_PER_WINDOW = 30;
-const hits = new Map<string, number[]>();
+const buckets = new Map<string, number[]>();
 
-export function rateLimited(req: Request): boolean {
+export function rateLimited(req: Request, bucket: string, maxPerWindow: number): boolean {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
+  const k = `${bucket}:${ip}`;
   const now = Date.now();
-  const recent = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
-  if (recent.length >= MAX_PER_WINDOW) return true;
+  const recent = (buckets.get(k) ?? []).filter((t) => now - t < WINDOW_MS);
+  if (recent.length >= maxPerWindow) return true;
   recent.push(now);
-  hits.set(ip, recent);
-  if (hits.size > 1000) hits.clear();
+  buckets.set(k, recent);
+  if (buckets.size > 2000) buckets.clear();
   return false;
 }
 
