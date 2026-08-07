@@ -1,8 +1,7 @@
-# 目录所有权:对应目录的 PR 需要 Owner 批准
-# TODO: 把 @TODO-A-username 换成队友 A 的真实 GitHub 用户名
-/src/app/        @TODO-A-username
-/src/components/ @TODO-A-username
+# 目录所有权:对应目录的 PR 自动请求相应 Owner 评审
+/src/app/        @WEIWEIs0-sherry
+/src/components/ @WEIWEIs0-sherry
 /src/server/     @lessen-xu
 /src/lib/        @lessen-xu
-# contracts 为合同冻结区:双人共同所有,改动走契约变更单
-/src/contracts/  @lessen-xu @TODO-A-username
+# contracts 为冻结契约区:双人共同所有
+/src/contracts/  @lessen-xu @WEIWEIs0-sherry
