@@ -1,0 +1,285 @@
+export const NOTE_MODEL_REPLY = {
+  fallback: "嗯,我都听着了。",
+  thinkingHint: "",
+} as const;
+
+export const moneyNoteScript = {
+  back: "返回上一步", backHome: "返回首页", loading: "我想一下〜", intro: "你说,我听着。",
+  storyPlaceholder: "想说说哪一笔钱?", storySubmit: "告诉我", amountQuestion: "我听见了。大概是多少钱呢?",
+  amountPlaceholder: "金额", amountSubmit: "继续", talkOnly: "只说说,不改余额",
+  chooseJar: "这笔钱想记在哪个罐子?", confirm: "把 ▢▢▢ 元记在{jarLabel},可以吗?",
+  confirmDebit: "确认记下", changeJar: "换一个罐子", saved: "好,我记下了。",
+  talkOnlySaved: "好,那我就先不动罐子。你说的这件事,我记得。", undo: "撤销",
+  undone: "已经撤销了,罐子回到刚才的样子。", noState: "先和我一起把这个月的罐子放好,再来记这笔钱。",
+  goStart: "从零开始", fallbackError: "这笔钱暂时没记进去。我们可以换个罐子,或者先只说说。",
+  listen: {
+    done: "嗯,说完了",
+    responses: {
+      income: "噢〜多出来一笔钱,是件开心的事呀。你看到它的时候,第一反应是什么?",
+      hesitation: "嗯,这笔钱你还没决定怎么用。它让你有点犹豫,是不是?",
+      regret: "嗯,花完了之后你感觉没那么好。这种感觉我懂的。",
+      uncertain: "嗯,你还没想好它的去处。那我们可以一起想想,不着急。",
+      unclear: "嗯嗯,我听着呢。慢慢说。",
+    },
+    transition: [
+      "嗯,我大概懂你的感觉了。",
+      "这笔钱让你有点……",
+      "就是想说一说,对不对?",
+    ],
+  },
+  modelReply: NOTE_MODEL_REPLY,
+  vault: {
+    title: "{alias}的小金库",
+    subtitle: "我替你收着的纸条,想看的时候就来看看。",
+    empty: "还没有写下纸条。",
+  },
+} as const;
+
+export const REVIEW_STEP1 = {
+  summary: "那天你在想 {item}，{price}元，最后选了{action}。",
+} as const;
+
+export const REVIEW_CARD = {
+  subtitle: "我们说今天来看看",
+  body: {
+    now: "那件{item}，后来真的进入你的生活了吗？",
+    tomorrow: "昨天那件{item}，你今天还会主动想起它吗？",
+    skip: "那件{item}你没买，现在是什么感觉？",
+  },
+} as const;
+
+export const REVIEW_OPTIONS = {
+  now: ["用过几次", "还没怎么用", "说不上来"],
+  tomorrow: ["还会想", "放下了", "还在等"],
+  skip: ["挺轻松", "有点遗憾", "没什么感觉"],
+} as const;
+
+export const REVIEW_RESPONSES = {
+  main: {
+    "用过几次": "嗯，它真的进到你生活里了。",
+    "还没怎么用": "嗯，我记下了。这种事挺常有的。",
+    "说不上来": "嗯嗯，说不清也没关系。",
+    "还会想": "那它还在你心里呀。",
+    "放下了": "嗯，那就先放着吧。",
+    "还在等": "好，那再等等。",
+    "挺轻松": "嗯，那就好。",
+    "有点遗憾": "嗯，有点遗憾也很正常～",
+    "没什么感觉": "嗯嗯，我知道了。",
+  },
+  followUp: {
+    "还没怎么用": "说不定哪天就用上了，这种事也常有。",
+    "还在等": "有些决定就是需要多一点时间。",
+  },
+} as const;
+
+export const REVIEW_ASK_MONEY = {
+  question: "那笔钱花出去了吗？",
+  options: { spent: "花了", notBought: "最后没买", notYet: "还没" },
+  whichJar: {
+    question: "打算用哪个罐子里的钱？",
+    options: ["生活罐", "安心罐", "梦想罐", "未来罐", "不记得了"],
+    jarResponse: "好，从{jar}里拿的，我记上了。",
+    forgottenResponse: "好，那数字先不动。我帮你记着这件事。",
+  },
+  notBoughtResponse: "嗯，那就当它没发生过。",
+  notYetResponse: "好，那再等几天看看。",
+  notYetFollowUp: "有时候放一放，答案自己会浮出来。",
+} as const;
+
+export const REVIEW_CONFIRM_DEDUCT = {
+  question: "从{jar}里拿{amount}元，是这个意思吗？",
+  confirm: "是",
+  cancel: "再想想",
+  done: "好，从{jar}里拿的，我记上了。",
+  undo: "改回去",
+} as const;
+
+export const REVIEW_STEP3 = {
+  placeholder: "想说点什么吗？不想说也没关系",
+  skip: "跳过",
+  save: "记下来",
+} as const;
+
+export const REVIEW_STEP4 = { closing: "好，我记下了。" } as const;
+
+export const REVIEW_NAV = { next: "继续", backHome: "返回首页" } as const;
+
+export const HOME_REVIEW_CARD = { subtitle: "我们说今天来看看" } as const;
+
+export const REVIEW_ACTION_LABELS = {
+  buy_now: "现在买",
+  defer: "放到明天",
+  skip_this_time: "这次先不买",
+} as const;
+
+export const DECISION_BALANCE = {
+  fresh: "安心罐里现在有 {balance} 元。买了它的话，还会剩下 {remain} 元。",
+  stale: {
+    line: "我这儿记的是还剩 {balance} 元，不过有段时间没跟你对过了。现在大概还剩多少？",
+    placeholder: "填个大概就行，不确定就跳过",
+    options: { keep: "就按这个数看", update: "我更新一下" },
+    updatePlaceholder: "现在大概还剩多少？",
+    keepResponse: "好，那就先按这个数看。你想改的时候随时告诉我。",
+    updateResponse: "好，我记新的。那就按这个数往下看。",
+    skipResponse: "好，那就先按原来的数看。",
+  },
+} as const;
+
+// 兼容旧引用;新页面统一使用 REVIEW_RESPONSES。
+export const REVIEW_STEP2 = REVIEW_RESPONSES;
+
+// ============================================================
+// 修改四：全局收尾语
+// ============================================================
+export const CLOSING = {
+  setupDone: "好，我记下了。四个罐子我替你收着。以后花了钱、犹豫要不要买、或者只是想说说话，都可以来找我。",
+  casual: "好，我收到了。以后想说的时候随时来。",
+} as const;
+
+export const ERRORS = {
+  offline: {
+    line: "咦，我这边好像连不上了。",
+    sub: "等一下再试试？你刚说的话我都记着呢。",
+    retry: "再试一次",
+    fallback: "先看看罐子",
+  },
+  timeout: {
+    line: "我想了一下，有点没跟上。",
+    sub: "要不要再说一遍？或者我们先做别的。",
+    retry: "再说一遍",
+    fallback: "先看看罐子",
+  },
+  validation: {
+    line: "这个数我好像没看懂。",
+    sub: "再填一次？填个大概就行。",
+  },
+  conflict: {
+    line: "咦，好像别的地方也在改数字。",
+    sub: "我先去看一眼最新的，你等我一下。",
+    action: "看看最新的",
+  },
+  loading: {
+    line: "等我一下，我去翻翻小本本。",
+  },
+  empty: {
+    cards: "你的第一张已经在里面了。",
+  },
+} as const;
+
+export const DEMO = {
+  entryFresh: "从零开始",
+  entryDemo: "用示例数据先逛一圈",
+  enterLine: "这些数字是我编的，不是你的。",
+  enterSub: "你先随便点点，想真的开始了告诉我。",
+  badge: "示例数据",
+  exitLabel: "清掉示例，从零开始",
+  exitConfirm: "要把示例的数字都清掉吗？清了就从头来。",
+  exitYes: "清掉",
+  exitNo: "再逛逛",
+  exitDone: "好，清干净了。我们从头开始吧。",
+} as const;
+
+export const SAFETY = {
+  crisis: {
+    line: "我停一下。",
+    body: "刚才你说的话，我记住了。\n钱的事我们随时可以再聊，但现在我更想知道你还好吗。\n这件事我帮不上忙，但你身边一定有人可以。",
+    closing: "我会在这儿等你回来。",
+    ack: "我知道了",
+    home: "回去看看罐子",
+  },
+  debt: {
+    line: "这个我确实不懂，不敢乱说。",
+    body: "借钱、分期这些事，找懂的人问会比问我靠得住。",
+    closing: "我们可以聊聊这个月的安排，或者你就想说说话也行。",
+  },
+  invest: {
+    line: "投资我不做，也不打算做。",
+    body: "不是不想帮你，是这件事我给不了负责的建议。",
+    closing: "我能陪你做的，是把手上的钱分明白。",
+  },
+  offTopic: {
+    line: "嗯，我听着呢。",
+    body: "这件事有影响到你这个月的安排吗？",
+    options: { yes: "有一点", no: "没有" },
+    yesResponse: "那我们看看要不要调一下。",
+    noResponse: "好，那就先放着。你想说的时候随时说。",
+  },
+  ageNotice: "这里适合 18 岁以上的朋友使用。",
+  timeReminder: {
+    line: "我们聊了挺久了。",
+    body: "要不要先歇一会儿？我不会走的。",
+    ack: "好",
+    continue: "再聊一会儿",
+  },
+} as const;
+
+/** 日常场景定稿文案。页面只做 {alias} 插值，不改写句子。 */
+export const DAILY_DECISION = {
+  entry: "帮我看看要不要买",
+  intro: "好呀〜你想买什么?跟我说说看",
+  itemPlaceholder: "比如「一双运动鞋」「一个投影仪」「一件大衣」……",
+  itemHint: "还没想好具体是什么也没关系,先说说看〜",
+  itemNext: "告诉我",
+  priceQuestion: "嗯嗯,我记下了。那它大概多少钱呀?",
+  pricePlaceholder: "填个大概就行〜",
+  unsure: "我还不确定",
+  unsureResponse: "没关系〜大概的范围也可以,比如「几百块」或者「一千出头」。你随便说,我帮你记着。",
+  noState: "咦,我还没帮你分好罐子呢〜要不要先花几分钟,我帮你把罐子分一分?这样以后再看「要不要买」,我心里就有数啦。",
+  start: "先分罐子",
+  browse: "不了,就随便看看",
+  comfortEnough: "安心罐里现在有 {balance} 元。买了它的话,还会剩下 {remain} 元。",
+  shortfall: "按安心罐算会差 {shortfall} 元。剩下这部分你想放在哪里?",
+  arrange: "我帮你捋一下〜",
+  summaryItem: "想买:{item}  {price}元",
+  summaryComfort: "从安心罐出:还会剩 {remain}元",
+  arrangeQuestion: "想现在决定,还是先放一放?都可以的。",
+  actions: { buy: "现在买", defer: "放到明天", skip: "这次先不买" },
+  confirmQuestion: "我这样记下来,可以吗?",
+  confirm: "就这样",
+  modify: "我再想想",
+  cancel: "先不记了",
+  closing: "好,我记下了。不管买不买,我都站你这边。",
+  uncertainDecision: "不确定也很正常呀。那就先放一放,明天再来看看它。钱的事,{alias}想清楚比急着决定好。",
+  offTopic: "嗯嗯,我听着呢。想聊钱的事随时找我,想聊别的也行〜",
+  priceUncertain: "噢,价格还没完全定下来〜那你心里大概的预算范围是多少呀?比如「超过 500 就不太想买了」这种。",
+  shortfallSources: "等后端提供来源选项后可选",
+} as const;
+
+export const DAILY_NOTE = {
+  entry: "有笔钱想说说",
+  intro: "嗯,我听着呢。这笔钱是什么情况呀?",
+  placeholder: "比如「收到了一笔奖金」「退了一笔钱」「花了一笔有点后悔的钱」……",
+  hint: "什么都可以说〜{alias}不会评价你,只会听着。",
+  submit: "告诉我",
+  done: "嗯,说完了",
+  responses: {
+    income: "噢〜多出来一笔钱,是件开心的事呀。你看到它的时候,第一反应是什么?",
+    hesitation: "嗯,这笔钱你还没决定怎么用。它让你有点犹豫,是不是?",
+    regret: "嗯,花完了之后你感觉没那么好。这种感觉我懂的。",
+    uncertain: "嗯,你不太确定它应该放在哪里。那我们可以一起想想,不着急。",
+    unclear: "嗯嗯,我听着呢。{alias}说。",
+  },
+  transitions: ["嗯,我大概懂你的感觉了。", "这笔钱让你有点……", "就是想说一说,对不对?"],
+  choicesPrompt: "嗯。你可以选——",
+  remember: "我帮你记下来",
+  talkOnly: "不用记,就是跟你说说",
+  remembered: "好,我帮你记好了。",
+  received: "好,我收到了。以后想说的时候随时来。",
+  adjust: "好呀〜你想怎么调整?告诉我,我来帮你改。",
+  regretBranch: "嗯,花完有点后悔,这种感觉好真实。不过钱花都花了,它已经完成了它的事。你现在想做的,是调整接下来的安排,还是只是想把这件事说出来?",
+} as const;
+
+export const DAILY_TALK = {
+  prompt: "{alias}:今天想聊什么?",
+  freePlaceholder: "说什么都可以〜{alias}听着呢",
+  submit: "说给我听",
+  detected: "{alias}:咦,你说的这个,要不要我们一起看看?还是你就是想随便聊聊?",
+  together: "一起看看",
+  casual: "随便聊聊",
+  silence: "{alias}:嗯……我就在这儿哦。你不用急着回答,发呆也可以的。",
+  return: "{alias}:嘿,你回来啦〜上次我们聊到一半,你还想继续说吗?不想说也没关系。",
+  triggers: {
+    decision: ["我想买", "要不要买", "值得买", "帮我看看", "想买"],
+    note: ["收到一笔", "有笔钱", "花了笔钱", "退了笔钱", "奖金", "红包", "后悔"],
+  },
+} as const;

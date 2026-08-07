@@ -1,12 +1,15 @@
+/* eslint-disable @next/next/no-img-element --
+   手绘场景资产使用绝对定位与百分比尺寸,next/image 的容器约束
+   会破坏舞台布局。资产已预先压缩,尺寸可控。 */
 import type { CSSProperties } from "react";
-import type { HomeJar } from "@/types/home";
+import type { Jar as MoneyJar } from "@/contracts";
 import { script } from "@/mock/script";
 
 export function formatMoney(cents: number) {
   return `¥${new Intl.NumberFormat("zh-CN").format(cents / 100)}`;
 }
 
-type JarProps = HomeJar & {
+type JarProps = MoneyJar & {
   slotLeft: string;
   description: string;
   selected: boolean;
@@ -22,7 +25,10 @@ export function Jar({ kind, label, planned, slotLeft, description, selected, onS
   return (
     <div className={`jar-slot jar-slot-${kind}`} style={{ "--jar-slot-left": slotLeft } as CSSProperties}>
       <button className="jar" type="button" onClick={onSelect} aria-label={`查看${label}`}>
-        <span className="jar-name">{label}{kind === "future" && <img className="jar-edit-pencil" src="/assets/编辑铅笔.png" alt="" aria-hidden="true" />}</span>
+        <span className="jar-name">
+          <span className="jar-name-text">{label}</span>
+          {kind === "future" && <img className="jar-edit-pencil" src="/assets/编辑铅笔.png" alt="" aria-hidden="true" />}
+        </span>
         <span className="amount jar-amount">{formatAmount(planned)}</span>
       </button>
       {selected && (
