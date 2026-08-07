@@ -1,4 +1,5 @@
 import { DecisionStory, JarKind, MoneyState, StoryAction } from "@/contracts";
+import { Cents } from "@/contracts/money";
 import { DomainError } from "@/contracts/errors";
 
 /**
@@ -68,11 +69,20 @@ export interface CompleteReviewRequest {
   happened: boolean;
   actualAmount?: number;
   feelingNote?: string;
+  /**
+   * 实际买了、且当时没有扣过罐(log_decision 记的决定)时,从哪个罐补记账。
+   * 由用户在回看时确认,不默认——「故事说买了但余额没动」的缺口在这里闭合。
+   */
+  debitJar?: JarKind;
   expectedStateVersion: number;
   idempotencyKey: string;
 }
 
-export function completeReview(state: MoneyState, req: CompleteReviewRequest): StoryWriteResult {
+export interface CompleteReviewResult extends StoryWriteResult {
+  appliedDebit?: { jarKind: JarKind; amount: number; overPlan: number };
+}
+
+export function completeReview(state: MoneyState, req: CompleteReviewRequest): CompleteReviewResult {
   const existing = state.stories.find((s) => s.id === req.storyId);
   if (state.appliedOps.includes(req.idempotencyKey) && existing) {
     return { state, story: existing, idempotent: true };
@@ -89,9 +99,36 @@ export function completeReview(state: MoneyState, req: CompleteReviewRequest): S
   if (existing.status === "reviewed") {
     throw new DomainError("state_conflict", "这条故事已经回看过了");
   }
+
   const now = new Date().toISOString();
+  let jars = state.jars;
+  let appliedDebit: CompleteReviewResult["appliedDebit"];
+  let confirmedJar = existing.confirmedJar;
+  if (req.debitJar) {
+    if (!req.happened) {
+      throw new DomainError("validation_error", "没有实际发生的决定不需要记账");
+    }
+    if (existing.confirmedJar !== undefined) {
+      throw new DomainError("state_conflict", "这笔当时已经记过账了,不能重复记");
+    }
+    const amount = req.actualAmount ?? existing.amount;
+    if (amount === undefined || !Cents.safeParse(amount).success || amount === 0) {
+      throw new DomainError("validation_error", "补记账需要正整数金额(actualAmount,单位分)");
+    }
+    const jar = state.jars.find((j) => j.kind === req.debitJar);
+    if (!jar) {
+      throw new DomainError("not_found", `还没有 ${req.debitJar} 罐,先完成一次安排`);
+    }
+    jars = state.jars.map((j) =>
+      j.kind === req.debitJar ? { ...j, actual: j.actual + amount, updatedAt: now } : j
+    );
+    appliedDebit = { jarKind: req.debitJar, amount, overPlan: Math.max(0, jar.actual + amount - jar.planned) };
+    confirmedJar = req.debitJar;
+  }
+
   const story = DecisionStory.parse({
     ...existing,
+    ...(confirmedJar ? { confirmedJar } : {}),
     status: "reviewed",
     outcome: {
       reviewedAt: now,
@@ -103,10 +140,11 @@ export function completeReview(state: MoneyState, req: CompleteReviewRequest): S
   const newState = MoneyState.parse({
     ...state,
     stateVersion: state.stateVersion + 1,
+    jars,
     stories: state.stories.map((s) => (s.id === story.id ? story : s)),
     appliedOps: [...state.appliedOps.slice(-19), req.idempotencyKey],
   });
-  return { state: newState, story };
+  return { state: newState, story, appliedDebit };
 }
 
 /** 到期待回看的故事(FOLLOWUP 状态的数据源) */

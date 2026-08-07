@@ -7,6 +7,8 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      PROPOSAL_SECRET: ci-smoke-secret
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -15,3 +17,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify
+      - name: MCP smoke (production server)
+        run: |
+          npm run start &
+          for i in $(seq 1 30); do curl -sf http://localhost:3000/health > /dev/null && break; sleep 2; done
+          bash scripts/verify-mcp.sh > /dev/null
+          node scripts/smoke-mcp.mjs

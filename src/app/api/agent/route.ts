@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   let body: unknown;
   try {
     const raw = await request.text();
-    if (raw.length > MAX_BODY_BYTES) {
+    if (Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES) {
       return guardError(413, "validation_error", "请求体过大");
     }
     body = JSON.parse(raw);

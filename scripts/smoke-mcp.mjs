@@ -219,8 +219,36 @@ const u1r = await call("confirm_action", {
 });
 assert(u1r.payload.idempotent === true, "撤销幂等重放");
 
-// 10. 3 条故事 + 回看 → 候选原则
-for (let i = 0; i < 3; i++) {
+// 10. 决定→回看→补记账:log_decision 的故事在回看确认后余额入账
+const d1 = await call("confirm_action", {
+  moneyState: ms,
+  action: "log_decision",
+  intent: "犹豫一双鞋,先记决定",
+  decisionAction: "buy_now",
+  amount: 30000,
+  expectedStateVersion: ms.stateVersion,
+  idempotencyKey: key(),
+});
+ms = d1.payload.moneyState;
+const rev1 = await call("confirm_action", {
+  moneyState: ms,
+  action: "complete_review",
+  storyId: d1.payload.storyId,
+  happened: true,
+  actualAmount: 30000,
+  chosenJar: "comfort",
+  feelingNote: "买了,穿了三次,值",
+  expectedStateVersion: ms.stateVersion,
+  idempotencyKey: key(),
+});
+ms = rev1.payload.moneyState;
+assert(
+  rev1.payload.appliedDebit && ms.jars.find((j) => j.kind === "comfort").actual === 30000,
+  "回看确认实际买了 → 安心罐入账 30000"
+);
+
+// 10b. 再补 2 条故事 + 回看 → 候选原则
+for (let i = 0; i < 2; i++) {
   const n = await call("confirm_action", {
     moneyState: ms,
     action: "note_only",

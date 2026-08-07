@@ -9,7 +9,7 @@ import { buildCycleReviewProposal, confirmCycleReview, isNewCycle } from "@/serv
 import { moveLeftover } from "@/server/domain/leftover";
 import { completeReview, createDecisionStory, dueReviews } from "@/server/domain/story";
 import { buildCandidate, principleEligible, resolvePrinciple } from "@/server/domain/principle";
-import { detectSafetyRisk, recordSafetyEvent, safetyReplyFor } from "@/server/safety/risk";
+import { detectSafetyRisk, safetyReplyFor } from "@/server/safety/risk";
 import { validatePrincipleCandidate } from "@/server/safety/validate";
 import { generatePrincipleCandidate } from "@/server/agent";
 import { applyJarPlan } from "@/lib/plan/apply-jar-plan";
@@ -274,16 +274,17 @@ export function registerBondPupTools(server: McpServer): void {
       try {
         const { sessionId, state } = resolveState(input);
         // 安全红线输入闸:命中即不给罐子建议,返回安全回应并留审计(不含原文)
+        // 安全命中也保持只读(工具自述只读,且此路径无幂等键):返回审计草稿,由写路径落账
         const hit = detectSafetyRisk(input.description);
         if (hit) {
           const reply = safetyReplyFor(hit.riskType);
-          const audited = recordSafetyEvent(state, hit, "mcp_record_money_moment_safety_reply");
-          remember(sessionId, audited);
+          remember(sessionId, state);
           return ok({
             sessionId,
             safety: reply.safety,
             reply: reply.text,
-            moneyState: audited,
+            safetyEvent: { ...hit, responseTaken: "mcp_record_money_moment_safety_reply" },
+            moneyState: state,
           });
         }
         remember(sessionId, state);
@@ -331,7 +332,7 @@ export function registerBondPupTools(server: McpServer): void {
     {
       title: "确认动作(扣罐/撤销/决定/回看/原则/周期/碎钻)",
       description:
-        "所有改变状态的用户确认动作走这里,按 action 区分:confirm_debit=确认 record_money_moment 返回的 proposal 并扣罐(可用 chosenJar 换罐);undo=按 undoToken 撤销扣罐并抹掉关联故事;note_only=只说说,记一条不改余额的故事;log_decision=记录一个购买决定(现在买/放到明天/这次先不买,不动余额);complete_review=完成一次回看;adopt_principle=对候选原则做 像我/改说法/暂不确定;confirm_cycle=新周期确认(月供重算、结余进碎钻);move_leftover=把碎钻挪进某个罐(可部分)。全部动作必须带 expectedStateVersion 与 idempotencyKey。",
+        "所有改变状态的用户确认动作走这里,按 action 区分:confirm_debit=确认 record_money_moment 返回的 proposal 并扣罐(可用 chosenJar 换罐);undo=按 undoToken 撤销扣罐并抹掉关联故事;note_only=只说说,记一条不改余额的故事;log_decision=记录一个购买决定(现在买/放到明天/这次先不买,不动余额);complete_review=完成一次回看(实际买了且当时未扣罐时,带 chosenJar 补记账);adopt_principle=对候选原则做 像我/改说法/暂不确定;confirm_cycle=新周期确认(月供重算、结余进碎钻);move_leftover=把碎钻挪进某个罐(可部分)。全部动作必须带 expectedStateVersion 与 idempotencyKey。",
       inputSchema: z.object({
         ...SessionRef,
         action: z.enum([
@@ -496,19 +497,23 @@ export function registerBondPupTools(server: McpServer): void {
             if (!input.storyId || input.happened === undefined) {
               throw new DomainError("validation_error", "complete_review 需要 storyId 与 happened");
             }
-            const { state: reviewed, story } = completeReview(state, {
+            const { state: reviewed, story, appliedDebit } = completeReview(state, {
               storyId: input.storyId,
               happened: input.happened,
               actualAmount: input.actualAmount,
               feelingNote: input.feelingNote,
+              debitJar: input.chosenJar,
               expectedStateVersion: meta.expectedStateVersion,
               idempotencyKey: meta.idempotencyKey,
             });
             remember(sessionId, reviewed);
             return ok({
               sessionId,
-              reply: "记下了。回看只是看看实际发生了什么,三种决定没有高下。",
+              reply: appliedDebit
+                ? `记下了,这 ${fmtYuan(appliedDebit.amount)} 从${JAR_LABEL[appliedDebit.jarKind]}记了账。回看只是看看实际发生了什么。`
+                : "记下了。回看只是看看实际发生了什么,三种决定没有高下。",
               story,
+              ...(appliedDebit ? { appliedDebit } : {}),
               reviewedCount: reviewed.stories.filter((s) => s.status === "reviewed").length,
               moneyState: reviewed,
             });
