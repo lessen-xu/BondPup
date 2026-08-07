@@ -4,13 +4,12 @@ import { detectSafetyRisk, safetyReplyFor } from "@/server/safety/risk";
 import { principleContext, principleEligible } from "@/server/domain/principle";
 import type { AgentTaskInput, AgentTaskOutput, GeneratePrincipleOutput } from "./types";
 import { runMockAgentTask } from "./mock";
+import { runAnthropicTask, runCompatTask } from "./providers";
 
 /**
- * Agent 入口。provider 选择:
- * - ANTHROPIC_API_KEY 存在 → Claude 原生 /v1/messages(计划接入:Sonnet 5 + adaptive thinking + effort low)
- * - OPENAI_COMPAT_API_KEY 存在 → 国产模型 OpenAI 兼容端点
- * - 都没有 → 确定性 Mock(评测「无密钥可跑」要求;也是超时/失败的降级路径)
- * 今天(Day-2)只有 Mock;真实适配层接入时此函数签名不变。
+ * Agent 入口。provider 按环境变量选择:
+ * ANTHROPIC_API_KEY → Claude 原生 /v1/messages;OPENAI_COMPAT_API_KEY → 国产兼容端点;
+ * 都没有或调用失败/超时 → 确定性 Mock(评测「无密钥可跑」要求,也是降级路径)。
  */
 /** 输出闸兜底文案(无禁用词、一句话):回应两次校验不过就用它,不让违规文本出门 */
 const SAFE_FALLBACK: AgentReply = {
@@ -18,8 +17,38 @@ const SAFE_FALLBACK: AgentReply = {
   requiresConfirmation: false,
 };
 
-export async function runAgentTask(input: AgentTaskInput): Promise<AgentTaskOutput> {
-  // 输入闸:自伤/借贷/投资命中红线 → 绕过模型,统一以 companion_reply 形态返回安全回应
+export type AgentProvider = "anthropic" | "compat" | "mock";
+
+export type AgentRunOutput = AgentTaskOutput & {
+  provider?: AgentProvider;
+  /** 输入闸命中时的审计草稿(不含原文);持有 moneyState 的一方用 recordSafetyEvent 写入 */
+  safetyEvent?: { riskType: string; triggeredRule: string; responseTaken: string };
+};
+
+function pickProvider(): AgentProvider {
+  if (process.env.ANTHROPIC_API_KEY) return "anthropic";
+  if (process.env.OPENAI_COMPAT_API_KEY && process.env.OPENAI_COMPAT_BASE_URL) return "compat";
+  return "mock";
+}
+
+async function runProviderTask(
+  input: AgentTaskInput
+): Promise<{ out: AgentTaskOutput; provider: AgentProvider }> {
+  const provider = pickProvider();
+  if (provider !== "mock") {
+    try {
+      const out =
+        provider === "anthropic" ? await runAnthropicTask(input) : await runCompatTask(input);
+      return { out, provider };
+    } catch {
+      // 超时/限流/解析失败 → 确定性 Mock 降级,体验不断
+    }
+  }
+  return { out: runMockAgentTask(input), provider: "mock" };
+}
+
+export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutput> {
+  // 输入闸:自伤/借贷/投资/泛化情绪命中 → 绕过模型,统一以 companion_reply 形态返回安全回应
   const userText =
     input.task === "decompose_wish"
       ? input.wish
@@ -29,19 +58,23 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentTaskOutp
   if (userText) {
     const hit = detectSafetyRisk(userText);
     if (hit) {
-      return { task: "companion_reply", result: safetyReplyFor(hit.riskType) };
+      return {
+        task: "companion_reply",
+        result: safetyReplyFor(hit.riskType),
+        safetyEvent: { ...hit, responseTaken: "agent_safety_reply" },
+      };
     }
   }
-  const out = runMockAgentTask(input); // 真模型接入后此处按环境变量选 provider,Mock 保留为降级
+  const { out, provider } = await runProviderTask(input);
   // 输出闸:禁用词/句数不合格 → 重试一次 → 仍不合格用安全兜底,绝不放行违规文本
   if (out.task === "companion_reply" && validateReplyText(out.result.text).length > 0) {
-    const retry = runMockAgentTask(input);
-    if (retry.task === "companion_reply" && validateReplyText(retry.result.text).length === 0) {
-      return retry;
+    const retry = await runProviderTask(input);
+    if (retry.out.task === "companion_reply" && validateReplyText(retry.out.result.text).length === 0) {
+      return { ...retry.out, provider: retry.provider };
     }
-    return { task: "companion_reply", result: SAFE_FALLBACK };
+    return { task: "companion_reply", result: SAFE_FALLBACK, provider };
   }
-  return out;
+  return { ...out, provider };
 }
 
 type PrincipleGenerator = (

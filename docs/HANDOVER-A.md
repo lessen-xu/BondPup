@@ -72,7 +72,7 @@
 
 ## 安全与合规(页面必须处理的三件事)
 
-1. **SAFETY_EXIT**:`/api/agent` 的回应可能带 `result.safety = { flagged, exit }`(用户输入命中自伤/借贷/投资红线时,**不管你请求的是什么任务,返回都是 companion_reply 形态的安全回应**)。`flagged:true` → 原样显示 `text`,不再显示购买建议;`exit:true` → 进入安全退出界面(温和、可一键回到 HOME)。合法路由在 `APP_TRANSITIONS`(`@/lib/state/machine`)里,任何屏都可进 SAFETY_EXIT。
+1. **SAFETY_EXIT**:`/api/agent` 的回应可能带 `result.safety = { flagged, exit }`(用户输入命中自伤/借贷/投资/泛化情绪红线时,**不管你请求的是什么任务,返回都是 companion_reply 形态的安全回应**)。`flagged:true` → 原样显示 `text`,不再显示购买建议;`exit:true` → 进入安全退出界面(温和、可一键回到 HOME)。响应顶层若带 `safetyEvent`,请用 `recordSafetyEvent(state, safetyEvent, safetyEvent.responseTaken)`(from `@/server/safety/risk`)写入后 `commit`——审计不含原文,别把用户的话存进去。合法路由在 `APP_TRANSITIONS`(`@/lib/state/machine`)里,任何屏都可进 SAFETY_EXIT。
 2. **数据导出**(法规义务):`exportMoneyStateJson(state)` from `@/lib/state/money-store` 返回格式化 JSON 字符串,做成「导出我的数据」下载/复制按钮;旁边放已有的 `reset()` 一键清空。
 3. **demo 标识**:真实新会话现在是 `demo:false`,只有 `enterDemo()` 是 `true`——「合成示例数据」角标只在 `state.demo === true` 时显示。另:`profile.ageConfirmed` 字段留给 18+ 确认弹窗;连续使用 2 小时提醒用 `setInterval` 自查即可,这两个纯 UI,你来定样式。
 
