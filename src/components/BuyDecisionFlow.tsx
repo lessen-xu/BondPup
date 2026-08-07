@@ -144,23 +144,19 @@ export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) 
 
   function back() {
     setError(null);
-    if (step === "item") return router.push("/talk");
-    if (step === "price") return setStep("item");
-    if (step === "arrange") return setStep("price");
-    if (step === "confirm") { setIdempotencyKey(null); return setStep("arrange"); }
     router.push("/");
   }
 
   if (!ready) return <LoadingState />;
   if (!state) {
-    return <main className="stage-shell flow-layout-shell"><section className="stage talk-page decision-page"><button className="simple-back decision-back" type="button" onClick={() => router.push("/")} aria-label="返回首页">返回首页</button><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.noState, alias)}</p><div className="decision-options"><button className="decision-text-action" type="button" onClick={() => router.push("/start")}>{DAILY_DECISION.start}<HandDrawnUnderline /></button><button className="decision-text-action" type="button" onClick={() => router.push("/")}>{DAILY_DECISION.browse}<HandDrawnUnderline /></button></div></section></main>;
+    return <main className="stage-shell flow-layout-shell"><section className="stage talk-page decision-page"><button className="simple-back home-link decision-back" type="button" onClick={() => router.push("/")} aria-label="返回首页">回家</button><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.noState, alias)}</p><div className="decision-options"><button className="decision-text-action" type="button" onClick={() => router.push("/start")}>{DAILY_DECISION.start}<HandDrawnUnderline /></button><button className="decision-text-action" type="button" onClick={() => router.push("/")}>{DAILY_DECISION.browse}<HandDrawnUnderline /></button></div></section></main>;
   }
 
   const actionLabel = ACTIONS.find((entry) => entry.key === proposedAction)?.label ?? "";
   return (
     <main className="stage-shell flow-layout-shell">
       <section className="stage talk-page decision-page buy-decision-page" aria-label={DAILY_DECISION.entry}>
-        <button className="simple-back decision-back" type="button" onClick={back} aria-label="返回上一步">返回上一步</button>
+        <button className="simple-back decision-back" type="button" onClick={back} aria-label="回家">返回</button>
         <section className="dog-layer" aria-label={alias}><Dog page="对话" state={dogState ?? undefined} alias={alias} message={null} talkMode /></section>
         <section className="decision-dialog" aria-live="polite">
           {step === "item" && <div className="decision-step"><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.intro, alias)}</p><input autoFocus className="decision-input" value={itemInput} onChange={(event) => setItemInput(event.target.value)} placeholder={DAILY_DECISION.itemPlaceholder} aria-label={DAILY_DECISION.itemPlaceholder} /><p className="talk-status">{DAILY_DECISION.itemHint}</p><button className="decision-text-action" type="button" onClick={submitItem}>{DAILY_DECISION.itemNext}<HandDrawnUnderline /></button></div>}
@@ -169,7 +165,7 @@ export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) 
           {step === "arrange" && previewIssue && <div className="decision-step"><p className="decision-dog-bubble">{ERRORS.timeout.line}</p><p className="decision-dog-bubble">{ERRORS.timeout.sub}</p><button className="decision-text-action" type="button" onClick={() => setStep("price")}>{ERRORS.timeout.retry}<HandDrawnUnderline /></button></div>}
           {step === "arrange" && preview && amount !== null && <div className="decision-step"><p className="decision-dog-bubble">{comfortText}</p><p className="decision-dog-bubble">{DAILY_DECISION.arrange}</p><div className="decision-plain-summary"><p>{DAILY_DECISION.summaryItem.replace("{item}", item).replace("{price}", displayPrice)}</p><p>{DAILY_DECISION.summaryComfort.replace("{remain}", formatYuan(preview.remaining))}</p></div>{preview.shortfall > 0 && <><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.shortfall, alias).replace("{shortfall}", formatYuan(preview.shortfall))}</p><div className="decision-options decision-source-options">{preview.sources.map((source) => <button key={source.jarKind} className="decision-option" type="button">{source.label}</button>)}</div>{preview.goalImpact && <p className="talk-status">{preview.goalImpact}</p>}</>}{!staleBalance && <p className="decision-dog-bubble">{DAILY_DECISION.arrangeQuestion}</p>}<div className="decision-options decision-buy-actions">{ACTIONS.map((action) => <button key={action.key} className="decision-buy-action" type="button" onClick={() => chooseAction(action.key)}>{action.label}<HandDrawnUnderline /></button>)}</div></div>}
           {step === "confirm" && <div className="decision-step"><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.confirmQuestion, alias)}</p><p className="decision-plain-summary">{item} {displayPrice}元 · {actionLabel}</p>{error && <p className="talk-status">{error}</p>}<div className="decision-options"><button className="decision-text-action" type="button" disabled={submitting} onClick={confirmAction}>{DAILY_DECISION.confirm}<HandDrawnUnderline /></button><button className="decision-text-action" type="button" disabled={submitting} onClick={() => { setIdempotencyKey(null); setStep("arrange"); }}>{DAILY_DECISION.modify}<HandDrawnUnderline /></button><button className="decision-text-action" type="button" disabled={submitting} onClick={() => { setIdempotencyKey(null); setStep("arrange"); }}>{DAILY_DECISION.cancel}<HandDrawnUnderline /></button></div></div>}
-          {step === "done" && <div className="decision-step"><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.closing, alias)}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>返回首页<HandDrawnUnderline /></button></div>}
+          {step === "done" && <div className="decision-step"><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.closing, alias)}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>回家<HandDrawnUnderline /></button></div>}
         </section>
       </section>
     </main>

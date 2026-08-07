@@ -69,7 +69,7 @@ function TalkLanding() {
   return (
     <main className="stage-shell flow-layout-shell">
       <section className="stage talk-page decision-page" aria-label={`和${alias}聊天`}>
-        <button className="simple-back decision-back" type="button" onClick={() => router.push("/")}>返回首页</button>
+        <button className="simple-back home-link decision-back" type="button" onClick={() => router.push("/")}>回家</button>
         <section className="dog-layer" aria-label={alias}>
           <Dog page="对话" alias={alias} message={message} talkMode />
         </section>

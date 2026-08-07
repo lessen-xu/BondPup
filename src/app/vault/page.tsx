@@ -43,7 +43,7 @@ export default function VaultPage() {
   return (
     <main className="stage-shell flow-layout-shell">
       <section className="simple-page vault-page-shell" aria-label={withAlias(moneyNoteScript.vault.title, alias)}>
-        <button className="simple-back" type="button" onClick={() => router.push("/")} aria-label="返回首页">返回首页</button>
+        <button className="simple-back home-link" type="button" onClick={() => router.push("/")} aria-label="返回首页">回家</button>
         <header className="vault-heading">
           <h1>{withAlias(moneyNoteScript.vault.title, alias)}</h1>
           <p>{CARDS_PAGE.greeting}</p>

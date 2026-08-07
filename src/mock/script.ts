@@ -1,6 +1,6 @@
 export const script = {
   flow: {
-    start: "开始", next: "继续", back: "返回上一步", save: "记下来", edit: "点这里写一写",
+    start: "开始", next: "继续", back: "返回", save: "记下来", edit: "点这里写一写",
     remove: "删掉", done: "改好了", placeholder: "▢▢▢",
   },
   welcome: {
@@ -35,8 +35,9 @@ export const script = {
     far: {
       question: "有没有什么事,是你想为它慢慢存一点钱的?",
       options: ["A 有,我一直想着一件事", "B 暂时没有,先过好这个月", "C 以后再说吧(跳过)"],
-      subQuestions: ["它是什么呢?", "大概需要多少钱?", "你希望什么时候实现它?"],
+      subQuestions: ["它是什么呢?", "大概需要多少钱?", "大概几个月以后?(填个数字就行)"],
       firstPlaceholder: "比如去日本旅行",
+      monthPlaceholder: "比如 12",
       stepHint: "没有也完全没关系,以后想到了随时告诉我。",
     },
     wishes: {
@@ -55,6 +56,7 @@ export const script = {
     },
     reverse: {
       message: "按现在的安排,梦想罐每个月要留 ▢▢▢ 元。",
+      noTime: "时间还没定也没关系,先放着。想好了随时告诉我。",
       dogMore: "这是按现在的安排算出来的,多一点少一点都可以。",
       pressure: "如果这个数看着有点紧,时间和金额都可以再调整。",
       stepHint: "下一步还可以直接改罐子里的数字。",

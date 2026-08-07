@@ -161,11 +161,6 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
   }
 
   function back() {
-    if (step === "story") return router.push("/");
-    if (step === "listen") return setStep("story");
-    if (step === "model") return setStep("listen");
-    if (step === "choices") return setStep("listen");
-    if (step === "safety-offtopic" || step === "safety-stopped") return setStep("listen");
     router.push("/");
   }
 
@@ -177,7 +172,7 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
   return (
     <main className="stage-shell flow-layout-shell">
       <section className="stage talk-page decision-page money-note-page" aria-label={DAILY_NOTE.entry}>
-        <button className="simple-back decision-back" type="button" onClick={back} aria-label="返回上一步">返回上一步</button>
+        <button className="simple-back decision-back" type="button" onClick={back} aria-label="回家">返回</button>
         <section className="dog-layer" aria-label={alias}><Dog page="对话" alias={alias} message={null} talkMode /></section>
         {timeReminderVisible && <aside className="time-reminder" aria-live="polite"><p>{SAFETY.timeReminder.line}</p><p>{SAFETY.timeReminder.body}</p><div><button type="button" onClick={() => setTimeReminderVisible(false)}>{SAFETY.timeReminder.ack}</button><button type="button" onClick={() => setTimeReminderVisible(false)}>{SAFETY.timeReminder.continue}</button></div></aside>}
         <section className="decision-dialog" aria-live="polite">
@@ -185,9 +180,9 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
           {step === "listen" && <div className="decision-step"><p className="decision-user-bubble">{story}</p><p className="decision-dog-bubble">{DAILY_NOTE.responses[category].replace("{alias}", alias)}</p><p className="decision-dog-bubble">{DAILY_NOTE.transitions[transitionIndex]}</p><button className="decision-option" type="button" onClick={requestModelReply}>{DAILY_NOTE.done}</button></div>}
           {step === "model" && <div className="decision-step"><p className="decision-user-bubble">{story}</p>{modelLoading ? <p className="decision-dog-bubble money-note-thinking-bubble" aria-hidden="true">{NOTE_MODEL_REPLY.thinkingHint}</p> : <>{issue ? <><p className="decision-dog-bubble">{issue === "offline" ? ERRORS.offline.line : ERRORS.timeout.line}</p><p className="decision-dog-bubble">{issue === "offline" ? ERRORS.offline.sub : ERRORS.timeout.sub}</p></> : null}<p className="decision-dog-bubble money-note-model-bubble">{modelReply}</p><button className="flow-primary-action money-note-continue" type="button" onClick={continueAfterModelReply}>{NOTE_MODEL_REPLY.continueLabel}</button></>}</div>}
           {step === "safety-offtopic" && <div className="decision-step"><p className="decision-dog-bubble">{SAFETY.offTopic.line}</p><p className="decision-dog-bubble">{SAFETY.offTopic.body}</p><div className="decision-options"><button className="decision-option" type="button" onClick={() => chooseOffTopic("yes")}>{SAFETY.offTopic.options.yes}</button><button className="decision-option" type="button" onClick={() => chooseOffTopic("no")}>{SAFETY.offTopic.options.no}</button></div></div>}
-          {step === "safety-stopped" && <div className="decision-step"><p className="decision-dog-bubble">{offTopicResponse ?? SAFETY.offTopic.noResponse}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>返回首页<HandDrawnUnderline /></button></div>}
+          {step === "safety-stopped" && <div className="decision-step"><p className="decision-dog-bubble">{offTopicResponse ?? SAFETY.offTopic.noResponse}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>回家<HandDrawnUnderline /></button></div>}
           {step === "choices" && <div className="decision-step">{offTopicResponse && <p className="decision-dog-bubble">{offTopicResponse}</p>}<p className="decision-dog-bubble">{DAILY_NOTE.choicesPrompt}</p><div className="decision-options decision-source-options"><button className="decision-option" type="button" disabled={submitting} onClick={remember}>{DAILY_NOTE.remember}</button><button className="decision-option" type="button" onClick={() => { setSavedCopy(DAILY_NOTE.received); setStep("done"); }}>{DAILY_NOTE.talkOnly}</button></div></div>}
-          {step === "done" && <div className="decision-step"><p className="decision-dog-bubble">{savedCopy}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>返回首页<HandDrawnUnderline /></button></div>}
+          {step === "done" && <div className="decision-step"><p className="decision-dog-bubble">{savedCopy}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>回家<HandDrawnUnderline /></button></div>}
         </section>
       </section>
     </main>

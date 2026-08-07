@@ -83,7 +83,7 @@ export function ReviewFlow() {
 
   if (!ready) return <LoadingState />;
   if (!state || !record) {
-    return <main className="empty-home-loading"><button className="simple-back" type="button" onClick={() => router.push("/")} aria-label="返回首页">返回首页</button></main>;
+    return <main className="empty-home-loading"><button className="simple-back home-link" type="button" onClick={() => router.push("/")} aria-label="返回首页">回家</button></main>;
   }
 
   const currentState = state;
@@ -222,7 +222,7 @@ export function ReviewFlow() {
   return (
     <main className="stage-shell flow-layout-shell">
       <section className="stage talk-page decision-page review-flow-page" aria-label="回看">
-        <button className="simple-back decision-back" type="button" onClick={() => router.push("/")} aria-label="返回首页">返回首页</button>
+        <button className="simple-back home-link decision-back" type="button" onClick={() => router.push("/")} aria-label="返回首页">回家</button>
         <section className="review-flow-dog" aria-label={alias}><Dog page="回看" state={dogState ?? undefined} alias={alias} message={null} /></section>
         <section className="decision-dialog review-flow-dialog" aria-live="polite">
           {step === "detail" && <div className="decision-step"><p className="decision-user-bubble">{summary}</p><p className="decision-dog-bubble">{question}</p><div className="decision-options review-options">{options.map((option) => <button key={option} className="decision-option" type="button" onClick={() => selectOption(option)}>{option}</button>)}</div></div>}
