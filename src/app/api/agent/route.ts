@@ -2,6 +2,7 @@ import { ERROR_HTTP_STATUS, DomainError } from "@/contracts/errors";
 import { runAgentTask } from "@/server/agent";
 import { AgentTaskInput } from "@/server/agent/types";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
