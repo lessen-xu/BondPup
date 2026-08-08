@@ -25,14 +25,15 @@ function isStateConflict(cause: unknown): boolean {
   return Boolean(cause && typeof cause === "object" && "code" in cause && cause.code === "state_conflict");
 }
 
-function replaceAlias(text: string, alias: string): string {
-  return text.replaceAll("{alias}", alias);
+function replaceAlias(text: string, alias: string, user = "你"): string {
+  return text.replaceAll("{alias}", alias).replaceAll("{user}", user);
 }
 
 export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) {
   const router = useRouter();
   const { state, ready, commit } = useMoneyState();
-  const alias = state?.profile.displayName?.trim() || "慢慢";
+  const alias = "慢慢";
+  const user = state?.profile.displayName?.trim() || "你";
   const [step, setStep] = useState<BuyStep>("item");
   const [itemInput, setItemInput] = useState(initialItem);
   const [item, setItem] = useState("");
@@ -62,7 +63,7 @@ export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) 
   const comfortText = useMemo(() => {
     if (!preview || amount === null) return null;
     if (preview.shortfall > 0) {
-      return replaceAlias(DAILY_DECISION.shortfall, alias)
+      return replaceAlias(DAILY_DECISION.shortfall, alias, user)
         .replace("{shortfall}", formatYuan(preview.shortfall));
     }
     if (staleBalance) {
@@ -71,7 +72,7 @@ export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) 
     return DECISION_BALANCE.fresh
       .replace("{balance}", formatYuan(preview.comfortAvailable))
       .replace("{remain}", formatYuan(preview.remaining));
-  }, [alias, amount, preview, staleBalance]);
+  }, [alias, amount, preview, staleBalance, user]);
 
   function submitItem() {
     const next = itemInput.trim();

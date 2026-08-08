@@ -13,12 +13,17 @@ import { DAILY_TALK } from "@/mock/剧本";
 
 const TALK_DRAFT_KEY = "bondpup.unfinishedTalk";
 
+function replaceNames(text: string, alias: string, user: string): string {
+  return text.replaceAll("{alias}", alias).replaceAll("{user}", user);
+}
+
 function TalkLanding() {
   const router = useRouter();
   const { state } = useMoneyState();
-  const alias = state?.profile.displayName?.trim() || "慢慢";
+  const alias = "慢慢";
+  const user = state?.profile.displayName?.trim() || "你";
   const [input, setInput] = useState("");
-  const [message, setMessage] = useState(DAILY_TALK.prompt.replace("{alias}", alias));
+  const [message, setMessage] = useState(replaceNames(DAILY_TALK.prompt, alias, user));
   const [detected, setDetected] = useState<"decision" | "note" | null>(null);
   const silenceShown = useRef(false);
 
@@ -27,19 +32,19 @@ function TalkLanding() {
     if (!saved) return;
     const timer = window.setTimeout(() => {
       setInput(saved);
-      setMessage(DAILY_TALK.return.replace("{alias}", alias));
+      setMessage(replaceNames(DAILY_TALK.return, alias, user));
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [alias]);
+  }, [alias, user]);
 
   useEffect(() => {
     if (silenceShown.current) return;
     const timer = window.setTimeout(() => {
       silenceShown.current = true;
-      setMessage(DAILY_TALK.silence.replace("{alias}", alias));
+      setMessage(replaceNames(DAILY_TALK.silence, alias, user));
     }, 45_000);
     return () => window.clearTimeout(timer);
-  }, [alias, input]);
+  }, [alias, input, user]);
 
   function finishDraft() {
     window.sessionStorage.removeItem(TALK_DRAFT_KEY);
@@ -52,7 +57,7 @@ function TalkLanding() {
     const isNote = DAILY_TALK.triggers.note.some((word) => text.includes(word));
     if (isDecision || isNote) {
       setDetected(isDecision ? "decision" : "note");
-      setMessage(DAILY_TALK.detected.replace("{alias}", alias));
+      setMessage(replaceNames(DAILY_TALK.detected, alias, user));
       return;
     }
     finishDraft();
@@ -78,7 +83,7 @@ function TalkLanding() {
           <TextEntry onClick={() => { finishDraft(); router.push("/talk?topic=money"); }}>{script.home.moneyEntry}</TextEntry>
         </section>
         {detected && <section className="talk-actions" aria-label="话题选择"><TextEntry onClick={() => openDetected(true)}>{DAILY_TALK.together}</TextEntry><TextEntry onClick={() => openDetected(false)}>{DAILY_TALK.casual}</TextEntry></section>}
-        <form className="talk-record" onSubmit={(event) => { event.preventDefault(); submitFreeTalk(); }}><input value={input} onChange={(event) => { setInput(event.target.value); window.sessionStorage.setItem(TALK_DRAFT_KEY, event.target.value); }} placeholder={DAILY_TALK.freePlaceholder.replace("{alias}", alias)} aria-label={DAILY_TALK.freePlaceholder.replace("{alias}", alias)} /><button type="submit">{DAILY_TALK.submit}</button></form>
+        <form className="talk-record" onSubmit={(event) => { event.preventDefault(); submitFreeTalk(); }}><input value={input} onChange={(event) => { setInput(event.target.value); window.sessionStorage.setItem(TALK_DRAFT_KEY, event.target.value); }} placeholder={replaceNames(DAILY_TALK.freePlaceholder, alias, user)} aria-label={replaceNames(DAILY_TALK.freePlaceholder, alias, user)} /><button type="submit">{DAILY_TALK.submit}</button></form>
       </section>
     </main>
   );

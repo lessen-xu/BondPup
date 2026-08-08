@@ -7,14 +7,15 @@ import { useRouter } from "next/navigation";
 import { Dog } from "@/components/Dog";
 import { LoadingState } from "@/components/LoadingState";
 import { useMoneyState } from "@/lib/state/money-store";
-import { script, withAlias } from "@/mock/script";
+import { script, withAlias, withUser } from "@/mock/script";
 import { CARDS_PAGE, moneyNoteScript } from "@/mock/剧本";
 
 export default function VaultPage() {
   const router = useRouter();
   const { state, ready } = useMoneyState();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const alias = state?.profile.displayName?.trim() || "慢慢";
+  const alias = "慢慢";
+  const user = state?.profile.displayName?.trim() || "你";
 
   if (!ready) return <LoadingState />;
 
@@ -42,10 +43,10 @@ export default function VaultPage() {
 
   return (
     <main className="stage-shell flow-layout-shell">
-      <section className="simple-page vault-page-shell" aria-label={withAlias(moneyNoteScript.vault.title, alias)}>
+      <section className="simple-page vault-page-shell" aria-label={withUser(moneyNoteScript.vault.title, user)}>
         <button className="simple-back" type="button" onClick={() => router.push("/")} aria-label="返回首页">返回首页</button>
         <header className="vault-heading">
-          <h1>{withAlias(moneyNoteScript.vault.title, alias)}</h1>
+          <h1>{withUser(moneyNoteScript.vault.title, user)}</h1>
           <p>{CARDS_PAGE.greeting}</p>
         </header>
         <section className="vault-card-section" aria-label="起点卡">

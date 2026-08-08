@@ -30,7 +30,7 @@ export const moneyNoteScript = {
   },
   modelReply: NOTE_MODEL_REPLY,
   vault: {
-    title: "{alias}的小金库",
+    title: "{user}的小金库",
     subtitle: "我替你收着的纸条,想看的时候就来看看。",
     empty: "还没有写下纸条。",
   },

@@ -719,7 +719,7 @@ button { color: inherit; font: inherit; }
   max-width: 430px;
   min-height: 100dvh;
   overflow: hidden;
-  padding: max(4dvh, env(safe-area-inset-top)) 8% 0;
+  padding: max(2dvh, env(safe-area-inset-top)) 8% 0;
   width: 100%;
 }
 
@@ -765,7 +765,7 @@ button { color: inherit; font: inherit; }
 .intro-nickname-closing { color: rgba(74, 59, 46, .66); font-size: 13px; line-height: 1.9; padding: 0 4%; top: 68%; }
 .intro-nickname-confirm { top: 84%; }
 
-.flow-screen { display: flex; flex: 0 0 68dvh; flex-direction: column; height: 68dvh; min-height: 0; overflow: hidden; }
+.flow-screen { display: flex; flex: 0 0 56dvh; flex-direction: column; height: 56dvh; min-height: 0; overflow: hidden; }
 .flow-content { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 2%; scrollbar-width: none; }
 .flow-content::-webkit-scrollbar { display: none; }
 .flow-content > p { font-size: clamp(13px, 3.7vw, 16px); line-height: 1.68; margin: 0 0 4%; }
@@ -856,8 +856,8 @@ button { color: inherit; font: inherit; }
 .flow-confirm-actions .flow-primary-action { flex: 1; }
 
 @media (max-height: 700px) {
-  .flow-page { padding-top: 4dvh; }
-  .flow-screen { flex-basis: 64dvh; height: 64dvh; min-height: 0; }
+  .flow-page { padding-top: 2dvh; }
+  .flow-screen { flex-basis: 55dvh; height: 55dvh; min-height: 0; }
   .flow-content > p { line-height: 1.55; margin-bottom: 2%; }
   .flow-options { gap: 1%; margin: 1% 0 2%; }
   .flow-recent-screen .flow-content { padding-top: 3dvh; }
