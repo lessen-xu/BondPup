@@ -11,7 +11,7 @@ const RULES: { riskType: SafetyRiskType; rule: string; pattern: RegExp }[] = [
     riskType: "self_harm",
     rule: "self_harm_keywords",
     pattern:
-      /不想活|活不下去|活不了|自杀|自残|伤害自己|结束生命|结束自己|轻生|想死|去死|活着没意思|活着没有意思|没有活下去|消失掉算了/,
+      /不想活|活不下去|活不了|自杀|自残|伤害自己|结束生命|结束自己|轻生|想死|去死|活着没(?:什么|啥|有)?意思|没有活下去|消失掉算了|生无可恋/,
   },
   {
     riskType: "debt_loan",

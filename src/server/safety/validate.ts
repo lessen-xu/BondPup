@@ -22,7 +22,8 @@ export function validateReplyText(text: string): ValidationFailure[] {
   if (hits.length > 0) {
     failures.push({ rule: "forbidden_words", message: `包含禁用词:${hits.join("、")}` });
   }
-  const sentences = text.split(/[。!?!?]/).filter((s) => s.trim().length > 0);
+  // ！？ 是全角!?,用转义写死——肉眼分不清全半角,之前就在这里看走眼过
+  const sentences = text.split(/[。!?！？]/).filter((s) => s.trim().length > 0);
   if (sentences.length > 3) {
     failures.push({ rule: "max_sentences", message: `超过三句(${sentences.length} 句)` });
   }

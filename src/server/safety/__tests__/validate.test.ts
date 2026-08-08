@@ -27,6 +27,10 @@ describe("validateReplyText", () => {
     const fails = validateReplyText("第一句。第二句。第三句。第四句。");
     expect(fails.some((f) => f.rule === "max_sentences")).toBe(true);
   });
+  it("全角!?也算句号:真模型线上出过 4 句全角标点回复溜过闸", () => {
+    const fails = validateReplyText("第一句！第二句？第三句。第四句！");
+    expect(fails.some((f) => f.rule === "max_sentences")).toBe(true);
+  });
 });
 
 describe("validatePrincipleCandidate", () => {
