@@ -91,6 +91,15 @@ node scripts/smoke-mcp.mjs   # MCP 端到端闭环断言(决定→回看→原�
 
 核心原则:金额一律整数分;金额由代码计算,理由由模型生成,改变状态必须用户确认;跨罐永不自动级联。
 
+## 文档
+
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) —— 分层、三条不变式、provider 降级、两道安全闸、状态模型
+- [EVALUATION.md](docs/EVALUATION.md) —— 评测入口、生产实测性能数字、质量闸门
+- [MCP.md](docs/MCP.md) —— 工具契约、会话模型、写操作与签名、双协议、错误码
+- [PRIVACY.md](docs/PRIVACY.md) —— 数据只在本机、最小化模型调用、可导出可清空
+- [USER_VALIDATION.md](docs/USER_VALIDATION.md) —— 核心假设与验证记录
+- [LICENSE](LICENSE) —— 代码 MIT;美术素材版权保留
+
 ## 环境变量
 
 见 [.env.example](.env.example),密钥只进部署平台环境变量。
