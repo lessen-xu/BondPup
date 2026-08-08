@@ -18,11 +18,11 @@ function mockDecompose(wish: string, nearChoice?: string): DecomposeWishOutput {
   if (/舒服|享受|花|玩|吃/.test(w)) concerns.push("想花的时候可以不愧疚地花");
   if (/房租|房|住/.test(w)) concerns.push("住的地方要先安排稳");
   if (/旅|去|看|买|学/.test(w)) concerns.push("有一件具体想做的事,想离它近一点");
+  // 兜底要具体到能想象出画面(评审超时降级看到的就是这几句),但仍是用户视角、不含建议
   const fallbacks = [
-    "这个月先过得安稳",
-    "给自己留一点自由的空间",
-    "想对钱的去向心里有数",
-    "不想为花出去的钱后悔",
+    "房租和吃饭这些固定的,先稳稳留出来",
+    "每周能有一顿和朋友的饭,不用抠着算",
+    "月底手里还有点余量,不用数着日子等工资",
   ];
   for (const f of fallbacks) {
     if (concerns.length >= 3) break;

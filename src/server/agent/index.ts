@@ -29,8 +29,13 @@ const SAFETY_FLAG: Record<string, AgentSafetyFlag> = {
   generic_emotion: "offTopic",
 };
 
+/** 文案来源标识(页面显示「AI 生成/规则生成」用;demo 是前端本地态,服务端不感知) */
+export type AgentSource = "ai" | "rule";
+
 export type AgentRunOutput = AgentTaskOutput & {
   provider?: AgentProvider;
+  /** ai=真实模型产出;rule=确定性代码产出(Mock/降级/安全回应/兜底) */
+  source?: AgentSource;
   /** 输入闸命中时的页面分流标记(crisis 进 SAFETY_EXIT,offTopic 进想聊聊分支) */
   safetyFlags?: AgentSafetyFlag[];
   /** 输入闸命中时的审计草稿(不含原文);持有 moneyState 的一方用 recordSafetyEvent 写入 */
@@ -93,21 +98,29 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutpu
       return {
         task: "companion_reply",
         result: safetyReplyFor(hit.riskType),
+        source: "rule",
         safetyFlags: [SAFETY_FLAG[hit.riskType] ?? "offTopic"],
         safetyEvent: { ...hit, responseTaken: "agent_safety_reply" },
       };
     }
   }
+  const sourceOf = (p: AgentProvider): AgentSource => (p === "mock" ? "rule" : "ai");
   const { out, provider, degraded } = await runProviderTask(input);
   // 输出闸:禁用词/句数不合格 → 重试一次 → 仍不合格用安全兜底,绝不放行违规文本
   if (out.task === "companion_reply" && validateReplyText(out.result.text).length > 0) {
     const retry = await runProviderTask(input);
     if (retry.out.task === "companion_reply" && validateReplyText(retry.out.result.text).length === 0) {
-      return { ...retry.out, provider: retry.provider, ...(retry.degraded ? { degraded: retry.degraded } : {}) };
+      return {
+        ...retry.out,
+        provider: retry.provider,
+        source: sourceOf(retry.provider),
+        ...(retry.degraded ? { degraded: retry.degraded } : {}),
+      };
     }
-    return { task: "companion_reply", result: SAFE_FALLBACK, provider };
+    // 兜底文案是写死的规则产物,即使 provider 是真模型也标 rule
+    return { task: "companion_reply", result: SAFE_FALLBACK, provider, source: "rule" };
   }
-  return { ...out, provider, ...(degraded ? { degraded } : {}) };
+  return { ...out, provider, source: sourceOf(provider), ...(degraded ? { degraded } : {}) };
 }
 
 type PrincipleGenerator = (
