@@ -72,6 +72,17 @@ export function applyJarPlan(input: ApplyJarPlanInput): ApplyJarPlanResult {
 
   const now = nowDate.toISOString();
   const actualOf = (kind: string) => base.jars.find((j) => j.kind === kind)?.actual ?? 0;
+  const baseDream = base.jars.find((j) => j.kind === "dream");
+  // 无目标时保留 base 上已有的梦想目标(重排不静默删目标);两边都没有才是纯 0 元占位罐
+  const dreamGoal = input.dreamGoal
+    ? {
+        name: input.dreamGoal.name,
+        amount: input.dreamGoal.amount,
+        saved: input.dreamGoal.saved,
+        targetMonth: cycleAfter(input.dreamGoal.monthsRemaining, nowDate),
+      }
+    : baseDream?.goal;
+  // 冻结契约:有周期即四罐齐全,0 元也保留;前端与 MCP 不做缺失兜底
   const jars = [
     {
       id: "jar-living",
@@ -91,38 +102,25 @@ export function applyJarPlan(input: ApplyJarPlanInput): ApplyJarPlanResult {
       actual: actualOf("comfort"),
       updatedAt: now,
     },
-    ...(input.dreamGoal
-      ? [
-          {
-            id: "jar-dream",
-            kind: "dream",
-            label: input.dreamGoal.name,
-            renamable: true,
-            planned: r.dream,
-            actual: actualOf("dream"),
-            updatedAt: now,
-            goal: {
-              name: input.dreamGoal.name,
-              amount: input.dreamGoal.amount,
-              saved: input.dreamGoal.saved,
-              targetMonth: cycleAfter(input.dreamGoal.monthsRemaining, nowDate),
-            },
-          },
-        ]
-      : []),
-    ...(r.future > 0
-      ? [
-          {
-            id: "jar-future",
-            kind: "future",
-            label: "未来罐",
-            renamable: false,
-            planned: r.future,
-            actual: actualOf("future"),
-            updatedAt: now,
-          },
-        ]
-      : []),
+    {
+      id: "jar-dream",
+      kind: "dream",
+      label: input.dreamGoal?.name ?? baseDream?.label ?? "梦想罐",
+      renamable: true,
+      planned: r.dream,
+      actual: actualOf("dream"),
+      updatedAt: now,
+      ...(dreamGoal ? { goal: dreamGoal } : {}),
+    },
+    {
+      id: "jar-future",
+      kind: "future",
+      label: "未来罐",
+      renamable: false,
+      planned: r.future,
+      actual: actualOf("future"),
+      updatedAt: now,
+    },
   ];
 
   const state = MoneyState.parse({

@@ -61,7 +61,7 @@ curl -sS https://bondpup.vercel.app/mcp \
 2026-07-28 代协议要求 `Mcp-Method` 头与 body 方法一致(`tools/call` 另加 `Mcp-Name: <工具名>`),缺失返回 -32020。
 
 - 图形化:`npx @modelcontextprotocol/inspector@latest` → Streamable HTTP → 上述端点
-- 端到端闭环(22 条断言:分配→扣罐→撤销→回看→原则→引用):`node scripts/smoke-mcp.mjs https://bondpup.vercel.app`
+- 端到端闭环(23 条断言:分配→扣罐→撤销→回看→原则→引用):`node scripts/smoke-mcp.mjs https://bondpup.vercel.app`
 
 ## 核心闭环
 分罐子 → 做决定 → 回看结果 → 长出一条你确认过的原则 → 下次被引用

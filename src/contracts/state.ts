@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { BudgetCycle, Jar, Leftover } from "./money";
+import { BudgetCycle, Jar, JarKind, Leftover } from "./money";
 import { DecisionStory, MoneyPrinciple } from "./story";
 import { OutfitState, SafetyEvent, UserProfile } from "./user";
 
@@ -28,6 +28,14 @@ export const MoneyState = z
     const kinds = s.jars.map((j) => j.kind);
     if (new Set(kinds).size !== kinds.length) {
       ctx.addIssue({ code: "custom", message: "每种罐子各至多一个(kind 不得重复)" });
+    }
+    if (s.cycle) {
+      const kindSet = new Set(kinds);
+      for (const kind of JarKind.options) {
+        if (!kindSet.has(kind)) {
+          ctx.addIssue({ code: "custom", message: `有周期时四种罐子必须齐全,0 元也保留(缺 ${kind})` });
+        }
+      }
     }
   });
 export type MoneyState = z.infer<typeof MoneyState>;
