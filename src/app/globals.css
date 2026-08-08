@@ -32,23 +32,15 @@ body {
   word-break: keep-all;
 }
 @font-face {
-  font-family: 'ManmanHand';
-  src: url('/fonts/manman-hand.woff2?v=2') format('woff2');
+  font-family: 'LongCang';
+  src: url('/fonts/long-cang-v1.woff2') format('woff2');
   font-weight: 400;
   font-display: swap;
-}
-
-@font-face {
-  font-family: 'ManmanLatin';
-  src: url('/fonts/caveat.woff2') format('woff2');
-  font-weight: 400;
-  font-display: swap;
-  unicode-range: U+0030-0039, U+0041-005A, U+0061-007A;
 }
 
 @font-face {
   font-family: 'ManmanSymbols';
-  src: url('/fonts/manman-symbols.woff2?v=2') format('woff2');
+  src: url('/fonts/manman-symbols.woff2?v=4') format('woff2');
   font-weight: 400;
   font-display: swap;
 }
@@ -61,7 +53,7 @@ body {
 }
 
 :root {
-  --font-hand: 'ManmanLatin', 'ManmanHand', 'ManmanSymbols', 'ManmanEmoji', system-ui, sans-serif;
+  --font-hand: 'LongCang', system-ui, sans-serif;
   --paper: #fbfaf7;
   --ink: #4a3b2e;
   --muted: #9c8b78;
@@ -292,6 +284,9 @@ button { color: inherit; font: inherit; }
   z-index: 2;
 }
 
+.jar-slot:has(.jar-note) { z-index: 4; }
+.jar-layer:has(.jar-note) { z-index: 8; }
+
 .jar {
   appearance: none;
   background: transparent;
@@ -365,13 +360,13 @@ button { color: inherit; font: inherit; }
   z-index: 20;
 }
 
-.jar-slot-comfort .jar-note { left: 75%; right: auto; width: 175%; }
+.jar-slot-comfort .jar-note { left: 20%; right: auto; width: 220%; }
 .jar-slot-future .jar-note { left: auto; right: 75%; }
 .jar-note p, .jar-note strong, .jar-note small { margin: 0; }
 .jar-note p { font-size: clamp(11px, 3.2vw, 14px); line-height: 1.4; }
 .jar-note strong { font-size: clamp(14px, 4vw, 18px); font-weight: 400; line-height: 1.45; }
 .jar-note small { color: var(--muted); font-size: clamp(10px, 2.8vw, 12px); line-height: 1.55; margin-top: 3%; }
-.jar-note button { align-self: flex-start; background: transparent; border: 0; cursor: pointer; font-size: clamp(10px, 2.8vw, 12px); margin-top: 5%; padding: 0; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.jar-note button { align-self: flex-start; background: transparent; border: 0; cursor: pointer; flex: 0 0 auto; font-size: clamp(10px, 2.8vw, 12px); line-height: 1.4; margin-top: 5%; padding: 0; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; white-space: nowrap; }
 
 /* Front layer: the dog overlaps the lower edge of the desk. */
 .dog-layer {
@@ -390,7 +385,7 @@ button { color: inherit; font: inherit; }
 .dog-state-frame { aspect-ratio: 7 / 8; display: block; position: relative; width: 100%; }
 .dog-state-image { display: block; height: 100%; inset: 0; object-fit: contain; object-position: center bottom; position: absolute; transform: scale(var(--dog-pose-scale, 1)); transform-origin: bottom center; width: 100%; }
 .dog-state-idle { --dog-pose-scale: 1; }
-.dog-state-lying { --dog-pose-scale: 1; }
+.dog-state-lying { --dog-pose-scale: 1.21; }
 .dog-state-reading { --dog-pose-scale: 1.12; }
 .dog-state-box { --dog-pose-scale: 1.08; }
 .dog-state-ears { --dog-pose-scale: 1.12; }
@@ -399,7 +394,7 @@ button { color: inherit; font: inherit; }
 .dog-state-image-previous { animation: dog-crossfade-out 150ms ease-out both; }
 .stage.talk-page .dog-state-image { --dog-pose-scale: 1; }
 .stage.talk-page .dog-state-ears { --dog-pose-scale: 1.2; }
-.stage.talk-page .dog-state-lying { --dog-pose-scale: 1.12; }
+.stage.talk-page .dog-state-lying { --dog-pose-scale: 1.35; }
 .dog-react-lying { transform: translateY(3%) scaleY(.92); transition: transform 400ms ease; }
 .dog-react-think { animation: dog-think 1.2s ease-in-out infinite; }
 .dog-react-ears { animation: dog-ears 1.2s ease-in-out both; }
@@ -465,26 +460,30 @@ button { color: inherit; font: inherit; }
 }
 
 .review-entry {
+  appearance: none;
+  background-color: transparent;
+  background-image: url('/assets/小纸条.png');
+  background-position: center;
+  background-size: 100% 100%;
+  border: 0;
+  bottom: 23%;
+  color: var(--ink);
+  cursor: pointer;
   display: flex;
   flex-direction: column;
-  left: 8%;
+  gap: 3px;
+  left: 53%;
+  min-height: 12%;
+  padding: 4% 5%;
   position: absolute;
-  top: 89%;
-  z-index: 5;
+  text-align: left;
+  transform: rotate(1.5deg);
+  width: 42%;
+  z-index: 7;
 }
 
-.review-entry button {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  color: rgba(74, 59, 46, .7);
-  cursor: pointer;
-  font-size: clamp(9px, 2.5vw, 12px);
-  padding: 3% 2%;
-  white-space: nowrap;
-}
-
-.review-entry .entry-underline { height: 6px; margin-top: -1%; width: 100%; }
+.review-entry span { color: #b79a55; font-size: clamp(9px, 2.5vw, 11px); line-height: 1.45; }
+.review-entry strong { font-size: clamp(11px, 3vw, 14px); font-weight: 400; line-height: 1.6; overflow-wrap: anywhere; }
 
 .simple-page-shell {
   min-height: 100dvh;
@@ -546,6 +545,7 @@ button { color: inherit; font: inherit; }
 .outfit-options button { flex: 1; font-size: clamp(11px, 3vw, 14px); padding: 5% 2%; }
 
 .stage-shell.flow-layout-shell { align-items: flex-start; height: auto; min-height: 100dvh; overflow-x: hidden; overflow-y: auto; }
+.buy-decision-shell { height: 100dvh; min-height: 100dvh; overflow: hidden; }
 .stage.talk-page {
   aspect-ratio: auto;
   background-color: var(--paper);
@@ -561,7 +561,7 @@ button { color: inherit; font: inherit; }
 }
 .talk-page .dog-layer { bottom: auto; left: auto; margin: 14% auto 0 4%; position: relative; top: auto; width: 46%; z-index: 2; }
 .decision-page .dog-layer { bottom: auto; left: auto; margin: -5% auto 0 5%; position: relative; top: auto; width: 34%; z-index: 2; }
-.buy-decision-page .dog-layer { margin: 9% auto 0 3%; width: 46%; }
+.buy-decision-page .dog-layer { margin: 9% auto 0 3%; transform: translate(-8%, 28%); width: 46%; }
 .stage.talk-page:not(.decision-page) > .dog-layer .dog-message-bubble {
   bottom: 60%;
   left: 100%;
@@ -571,12 +571,17 @@ button { color: inherit; font: inherit; }
 }
 .talk-page .talk-copy { background: rgba(255, 252, 242, .2) url('/assets/小狗气泡.png') center / 100% 100% no-repeat; font-size: clamp(14px, 4.2vw, 18px); line-height: 1.7; margin: -23% 0 0 auto; max-width: 64%; overflow-wrap: anywhere; padding: 14px 18px; text-align: center; }
 .talk-actions, .talk-record { display: flex; gap: 4%; justify-content: center; margin: 8% auto 0; max-width: 92%; }
+.talk-entry-options { align-items: center; flex-direction: column; gap: 20px; width: 100%; }
+.talk-entry-options .text-entry { align-items: center; background: transparent url('/assets/选项按钮.png') center / 100% 100% no-repeat; color: var(--ink); display: inline-flex; flex: 0 0 auto; font-size: clamp(13px, 3.8vw, 16px); justify-content: center; line-height: 1.5; min-height: 48px; padding: 3% 8%; width: min(86%, 340px); }
+.talk-entry-options .entry-underline { display: none; }
 .talk-actions button, .talk-record button { background: transparent; border: 0; cursor: pointer; font-size: clamp(12px, 3.4vw, 15px); min-height: 44px; padding: 3% 2%; }
 .talk-actions button { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
 .talk-record { align-items: flex-end; gap: 6%; margin-top: 3%; }
 .talk-record input { background: transparent; background-image: url('/assets/输入框横线.png'); background-position: bottom center; background-repeat: no-repeat; background-size: 100% auto; border: 0; color: var(--ink); flex: 1 1 auto; font: inherit; min-width: 0; outline: 0; padding: 2% 0 5%; width: auto; }
 .talk-record button { flex: 0 0 auto; white-space: nowrap; }
 .companion-home-entry { background: transparent; border: 0; bottom: 5%; color: var(--muted); cursor: pointer; font-size: clamp(11px, 2.8vw, 13px); padding: 4px; position: absolute; right: 7%; }
+.talk-page .companion-home-entry,
+.talk-page .companion-entry { display: none; }
 .talk-status { color: var(--muted); font-size: clamp(11px, 3vw, 14px); line-height: 1.6; margin: 4% auto 0; text-align: center; }
 
 .decision-page {
@@ -589,14 +594,19 @@ button { color: inherit; font: inherit; }
   background-size: cover;
 }
 .money-note-page .dog-layer { margin: 9% auto 0 3%; width: 46%; }
-.money-note-page .decision-dialog { margin: -26% auto 0; }
-.money-note-page .decision-dog-bubble { left: 4%; max-width: 50%; position: relative; top: -8px; }
+.money-note-page .decision-dialog { margin: -30% auto 0; }
+.money-note-page .decision-dog-bubble { left: 4%; max-width: 50%; position: relative; top: -28px; }
 .money-note-page .decision-user-bubble { max-width: 62%; }
+.money-note-page .decision-input { font-size: clamp(13px, 3.8vw, 16px); width: 94%; }
 .decision-back { display: block; position: relative; z-index: 8; }
 .talk-page .back-arrow-button { margin-left: -2%; }
 .decision-dialog { margin: -23% auto 0; position: relative; width: 100%; z-index: 5; }
-.buy-decision-page .decision-dialog { margin: -26% auto 0; }
-.buy-decision-page .decision-dog-bubble { left: 4%; max-width: 50%; position: relative; top: -8px; }
+.review-flow-dialog { margin: 1% auto 0; }
+.buy-decision-page .decision-dialog { margin: -36% auto 0; }
+.buy-decision-page .decision-dialog { max-height: 64dvh; overflow-y: auto; padding: 14px 2% 3%; scrollbar-width: none; }
+.buy-decision-page .decision-dialog::-webkit-scrollbar { display: none; }
+.buy-decision-page .decision-dog-bubble { max-width: 78%; position: relative; transform: translate(6px, -10px); }
+.buy-decision-page .buy-item-step .decision-input { margin-top: 32px; }
 .decision-dialog-below-dog { margin-top: 2%; }
 .decision-step { align-items: center; display: flex; flex-direction: column; gap: clamp(8px, 3vw, 16px); }
 .decision-dog-bubble, .decision-user-bubble {
@@ -608,11 +618,13 @@ button { color: inherit; font: inherit; }
   line-height: 1.7;
   margin: 0;
   max-width: 88%;
+  min-width: 0;
   overflow-wrap: anywhere;
   padding: 14px 18px;
   text-align: center;
   white-space: normal;
   width: fit-content;
+  word-break: break-word;
 }
 .decision-dog-bubble { background-image: url('/assets/小狗气泡.png'); }
 .decision-user-bubble { align-self: flex-end; background-image: url('/assets/用户气泡.png'); }
@@ -662,6 +674,16 @@ button { color: inherit; font: inherit; }
 .principle-fold { align-self: stretch; color: var(--muted); font-size: clamp(10px, 2.8vw, 12px); text-align: center; }
 .principle-fold > button { color: var(--muted); font-size: inherit; padding: 1% 2%; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
 .principle-fold p { margin: 2% auto 0; max-width: 90%; }
+.principle-candidate-step { gap: clamp(10px, 3vw, 16px); }
+.principle-candidate-card { margin: 0 auto; width: min(86%, 330px); }
+.principle-candidate-card p { color: var(--muted); font-size: clamp(11px, 3.1vw, 14px); }
+.principle-candidate-card strong { color: var(--ink); font-size: clamp(16px, 4.4vw, 21px); line-height: 1.7; }
+.principle-evidence-toggle { background: transparent; border: 0; color: var(--muted); cursor: pointer; font: inherit; font-size: clamp(11px, 3.1vw, 14px); margin-top: 5%; padding: 2% 0; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.principle-evidence-list { border-top: 1px solid rgba(200, 155, 92, .35); margin-top: 2%; padding-top: 4%; }
+.principle-evidence-list p { color: var(--muted); font-size: clamp(10px, 2.9vw, 13px); line-height: 1.6; margin: 0 0 4%; }
+.principle-candidate-actions { flex-direction: column; }
+.principle-candidate-actions .decision-option { width: 100%; }
+.principle-edit-input { width: min(86%, 320px); }
 .decision-source-options { flex-direction: column; }
 .decision-source-options .decision-option { width: 100%; }
 .decision-buy-actions { gap: 2%; }
@@ -728,7 +750,7 @@ button { color: inherit; font: inherit; }
 .review-detail-dialog { margin: -22% 0 0 auto; width: 92%; }
 .review-summary { display: flex; flex-direction: column; margin: 0 0 5% auto; max-width: 64%; }
 .review-summary small { color: var(--muted); display: block; font-size: .76em; line-height: 1.55; }
-.review-options { flex-direction: column; }
+.review-options { flex-direction: column; gap: 14px; }
 .review-options .decision-option { width: 100%; }
 .review-note { color: var(--muted); font-size: clamp(11px, 3.1vw, 14px); line-height: 1.65; margin: 0; max-width: 88%; text-align: center; }
 
@@ -799,6 +821,12 @@ button { color: inherit; font: inherit; }
 
 .flow-screen { display: flex; flex: 0 0 56dvh; flex-direction: column; height: 56dvh; min-height: 0; overflow: hidden; }
 .flow-content { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 2%; scrollbar-width: none; }
+.flow-jars-screen .flow-content { padding-bottom: 0; }
+.flow-principle-screen .flow-content { justify-content: center; padding-bottom: 0; }
+.flow-principle-screen .flow-principle-intro { color: var(--ink); margin: 0 auto 5%; max-width: 86%; text-align: center; }
+.flow-principle-card { margin: 0 auto; width: 68%; }
+.flow-decompose-dog { align-self: center; flex: 0 0 auto; margin: -2% auto 0; width: 24%; }
+.flow-decompose-dog .dog-message-bubble { bottom: 80%; font-size: clamp(11px, 3vw, 13px); left: 70%; max-width: 160px; width: max-content; }
 .flow-content::-webkit-scrollbar { display: none; }
 .flow-content > p { font-size: clamp(13px, 3.7vw, 16px); line-height: 1.68; margin: 0 0 4%; }
 .flow-question { font-size: clamp(17px, 5vw, 21px) !important; line-height: 1.55 !important; }
@@ -839,6 +867,9 @@ button { color: inherit; font: inherit; }
 .flow-controls.flow-back-only { justify-content: flex-start; }
 .flow-controls button { background: transparent; border: 0; cursor: pointer; font-size: clamp(12px, 3.4vw, 14px); padding: 3% 1%; }
 .flow-back-action { align-items: center; background: transparent url('/assets/返回箭头.png') center / contain no-repeat; border: 0; cursor: pointer; display: inline-flex; min-height: 44px; overflow: hidden; padding: 3% 8%; text-indent: -9999px; transform: scaleX(-1); transform-origin: center; }
+.flow-shell .flow-back-action { background: transparent; flex: 1; font-size: clamp(13px, 3.8vw, 16px); justify-content: center; overflow: visible; padding: 3% 8%; text-indent: 0; transform: none; }
+.flow-shell .flow-controls > button { flex: 1; }
+.flow-shell .flow-controls.flow-back-only > button { flex: 0 0 auto; }
 .flow-field-trail { display: flex; flex-wrap: wrap; gap: 3%; margin-top: 4%; }
 .flow-field-trail button { background: transparent; border: 0; color: var(--muted); cursor: pointer; font: inherit; padding: 2%; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
 .wish-list { display: grid; gap: 2%; margin: 2% 0; }
@@ -851,7 +882,7 @@ button { color: inherit; font: inherit; }
 .flow-inline-actions { align-items: center; display: flex; gap: 4%; justify-content: space-between; margin-top: 3%; }
 .flow-inline-actions .flow-back-action { flex: 1; }
 .flow-inline-actions .flow-primary-action, .flow-inline-actions .flow-option-action { flex: 1; }
-.wish-actions .wish-add-action { flex: 0 0 58%; padding-left: 4%; padding-right: 4%; white-space: nowrap; }
+.wish-actions .wish-add-action { flex: 0 0 58%; margin-left: auto; margin-right: auto; padding-left: 4%; padding-right: 4%; white-space: nowrap; }
 .input-line { align-items: center; display: flex; gap: 3%; }
 .input-line .flow-input { flex: 1; min-width: 30%; }
 .input-line button { background: transparent; border: 0; color: var(--muted); cursor: pointer; font-size: clamp(10px, 2.8vw, 12px); padding: 1%; white-space: nowrap; }
@@ -957,12 +988,20 @@ button { color: inherit; font: inherit; }
 .vault-heading p { color: var(--muted); font-size: clamp(11px, 3vw, 13px); line-height: 1.65; margin: 1% auto 0; max-width: 82%; }
 .cards-page .vault-illustration { margin-top: 3%; width: min(32%, 13dvh); }
 .vault-card-section { width: 100%; }
-.vault-paper-board { display: flex; flex-wrap: wrap; gap: 4%; justify-content: center; margin: 1% auto 0; width: 100%; }
-.principle-card-button { appearance: none; background: transparent; border: 0; cursor: pointer; padding: 0; width: 46%; }
-.vault-welcome-card-button { max-width: 270px; width: 64%; }
-.principle-card-button .principle-card { margin: 0; width: 100%; }
+.vault-paper-board { display: grid; gap: 14px 12px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 3% auto 0; width: 100%; }
+.principle-card-button { appearance: none; aspect-ratio: 956 / 1278; background: transparent; border: 0; cursor: pointer; min-width: 0; padding: 0; width: 100%; }
+.vault-welcome-card-button { max-width: none; width: 100%; }
+.principle-card-button .principle-card { aspect-ratio: auto; height: 100%; margin: 0; overflow: hidden; padding: 11% 9% 9%; width: 100%; }
+.vault-paper-board .principle-card p { font-size: clamp(9px, 2.5vw, 11px); }
+.vault-paper-board .principle-card strong { font-size: clamp(10px, 2.8vw, 12px); line-height: 1.5; margin-top: 2%; }
+.vault-paper-board .principle-card span { font-size: clamp(9px, 2.5vw, 11px); line-height: 1.55; margin-top: 2%; overflow-wrap: anywhere; }
 .principle-card-button:active { transform: scale(.98); }
-.vault-welcome-card span { color: var(--ink); font-size: clamp(12px, 3.35vw, 15px); line-height: 1.78; margin-top: 0; text-align: left; white-space: pre-line; }
+.vault-welcome-card span { color: var(--ink); font-size: clamp(10px, 2.7vw, 12px); line-height: 1.58; margin-top: 0; text-align: left; white-space: pre-line; }
+.vault-paper-board .principle-card-actions { gap: 2%; margin-top: 4%; }
+.vault-paper-board .principle-card-actions button { font-size: clamp(9px, 2.5vw, 11px); min-height: 32px; padding: 2% 3%; }
+.principle-card-actions { display: flex; flex-direction: column; gap: 4%; margin-top: 8%; }
+.principle-card-actions button { align-items: center; background: transparent url('/assets/选项按钮.png') center / 100% 100% no-repeat; border: 0; color: var(--ink); cursor: pointer; display: inline-flex; font: inherit; justify-content: center; line-height: 1.45; min-height: 40px; padding: 4% 5%; text-align: center; }
+.principle-card-edit-input { background: transparent url('/assets/输入框横线.png') bottom center / 100% auto no-repeat; border: 0; color: var(--ink); font: inherit; margin-top: 5%; outline: 0; padding: 2% 0 5%; width: 100%; }
 .vault-art-stack { align-items: center; display: flex; flex-direction: column; margin: -1% auto 0; width: 100%; }
 .vault-art-stack .vault-illustration { margin-left: auto; margin-right: auto; }
 .vault-box-art { margin-top: 0; width: min(38%, 14dvh); }

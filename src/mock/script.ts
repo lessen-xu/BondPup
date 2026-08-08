@@ -1,7 +1,7 @@
 export const script = {
   flow: {
-    start: "开始", next: "继续", back: "返回上一步", save: "记下来", edit: "点这里写一写",
-    remove: "删掉", done: "改好了", placeholder: "▢▢▢",
+    start: "开始", next: "继续", back: "返回", save: "记下来", edit: "点这里写一写",
+    remove: "删掉", placeholder: "▢▢▢",
   },
   welcome: {
     greeting: "你好呀！我是你的小狗，我叫慢慢。",
@@ -33,11 +33,11 @@ export const script = {
     },
     far: {
       question: "有没有什么事,是你想为它慢慢存一点钱的?",
-      options: ["A 有,我一直想着一件事", "B 暂时没有,先过好这个月", "C 以后再说吧(跳过)"],
+      options: ["A 有,我一直想着一件事", "B 暂时没有"],
       subQuestions: ["它是什么呢?", "大概需要多少钱?", "大概几个月以后?(填个数字就行)"],
       firstPlaceholder: "比如去日本旅行",
       monthPlaceholder: "比如 12",
-      stepHint: "没有也完全没关系,以后想到了随时告诉我。",
+      stepHint: "没有也完全没关系,我们先把这个月过好。以后想到了,随时告诉我就可以。",
     },
     wishes: {
       question: "我把你刚才告诉我的事情,整理成了几件你在意的事〜",

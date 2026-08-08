@@ -23,6 +23,7 @@ function TalkLanding() {
   const alias = state?.profile.dogName?.trim() || "慢慢";
   const user = state?.profile.displayName?.trim() || "你";
   const [input, setInput] = useState("");
+  const [freeMode, setFreeMode] = useState(false);
   const [message, setMessage] = useState(replaceNames(DAILY_TALK.prompt, alias, user));
   const [detected, setDetected] = useState<"decision" | "note" | null>(null);
   const silenceShown = useRef(false);
@@ -32,6 +33,7 @@ function TalkLanding() {
     if (!saved) return;
     const timer = window.setTimeout(() => {
       setInput(saved);
+      setFreeMode(true);
       setMessage(replaceNames(DAILY_TALK.return, alias, user));
     }, 0);
     return () => window.clearTimeout(timer);
@@ -78,12 +80,13 @@ function TalkLanding() {
         <section className="dog-layer" aria-label={alias}>
           <Dog page="对话" alias={alias} message={message} talkMode />
         </section>
-        <section className="talk-actions" aria-label="对话入口">
+        <section className="talk-actions talk-entry-options" aria-label="对话入口">
           <TextEntry onClick={() => { finishDraft(); router.push("/talk?mode=buy"); }}>{script.home.buyEntry}</TextEntry>
           <TextEntry onClick={() => { finishDraft(); router.push("/talk?topic=money"); }}>{script.home.moneyEntry}</TextEntry>
+          <TextEntry onClick={() => { setDetected(null); setFreeMode(true); setMessage(replaceNames(DAILY_TALK.prompt, alias, user)); }}>我想自己说</TextEntry>
         </section>
         {detected && <section className="talk-actions" aria-label="话题选择"><TextEntry onClick={() => openDetected(true)}>{DAILY_TALK.together}</TextEntry><TextEntry onClick={() => openDetected(false)}>{DAILY_TALK.casual}</TextEntry></section>}
-        <form className="talk-record" onSubmit={(event) => { event.preventDefault(); submitFreeTalk(); }}><input value={input} onChange={(event) => { setInput(event.target.value); window.sessionStorage.setItem(TALK_DRAFT_KEY, event.target.value); }} placeholder={replaceNames(DAILY_TALK.freePlaceholder, alias, user)} aria-label={replaceNames(DAILY_TALK.freePlaceholder, alias, user)} /><button type="submit">{DAILY_TALK.submit}</button></form>
+        {freeMode && <form className="talk-record" onSubmit={(event) => { event.preventDefault(); submitFreeTalk(); }}><input value={input} onChange={(event) => { setInput(event.target.value); window.sessionStorage.setItem(TALK_DRAFT_KEY, event.target.value); }} placeholder={replaceNames(DAILY_TALK.freePlaceholder, alias, user)} aria-label={replaceNames(DAILY_TALK.freePlaceholder, alias, user)} /><button type="submit">{DAILY_TALK.submit}</button></form>}
       </section>
     </main>
   );

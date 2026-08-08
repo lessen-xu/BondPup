@@ -33,20 +33,7 @@ export function loadMoneyState(): MoneyState | null {
   const raw = window.localStorage.getItem(STORAGE_KEY);
   if (!raw) return null;
   try {
-    const state = MoneyState.parse(JSON.parse(raw));
-    if (!state.cycle || state.jars.some((jar) => jar.kind === "future")) return state;
-    return MoneyState.parse({
-      ...state,
-      jars: [...state.jars, {
-        id: "jar-future",
-        kind: "future",
-        label: "未来罐",
-        renamable: false,
-        planned: 0,
-        actual: 0,
-        updatedAt: state.cycle.updatedAt,
-      }],
-    });
+    return MoneyState.parse(JSON.parse(raw));
   } catch {
     // 结构不合法(契约升级或被手改)→ 视为无状态,不崩
     return null;

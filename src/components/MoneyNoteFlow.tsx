@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createDecisionStory } from "@/server/domain/story";
+import { recordSafetyEvent } from "@/server/safety/risk";
+import type { SafetyRiskType } from "@/contracts";
 import { loadMoneyState, useMoneyState } from "@/lib/state/money-store";
 import { ERRORS, DAILY_NOTE, NOTE_MODEL_REPLY, SAFETY } from "@/mock/剧本";
 import { requestAgent, type AgentIssue } from "@/lib/agent/client";
@@ -13,8 +15,15 @@ import { LoadingState } from "./LoadingState";
 
 type NoteCategory = keyof typeof DAILY_NOTE.responses;
 type NoteStep = "story" | "listen" | "model" | "choices" | "done" | "safety-offtopic" | "safety-stopped";
+type SafetyEventDraft = { riskType: SafetyRiskType; triggeredRule: string; responseTaken: string };
 
-const MODEL_TIMEOUT_MS = 2500;
+const SAFETY_RISK_TYPES = new Set<SafetyRiskType>([
+  "self_harm",
+  "debt_loan",
+  "investment",
+  "generic_emotion",
+  "other",
+]);
 
 function isStateConflict(cause: unknown): boolean {
   return Boolean(cause && typeof cause === "object" && "code" in cause && cause.code === "state_conflict");
@@ -40,7 +49,29 @@ function safetyKind(payload: unknown): "crisis" | "debt" | "invest" | "offTopic"
   const flags = Array.isArray(root.safetyFlags) ? root.safetyFlags : result && Array.isArray(result.safetyFlags) ? result.safetyFlags : [];
   const flag = flags.find((item): item is string => typeof item === "string");
   if (flag === "crisis" || flag === "debt" || flag === "invest" || flag === "offTopic") return flag;
+  const safetyEvent = readSafetyEvent(payload);
+  if (safetyEvent?.riskType === "self_harm") return "crisis";
+  if (safetyEvent?.riskType === "debt_loan") return "debt";
+  if (safetyEvent?.riskType === "investment") return "invest";
   return null;
+}
+
+function readSafetyEvent(payload: unknown): SafetyEventDraft | null {
+  if (!payload || typeof payload !== "object") return null;
+  const event = (payload as Record<string, unknown>).safetyEvent;
+  if (!event || typeof event !== "object") return null;
+  const draft = event as Record<string, unknown>;
+  if (
+    typeof draft.riskType !== "string"
+    || !SAFETY_RISK_TYPES.has(draft.riskType as SafetyRiskType)
+    || typeof draft.triggeredRule !== "string"
+    || typeof draft.responseTaken !== "string"
+  ) return null;
+  return {
+    riskType: draft.riskType as SafetyRiskType,
+    triggeredRule: draft.triggeredRule,
+    responseTaken: draft.responseTaken,
+  };
 }
 
 export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) {
@@ -102,11 +133,23 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
     setModelReply(null);
     setStep("model");
     setDogThinking(true);
-    const result = await requestAgent({ task: "companion_reply", scene: "note", userText: story }, MODEL_TIMEOUT_MS);
+    const result = await requestAgent({ task: "companion_reply", scene: "note", userText: story });
     if (requestId.current !== currentRequest) return;
     let nextSafety: ReturnType<typeof safetyKind> = null;
     if (result.ok) {
       nextSafety = safetyKind(result.payload);
+      const safetyEvent = readSafetyEvent(result.payload);
+      if (state && safetyEvent && (nextSafety === "crisis" || nextSafety === "debt" || nextSafety === "invest")) {
+        try {
+          commit(recordSafetyEvent(
+            state,
+            { riskType: safetyEvent.riskType, triggeredRule: safetyEvent.triggeredRule },
+            safetyEvent.responseTaken,
+          ));
+        } catch {
+          // 审计写入失败不改变固定安全回应的展示。
+        }
+      }
       setSafety(nextSafety);
       if (nextSafety === "crisis") {
         setStory("");
