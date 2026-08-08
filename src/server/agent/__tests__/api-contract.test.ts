@@ -17,6 +17,7 @@ describe("/api/agent 安全字段契约(防漂移)", () => {
     });
     expect(out.task).toBe("companion_reply");
     expect(out.safetyFlags).toEqual(["crisis"]);
+    expect(out.source).toBe("rule");
     expect(out.safetyEvent?.riskType).toBe("self_harm");
     if (out.task === "companion_reply") {
       expect(out.result.text.length).toBeGreaterThan(0);
@@ -34,11 +35,20 @@ describe("/api/agent 安全字段契约(防漂移)", () => {
     expect(emo.safetyEvent?.riskType).toBe("generic_emotion");
   });
 
-  it("普通输入无 safetyFlags,带 provider 标记", async () => {
+  it("普通输入无 safetyFlags,带 provider 标记;Mock 产出 source=rule", async () => {
     const out = await runAgentTask({ task: "companion_reply", scene: "greet" });
     expect(out.safetyFlags).toBeUndefined();
     expect(out.safetyEvent).toBeUndefined();
     expect(out.provider).toBe("mock");
+    expect(out.source).toBe("rule");
+  });
+
+  it("拆解任务同样带 source(前端标识「AI 生成/规则生成」依赖此字段)", async () => {
+    const out = await runAgentTask({ task: "decompose_wish", wish: "想攒钱也想过得舒服" });
+    expect(out.source).toBe("rule");
+    if (out.task === "decompose_wish") {
+      expect(out.result.concerns.length).toBeGreaterThanOrEqual(3);
+    }
   });
 });
 
