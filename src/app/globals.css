@@ -949,9 +949,9 @@ button { color: inherit; font: inherit; }
 .jar-amount { font-size: 10px; }
 
 /* Vault page */
-.vault-page-shell { background: var(--paper) url('/assets/小金库背景图.jpg') center top / cover no-repeat; box-sizing: border-box; min-height: 100dvh; padding: 4% 6% 6%; }
+.vault-page-shell { background: var(--paper) url('/assets/小金库背景图.jpg') center top / cover no-repeat; box-sizing: border-box; min-height: 100dvh; padding: 8% 6% 6%; }
 .vault-back { background: transparent; border: 0; left: 6%; position: absolute; top: 4%; z-index: 5; }
-.vault-back .back-arrow-icon { height: 22px; width: 32px; }
+.vault-back .back-arrow-icon { height: 22px; transform: scaleX(-1); width: 32px; }
 .vault-heading { margin: 1% auto 0; text-align: center; }
 .vault-heading h1 { font-size: clamp(21px, 6vw, 27px); font-weight: 400; line-height: 1.4; margin: 0 auto; max-width: 88%; overflow-wrap: anywhere; white-space: normal; }
 .vault-heading p { color: var(--muted); font-size: clamp(11px, 3vw, 13px); line-height: 1.65; margin: 1% auto 0; max-width: 82%; }
