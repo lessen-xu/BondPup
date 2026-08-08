@@ -11,9 +11,16 @@ import type {
  * 接入真实模型后由 index.ts 按环境变量切换,本文件保留作降级路径。
  */
 
-function mockDecompose(wish: string, nearChoice?: string): DecomposeWishOutput {
+function mockDecompose(
+  wish: string,
+  nearChoice?: string,
+  goal?: { name: string; amount: number; monthsRemaining: number },
+): DecomposeWishOutput {
   const concerns: string[] = [];
   const w = wish + (nearChoice ?? "");
+  if (goal?.name.trim()) concerns.push(`为${goal.name.trim()}留出一笔专用的钱`);
+  if (/日本|旅行|旅游/.test(w)) concerns.push("为去日本旅行留出一笔专用的钱");
+  if (/上海|城市|过得还不错/.test(w)) concerns.push("在上海把这个月过得舒展一点");
   if (/攒|存|留/.test(w)) concerns.push("每个月能留下一点,不用很多");
   if (/舒服|享受|花|玩|吃/.test(w)) concerns.push("想花的时候可以不愧疚地花");
   if (/房租|房|住/.test(w)) concerns.push("住的地方要先安排稳");
@@ -92,7 +99,7 @@ function mockPrinciple(
 
 export function runMockAgentTask(input: AgentTaskInput): AgentTaskOutput {
   if (input.task === "decompose_wish") {
-    return { task: "decompose_wish", result: mockDecompose(input.wish, input.nearChoice) };
+    return { task: "decompose_wish", result: mockDecompose(input.wish, input.nearChoice, input.goal) };
   }
   if (input.task === "generate_principle") {
     return { task: "generate_principle", result: mockPrinciple(input) };

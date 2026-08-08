@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { StoryAction } from "@/contracts";
 import { createDecisionStory } from "@/server/domain/story";
+import { confirmedPrinciples } from "@/server/domain/principle";
 import { loadMoneyState, useMoneyState } from "@/lib/state/money-store";
 import { previewDecision } from "@/lib/plan/preview-decision";
 import { formatYuan, parseAmountCents } from "@/mock/decision";
-import { DAILY_DECISION, DECISION_BALANCE, ERRORS } from "@/mock/剧本";
+import { DAILY_DECISION, DECISION_BALANCE, DECISION_REFERENCE, ERRORS } from "@/mock/剧本";
 import { setDogThinking } from "@/lib/state/dog-state";
 import { Dog } from "./Dog";
 import { HandDrawnUnderline } from "./HandDrawnUnderline";
@@ -47,6 +48,7 @@ export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) 
   const [error, setError] = useState<string | null>(null);
   const [dogState, setDogState] = useState<"ears" | null>(null);
   const [now, setNow] = useState<number | null>(null);
+  const [principleReferenceOpen, setPrincipleReferenceOpen] = useState(false);
 
   useEffect(() => () => setDogThinking(false), []);
   useEffect(() => {
@@ -73,6 +75,7 @@ export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) 
       .replace("{balance}", formatYuan(preview.comfortAvailable))
       .replace("{remain}", formatYuan(preview.remaining));
   }, [alias, amount, preview, staleBalance, user]);
+  const referencedPrinciples = state ? confirmedPrinciples(state) : [];
 
   function submitItem() {
     const next = itemInput.trim();
@@ -154,21 +157,21 @@ export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) 
 
   if (!ready) return <LoadingState />;
   if (!state) {
-    return <main className="stage-shell flow-layout-shell"><section className="stage talk-page decision-page"><button className="simple-back decision-back" type="button" onClick={() => router.push("/")} aria-label="返回首页">返回首页</button><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.noState, alias)}</p><div className="decision-options"><button className="decision-text-action" type="button" onClick={() => router.push("/start")}>{DAILY_DECISION.start}<HandDrawnUnderline /></button><button className="decision-text-action" type="button" onClick={() => router.push("/")}>{DAILY_DECISION.browse}<HandDrawnUnderline /></button></div></section></main>;
+    return <main className="stage-shell flow-layout-shell buy-decision-shell"><section className="stage talk-page decision-page"><button className="simple-back decision-back" type="button" onClick={() => router.push("/")} aria-label="首页">首页</button><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.noState, alias)}</p><div className="decision-options"><button className="decision-text-action" type="button" onClick={() => router.push("/start")}>{DAILY_DECISION.start}<HandDrawnUnderline /></button><button className="decision-text-action" type="button" onClick={() => router.push("/")}>{DAILY_DECISION.browse}<HandDrawnUnderline /></button></div></section></main>;
   }
 
   const actionLabel = ACTIONS.find((entry) => entry.key === proposedAction)?.label ?? "";
   return (
-    <main className="stage-shell flow-layout-shell">
+    <main className="stage-shell flow-layout-shell buy-decision-shell">
       <section className="stage talk-page decision-page buy-decision-page" aria-label={DAILY_DECISION.entry}>
-        <button className="simple-back decision-back" type="button" onClick={back} aria-label="返回上一步">返回上一步</button>
+        <button className="simple-back decision-back" type="button" onClick={back} aria-label="上一步">上一步</button>
         <section className="dog-layer" aria-label={alias}><Dog page="对话" state={dogState ?? undefined} alias={alias} message={null} talkMode /></section>
         <section className="decision-dialog" aria-live="polite">
-          {step === "item" && <div className="decision-step"><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.intro, alias)}</p><input autoFocus className="decision-input" value={itemInput} onChange={(event) => setItemInput(event.target.value)} placeholder={DAILY_DECISION.itemPlaceholder} aria-label={DAILY_DECISION.itemPlaceholder} /><p className="talk-status">{DAILY_DECISION.itemHint}</p><button className="decision-text-action" type="button" onClick={submitItem}>{DAILY_DECISION.itemNext}<HandDrawnUnderline /></button></div>}
+          {step === "item" && <div className="decision-step buy-item-step"><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.intro, alias)}</p><input autoFocus className="decision-input" value={itemInput} onChange={(event) => setItemInput(event.target.value)} placeholder={DAILY_DECISION.itemPlaceholder} aria-label={DAILY_DECISION.itemPlaceholder} /><p className="talk-status">{DAILY_DECISION.itemHint}</p><button className="decision-text-action" type="button" onClick={submitItem}>{DAILY_DECISION.itemNext}<HandDrawnUnderline /></button></div>}
           {step === "price" && <div className="decision-step"><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.priceQuestion, alias)}</p><input autoFocus className="decision-input" value={priceInput} onChange={(event) => { setPriceInput(event.target.value); setError(null); }} placeholder={DAILY_DECISION.pricePlaceholder} aria-label={DAILY_DECISION.pricePlaceholder} inputMode="decimal" />{error && <p className="talk-status">{error}</p>}<button className="decision-text-action" type="button" onClick={submitPrice}>{DAILY_DECISION.itemNext}<HandDrawnUnderline /></button><button className="decision-text-action" type="button" onClick={() => setPriceInput("")}>{DAILY_DECISION.unsure}<HandDrawnUnderline /></button></div>}
           {step === "checking" && <div className="decision-step"><p className="decision-dog-bubble money-note-thinking-bubble" aria-hidden="true"> </p></div>}
           {step === "arrange" && previewIssue && <div className="decision-step"><p className="decision-dog-bubble">{ERRORS.timeout.line}</p><p className="decision-dog-bubble">{ERRORS.timeout.sub}</p><button className="decision-text-action" type="button" onClick={() => setStep("price")}>{ERRORS.timeout.retry}<HandDrawnUnderline /></button></div>}
-          {step === "arrange" && preview && amount !== null && <div className="decision-step"><p className="decision-dog-bubble">{comfortText}</p><p className="decision-dog-bubble">{DAILY_DECISION.arrange}</p><div className="decision-plain-summary"><p>{DAILY_DECISION.summaryItem.replace("{item}", item).replace("{price}", displayPrice)}</p><p>{DAILY_DECISION.summaryComfort.replace("{remain}", formatYuan(preview.remaining))}</p></div>{preview.shortfall > 0 && <><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.shortfall, alias).replace("{shortfall}", formatYuan(preview.shortfall))}</p><div className="decision-options decision-source-options">{preview.sources.map((source) => <button key={source.jarKind} className="decision-option" type="button">{source.label}</button>)}</div>{preview.goalImpact && <p className="talk-status">{preview.goalImpact}</p>}</>}{!staleBalance && <p className="decision-dog-bubble">{DAILY_DECISION.arrangeQuestion}</p>}<div className="decision-options decision-buy-actions">{ACTIONS.map((action) => <button key={action.key} className="decision-buy-action" type="button" onClick={() => chooseAction(action.key)}>{action.label}<HandDrawnUnderline /></button>)}</div></div>}
+          {step === "arrange" && preview && amount !== null && <div className="decision-step"><p className="decision-dog-bubble">{comfortText}</p>{referencedPrinciples.length > 0 && <div className="principle-fold"><button type="button" onClick={() => setPrincipleReferenceOpen((open) => !open)}>{DECISION_REFERENCE.label.replace("{count}", String(referencedPrinciples.length))} {principleReferenceOpen ? "^" : "▾"}</button>{principleReferenceOpen && referencedPrinciples.map((principle) => <p key={principle.id}>{principle.statement}</p>)}</div>}<p className="decision-dog-bubble">{DAILY_DECISION.arrange}</p><div className="decision-plain-summary"><p>{DAILY_DECISION.summaryItem.replace("{item}", item).replace("{price}", displayPrice)}</p><p>{DAILY_DECISION.summaryComfort.replace("{remain}", formatYuan(preview.remaining))}</p></div>{preview.shortfall > 0 && <><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.shortfall, alias).replace("{shortfall}", formatYuan(preview.shortfall))}</p><div className="decision-options decision-source-options">{preview.sources.map((source) => <button key={source.jarKind} className="decision-option" type="button">{source.label}</button>)}</div>{preview.goalImpact && <p className="talk-status">{preview.goalImpact}</p>}</>}{!staleBalance && <p className="decision-dog-bubble">{DAILY_DECISION.arrangeQuestion}</p>}<div className="decision-options decision-buy-actions">{ACTIONS.map((action) => <button key={action.key} className="decision-buy-action" type="button" onClick={() => chooseAction(action.key)}>{action.label}<HandDrawnUnderline /></button>)}</div></div>}
           {step === "confirm" && <div className="decision-step"><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.confirmQuestion, alias)}</p><p className="decision-plain-summary">{item} {displayPrice}元 · {actionLabel}</p>{error && <p className="talk-status">{error}</p>}<div className="decision-options"><button className="decision-text-action" type="button" disabled={submitting} onClick={confirmAction}>{DAILY_DECISION.confirm}<HandDrawnUnderline /></button><button className="decision-text-action" type="button" disabled={submitting} onClick={() => { setIdempotencyKey(null); setStep("arrange"); }}>{DAILY_DECISION.modify}<HandDrawnUnderline /></button><button className="decision-text-action" type="button" disabled={submitting} onClick={() => { setIdempotencyKey(null); setStep("arrange"); }}>{DAILY_DECISION.cancel}<HandDrawnUnderline /></button></div></div>}
           {step === "done" && <div className="decision-step"><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.closing, alias)}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>首页<HandDrawnUnderline /></button></div>}
         </section>

@@ -11,6 +11,11 @@ export const DecomposeWishInput = z.object({
   task: z.literal("decompose_wish"),
   wish: z.string().min(1).max(500),
   nearChoice: z.string().max(100).optional(),
+  goal: z.object({
+    name: z.string().max(100),
+    amount: z.number().int().nonnegative(),
+    monthsRemaining: z.number().int().positive(),
+  }).optional(),
 });
 
 export const CompanionReplyInput = z.object({

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runAgentTask } from "@/server/agent";
+import { runMockAgentTask } from "@/server/agent/mock";
 import { validateReplyText } from "@/server/safety/validate";
 
 /**
@@ -38,5 +39,25 @@ describe("/api/agent 安全字段契约(防漂移)", () => {
     expect(out.safetyFlags).toBeUndefined();
     expect(out.safetyEvent).toBeUndefined();
     expect(out.provider).toBe("mock");
+  });
+});
+
+describe("decompose_wish 拆解输入", () => {
+  it("两组不同输入返回不同 concerns,并带入远期目标", () => {
+    const travel = runMockAgentTask({
+      task: "decompose_wish",
+      wish: "想攒下来一点",
+      nearChoice: "save",
+      goal: { name: "去日本旅行", amount: 960000, monthsRemaining: 12 },
+    });
+    const shanghai = runMockAgentTask({
+      task: "decompose_wish",
+      wish: "我想自己说说; 我想这个月在上海过得还不错",
+      nearChoice: "custom",
+    });
+    if (travel.task !== "decompose_wish" || shanghai.task !== "decompose_wish") throw new Error("任务类型不符");
+    expect(travel.result.concerns).toContain("为去日本旅行留出一笔专用的钱");
+    expect(shanghai.result.concerns).toContain("在上海把这个月过得舒展一点");
+    expect(travel.result.concerns).not.toEqual(shanghai.result.concerns);
   });
 });

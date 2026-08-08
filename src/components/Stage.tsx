@@ -9,13 +9,12 @@ import { useRouter } from "next/navigation";
 import type { DecisionStory, JarKind, MoneyState } from "@/contracts";
 import { layout } from "@/config/layout";
 import { script, withAlias } from "@/mock/script";
-import { DEMO } from "@/mock/剧本";
+import { DEMO, HOME_REVIEW_CARD, REVIEW_CARD } from "@/mock/剧本";
 import { useMoneyState } from "@/lib/state/money-store";
 import { Dog } from "./Dog";
 import { JarGroup } from "./JarGroup";
 import { Leftover } from "./Leftover";
 import { TextEntry } from "./TextEntry";
-import { HandDrawnUnderline } from "./HandDrawnUnderline";
 
 type StageProps = {
   state: MoneyState;
@@ -49,6 +48,15 @@ export function Stage({ state, demoIntro = false, onDismissDemoIntro }: StagePro
       return record;
     }, null);
   }, [now, state.stories]);
+  const dueReviewQuestion = dueReview
+    ? REVIEW_CARD.body[
+        dueReview.action === "buy_now"
+          ? "now"
+          : dueReview.action === "defer"
+            ? "tomorrow"
+            : "skip"
+      ].replace("{item}", dueReview.intent)
+    : null;
   const stageStyle = {
     "--table-left": homeComposition.tableGroup.left,
     "--table-bottom": homeComposition.tableGroup.bottom,
@@ -99,11 +107,11 @@ export function Stage({ state, demoIntro = false, onDismissDemoIntro }: StagePro
           <TextEntry className="talk-entry talk-entry-money" onClick={() => router.push("/talk?topic=money")}>{script.home.moneyEntry.replace("想说说", "\n想说说")}</TextEntry>
         </nav>
 
-        {dueReview && (
-          <span className="review-entry">
-            <button type="button" onClick={(event) => { event.stopPropagation(); router.push(`/review?id=${encodeURIComponent(dueReview.id)}`); }}>{script.home.review}</button>
-            <HandDrawnUnderline className="entry-underline" />
-          </span>
+        {dueReview && dueReviewQuestion && (
+          <button className="review-entry" type="button" onClick={(event) => { event.stopPropagation(); router.push(`/review?id=${encodeURIComponent(dueReview.id)}`); }}>
+            <span>{HOME_REVIEW_CARD.subtitle}</span>
+            <strong>{dueReviewQuestion}</strong>
+          </button>
         )}
       </section>
     </main>

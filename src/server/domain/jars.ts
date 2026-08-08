@@ -25,6 +25,41 @@ export interface ComputeJarsResult {
   shortfall: number;
 }
 
+const JarAllocationInput = z.object({
+  disposable: Cents,
+  living: Cents,
+  comfort: Cents,
+  dream: Cents,
+  future: Cents,
+});
+export type JarAllocationInput = z.input<typeof JarAllocationInput>;
+
+export interface JarAllocationBalance {
+  total: number;
+  missing: number;
+  excess: number;
+}
+
+export function compareJarAllocation(input: JarAllocationInput): JarAllocationBalance {
+  const parsed = JarAllocationInput.safeParse(input);
+  if (!parsed.success) {
+    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);
+  }
+  const { disposable, living, comfort, dream, future } = parsed.data;
+  const total = living + comfort + dream + future;
+  return {
+    total,
+    missing: Math.max(0, disposable - total),
+    excess: Math.max(0, total - disposable),
+  };
+}
+
+export function balanceComfortJar(input: JarAllocationInput): JarAllocationBalance & { comfort: number } {
+  const parsed = JarAllocationInput.parse(input);
+  const comfort = Math.max(0, parsed.disposable - parsed.living - parsed.dream - parsed.future);
+  return { comfort, ...compareJarAllocation({ ...parsed, comfort }) };
+}
+
 /**
  * 四罐恒等式:living + comfort + dream + future === disposable(+shortfall 时差额可解释)。
  * 安心罐是被动余项(余数进安心罐,不进未来罐——不预设「存钱=好」)。

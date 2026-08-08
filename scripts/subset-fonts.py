@@ -16,6 +16,7 @@ REQUIRED = set(
     "0123456789"
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     "abcdefghijklmnopqrstuvwxyz"
+    " "
 )
 
 
