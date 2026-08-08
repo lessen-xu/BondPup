@@ -19,23 +19,11 @@ const descriptions: Record<JarKind, string> = {
   future: script.steps.jars.future.empty,
 };
 
-const emptyFutureJar: MoneyJar = {
-  id: "jar-future-empty-display",
-  kind: "future",
-  label: "未来罐",
-  renamable: false,
-  planned: 0,
-  actual: 0,
-  updatedAt: "1970-01-01T00:00:00.000Z",
-};
-
 export function JarGroup({ jars, selectedKind, onSelect }: JarGroupProps) {
-  const displayJars = jars.some((jar) => jar.kind === "future") ? jars : [...jars, emptyFutureJar];
-
   return (
     <div className="jar-group" aria-label="储蓄罐">
       <img className="jars-on-table-art" src="/assets/jars-on-table.png" alt="" aria-hidden="true" />
-      {displayJars.map((jar) => (
+      {jars.map((jar) => (
         <Jar
           key={jar.kind}
           {...jar}

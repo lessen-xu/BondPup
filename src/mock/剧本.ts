@@ -30,7 +30,7 @@ export const moneyNoteScript = {
   },
   modelReply: NOTE_MODEL_REPLY,
   vault: {
-    title: "{alias}的小金库",
+    title: "{user}的小金库",
     subtitle: "我替你收着的纸条,想看的时候就来看看。",
     empty: "还没有写下纸条。",
   },
@@ -108,7 +108,6 @@ export const REVIEW_NAV = { next: "继续", backHome: "返回首页" } as const;
 export const HOME_REVIEW_CARD = { subtitle: "我们说今天来看看" } as const;
 
 export const CARDS_PAGE = {
-  empty: "你的第一张已经在里面了。",
   labels: {
     confirmed: "已确认",
     edited: "已修改",
@@ -173,9 +172,6 @@ export const ERRORS = {
   loading: {
     line: "等我一下，我去翻翻小本本。",
   },
-  empty: {
-    cards: "你的第一张已经在里面了。",
-  },
 } as const;
 
 export const DEMO = {
@@ -216,7 +212,6 @@ export const SAFETY = {
     yesResponse: "那我们看看要不要调一下。",
     noResponse: "好，那就先放着。你想说的时候随时说。",
   },
-  ageNotice: "这里适合 18 岁以上的朋友使用。",
   timeReminder: {
     line: "我们聊了挺久了。",
     body: "要不要先歇一会儿？我不会走的。",
@@ -282,14 +277,14 @@ export const DAILY_NOTE = {
 } as const;
 
 export const DAILY_TALK = {
-  prompt: "{alias}:今天想聊什么?",
+  prompt: "今天想聊什么?",
   freePlaceholder: "说什么都可以〜{alias}听着呢",
   submit: "说给我听",
-  detected: "{alias}:咦,你说的这个,要不要我们一起看看?还是你就是想随便聊聊?",
+  detected: "咦,你说的这个,要不要我们一起看看?还是你就是想随便聊聊?",
   together: "一起看看",
   casual: "随便聊聊",
-  silence: "{alias}:嗯……我就在这儿哦。你不用急着回答,发呆也可以的。",
-  return: "{alias}:嘿,你回来啦〜上次我们聊到一半,你还想继续说吗?不想说也没关系。",
+  silence: "嗯……我就在这儿哦。你不用急着回答,发呆也可以的。",
+  return: "嘿,你回来啦〜上次我们聊到一半,你还想继续说吗?不想说也没关系。",
   triggers: {
     decision: ["我想买", "要不要买", "值得买", "帮我看看", "想买"],
     note: ["收到一笔", "有笔钱", "花了笔钱", "退了笔钱", "奖金", "红包", "后悔"],

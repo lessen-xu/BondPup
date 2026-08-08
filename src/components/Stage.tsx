@@ -31,7 +31,7 @@ const homeComposition = {
 export function Stage({ state, demoIntro = false, onDismissDemoIntro }: StageProps) {
   const router = useRouter();
   const { reset } = useMoneyState();
-  const alias = state.profile.displayName?.trim() || "慢慢";
+  const alias = state.profile.dogName?.trim() || "慢慢";
   const [selectedKind, setSelectedKind] = useState<JarKind | null>(null);
   const [demoExitPending, setDemoExitPending] = useState(false);
   const [now, setNow] = useState<number | null>(null);
@@ -76,6 +76,7 @@ export function Stage({ state, demoIntro = false, onDismissDemoIntro }: StagePro
           <img src="/assets/小金库.png" alt="" aria-hidden="true" />
           <span>{alias}的小金库</span>
         </button>
+        <button className="companion-home-entry" type="button" onClick={(event) => { event.stopPropagation(); router.push("/companion"); }}>陪伴</button>
 
         <Leftover amount={state.leftover.amount} onOpen={() => router.push("/leftover")} />
 

@@ -25,14 +25,15 @@ function isStateConflict(cause: unknown): boolean {
   return Boolean(cause && typeof cause === "object" && "code" in cause && cause.code === "state_conflict");
 }
 
-function replaceAlias(text: string, alias: string): string {
-  return text.replaceAll("{alias}", alias);
+function replaceAlias(text: string, alias: string, user = "你"): string {
+  return text.replaceAll("{alias}", alias).replaceAll("{user}", user);
 }
 
 export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) {
   const router = useRouter();
   const { state, ready, commit } = useMoneyState();
-  const alias = state?.profile.displayName?.trim() || "慢慢";
+  const alias = state?.profile.dogName?.trim() || "慢慢";
+  const user = state?.profile.displayName?.trim() || "你";
   const [step, setStep] = useState<BuyStep>("item");
   const [itemInput, setItemInput] = useState(initialItem);
   const [item, setItem] = useState("");
@@ -62,7 +63,7 @@ export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) 
   const comfortText = useMemo(() => {
     if (!preview || amount === null) return null;
     if (preview.shortfall > 0) {
-      return replaceAlias(DAILY_DECISION.shortfall, alias)
+      return replaceAlias(DAILY_DECISION.shortfall, alias, user)
         .replace("{shortfall}", formatYuan(preview.shortfall));
     }
     if (staleBalance) {
@@ -71,7 +72,7 @@ export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) 
     return DECISION_BALANCE.fresh
       .replace("{balance}", formatYuan(preview.comfortAvailable))
       .replace("{remain}", formatYuan(preview.remaining));
-  }, [alias, amount, preview, staleBalance]);
+  }, [alias, amount, preview, staleBalance, user]);
 
   function submitItem() {
     const next = itemInput.trim();
@@ -144,7 +145,7 @@ export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) 
 
   function back() {
     setError(null);
-    if (step === "item") return router.push("/talk");
+    if (step === "item") return router.push("/");
     if (step === "price") return setStep("item");
     if (step === "arrange") return setStep("price");
     if (step === "confirm") { setIdempotencyKey(null); return setStep("arrange"); }
@@ -169,7 +170,7 @@ export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) 
           {step === "arrange" && previewIssue && <div className="decision-step"><p className="decision-dog-bubble">{ERRORS.timeout.line}</p><p className="decision-dog-bubble">{ERRORS.timeout.sub}</p><button className="decision-text-action" type="button" onClick={() => setStep("price")}>{ERRORS.timeout.retry}<HandDrawnUnderline /></button></div>}
           {step === "arrange" && preview && amount !== null && <div className="decision-step"><p className="decision-dog-bubble">{comfortText}</p><p className="decision-dog-bubble">{DAILY_DECISION.arrange}</p><div className="decision-plain-summary"><p>{DAILY_DECISION.summaryItem.replace("{item}", item).replace("{price}", displayPrice)}</p><p>{DAILY_DECISION.summaryComfort.replace("{remain}", formatYuan(preview.remaining))}</p></div>{preview.shortfall > 0 && <><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.shortfall, alias).replace("{shortfall}", formatYuan(preview.shortfall))}</p><div className="decision-options decision-source-options">{preview.sources.map((source) => <button key={source.jarKind} className="decision-option" type="button">{source.label}</button>)}</div>{preview.goalImpact && <p className="talk-status">{preview.goalImpact}</p>}</>}{!staleBalance && <p className="decision-dog-bubble">{DAILY_DECISION.arrangeQuestion}</p>}<div className="decision-options decision-buy-actions">{ACTIONS.map((action) => <button key={action.key} className="decision-buy-action" type="button" onClick={() => chooseAction(action.key)}>{action.label}<HandDrawnUnderline /></button>)}</div></div>}
           {step === "confirm" && <div className="decision-step"><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.confirmQuestion, alias)}</p><p className="decision-plain-summary">{item} {displayPrice}元 · {actionLabel}</p>{error && <p className="talk-status">{error}</p>}<div className="decision-options"><button className="decision-text-action" type="button" disabled={submitting} onClick={confirmAction}>{DAILY_DECISION.confirm}<HandDrawnUnderline /></button><button className="decision-text-action" type="button" disabled={submitting} onClick={() => { setIdempotencyKey(null); setStep("arrange"); }}>{DAILY_DECISION.modify}<HandDrawnUnderline /></button><button className="decision-text-action" type="button" disabled={submitting} onClick={() => { setIdempotencyKey(null); setStep("arrange"); }}>{DAILY_DECISION.cancel}<HandDrawnUnderline /></button></div></div>}
-          {step === "done" && <div className="decision-step"><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.closing, alias)}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>返回首页<HandDrawnUnderline /></button></div>}
+          {step === "done" && <div className="decision-step"><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.closing, alias)}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>首页<HandDrawnUnderline /></button></div>}
         </section>
       </section>
     </main>

@@ -204,7 +204,7 @@ button { color: inherit; font: inherit; }
   left: 6%;
   position: absolute;
   right: 6%;
-  top: 22%;
+  top: 16%;
   width: auto;
   z-index: 5;
 }
@@ -213,7 +213,7 @@ button { color: inherit; font: inherit; }
 
 .talk-entry {
   color: var(--ink);
-  font-size: clamp(11px, 3.2vw, 15px);
+  font-size: clamp(13px, 3.68vw, 17px);
   line-height: 1.45;
   min-height: 44px;
   padding: 3% 2%;
@@ -332,8 +332,8 @@ button { color: inherit; font: inherit; }
 .jar-amount {
   color: var(--muted);
   font-size: 11px;
-  line-height: 1.35;
-  top: -13%;
+  line-height: 1.2;
+  top: -16%;
 }
 
 /* 梦想罐可由用户命名:超长名字截断省略,不挤压相邻罐(其余罐名固定,不设上限) */
@@ -365,7 +365,8 @@ button { color: inherit; font: inherit; }
   z-index: 20;
 }
 
-.jar-slot-comfort .jar-note, .jar-slot-future .jar-note { left: auto; right: 75%; }
+.jar-slot-comfort .jar-note { left: 75%; right: auto; width: 175%; }
+.jar-slot-future .jar-note { left: auto; right: 75%; }
 .jar-note p, .jar-note strong, .jar-note small { margin: 0; }
 .jar-note p { font-size: clamp(11px, 3.2vw, 14px); line-height: 1.4; }
 .jar-note strong { font-size: clamp(14px, 4vw, 18px); font-weight: 400; line-height: 1.45; }
@@ -392,10 +393,13 @@ button { color: inherit; font: inherit; }
 .dog-state-lying { --dog-pose-scale: 1; }
 .dog-state-reading { --dog-pose-scale: 1.12; }
 .dog-state-box { --dog-pose-scale: 1.08; }
-.dog-state-ears { --dog-pose-scale: 1; }
+.dog-state-ears { --dog-pose-scale: 1.12; }
 .dog-state-jump { --dog-pose-scale: 1.03; }
 .dog-state-image-current { animation: dog-crossfade-in 150ms ease-out both; }
 .dog-state-image-previous { animation: dog-crossfade-out 150ms ease-out both; }
+.stage.talk-page .dog-state-image { --dog-pose-scale: 1; }
+.stage.talk-page .dog-state-ears { --dog-pose-scale: 1.2; }
+.stage.talk-page .dog-state-lying { --dog-pose-scale: 1.12; }
 .dog-react-lying { transform: translateY(3%) scaleY(.92); transition: transform 400ms ease; }
 .dog-react-think { animation: dog-think 1.2s ease-in-out infinite; }
 .dog-react-ears { animation: dog-ears 1.2s ease-in-out both; }
@@ -411,18 +415,19 @@ button { color: inherit; font: inherit; }
   font-size: clamp(11px, 3vw, 14px);
   line-height: 1.55;
   margin: 0;
-  max-width: min(190px, 52vw);
+  max-width: min(190px, 88%);
   min-width: 72px;
   overflow-wrap: anywhere;
   padding: 14px 18px;
   position: absolute;
   text-align: center;
-  width: max-content;
+  white-space: normal;
+  width: fit-content;
   z-index: 6;
 }
 .dog-message-bubble { bottom: 76%; left: 72%; transform: rotate(2deg); }
 .poke-bubble { left: 72%; top: -14%; transform: rotate(-4deg); }
-.stage > .dog-layer .dog-message-bubble { bottom: 165%; left: 0; max-width: 150px; transform: rotate(-2deg); }
+.stage > .dog-layer .dog-message-bubble { bottom: 165%; left: 0; max-width: min(150px, 88%); transform: rotate(-2deg); }
 .dog-accessory { display: block; height: auto; position: absolute; z-index: 4; }
 .dog-accessory-scarf { left: 17%; top: 39%; width: 66%; }
 .dog-accessory-flower { left: 59%; top: 12%; width: 24%; }
@@ -544,28 +549,54 @@ button { color: inherit; font: inherit; }
 .stage.talk-page {
   aspect-ratio: auto;
   background-color: var(--paper);
-  background-image: url('/assets/paper-texture.png');
-  background-repeat: repeat;
-  background-size: auto;
+  background-image: url('/assets/talk背景图.jpg');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
   min-height: 100dvh;
   overflow: visible;
   padding: max(4dvh, env(safe-area-inset-top)) 7% calc(4dvh + env(safe-area-inset-bottom));
   position: relative;
   width: min(100%, 430px);
 }
-.talk-page .dog-layer,
+.talk-page .dog-layer { bottom: auto; left: auto; margin: 14% auto 0 4%; position: relative; top: auto; width: 46%; z-index: 2; }
 .decision-page .dog-layer { bottom: auto; left: auto; margin: -5% auto 0 5%; position: relative; top: auto; width: 34%; z-index: 2; }
+.buy-decision-page .dog-layer { margin: 9% auto 0 3%; width: 46%; }
+.stage.talk-page:not(.decision-page) > .dog-layer .dog-message-bubble {
+  bottom: 60%;
+  left: 100%;
+  max-width: min(210px, 68vw);
+  transform: rotate(-3deg);
+  width: max-content;
+}
 .talk-page .talk-copy { background: rgba(255, 252, 242, .2) url('/assets/小狗气泡.png') center / 100% 100% no-repeat; font-size: clamp(14px, 4.2vw, 18px); line-height: 1.7; margin: -23% 0 0 auto; max-width: 64%; overflow-wrap: anywhere; padding: 14px 18px; text-align: center; }
-.talk-actions, .talk-record { display: flex; gap: 4%; justify-content: center; margin: 4% auto 0; max-width: 86%; }
-.talk-actions button, .talk-record button { background: transparent; border: 0; cursor: pointer; font-size: clamp(12px, 3.4vw, 15px); min-height: 44px; padding: 3% 2%; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
-.talk-record input { background: transparent; background-image: url('/assets/输入框横线.png'); background-position: bottom center; background-repeat: no-repeat; background-size: 100% auto; border: 0; color: var(--ink); font: inherit; min-width: 0; outline: 0; padding: 2% 0 5%; width: 45%; }
+.talk-actions, .talk-record { display: flex; gap: 4%; justify-content: center; margin: 8% auto 0; max-width: 92%; }
+.talk-actions button, .talk-record button { background: transparent; border: 0; cursor: pointer; font-size: clamp(12px, 3.4vw, 15px); min-height: 44px; padding: 3% 2%; }
+.talk-actions button { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.talk-record { align-items: flex-end; gap: 6%; margin-top: 3%; }
+.talk-record input { background: transparent; background-image: url('/assets/输入框横线.png'); background-position: bottom center; background-repeat: no-repeat; background-size: 100% auto; border: 0; color: var(--ink); flex: 1 1 auto; font: inherit; min-width: 0; outline: 0; padding: 2% 0 5%; width: auto; }
+.talk-record button { flex: 0 0 auto; white-space: nowrap; }
+.companion-home-entry { background: transparent; border: 0; bottom: 5%; color: var(--muted); cursor: pointer; font-size: clamp(11px, 2.8vw, 13px); padding: 4px; position: absolute; right: 7%; }
 .talk-status { color: var(--muted); font-size: clamp(11px, 3vw, 14px); line-height: 1.6; margin: 4% auto 0; text-align: center; }
 
 .decision-page {
   background-image: url('/assets/paper-texture.png');
 }
+.money-note-page {
+  background-image: url('/assets/talk背景图.jpg');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+.money-note-page .dog-layer { margin: 9% auto 0 3%; width: 46%; }
+.money-note-page .decision-dialog { margin: -26% auto 0; }
+.money-note-page .decision-dog-bubble { left: 4%; max-width: 50%; position: relative; top: -8px; }
+.money-note-page .decision-user-bubble { max-width: 62%; }
 .decision-back { display: block; position: relative; z-index: 8; }
+.talk-page .back-arrow-button { margin-left: -2%; }
 .decision-dialog { margin: -23% auto 0; position: relative; width: 100%; z-index: 5; }
+.buy-decision-page .decision-dialog { margin: -26% auto 0; }
+.buy-decision-page .decision-dog-bubble { left: 4%; max-width: 50%; position: relative; top: -8px; }
 .decision-dialog-below-dog { margin-top: 2%; }
 .decision-step { align-items: center; display: flex; flex-direction: column; gap: clamp(8px, 3vw, 16px); }
 .decision-dog-bubble, .decision-user-bubble {
@@ -576,10 +607,11 @@ button { color: inherit; font: inherit; }
   font-size: clamp(13px, 3.8vw, 17px);
   line-height: 1.7;
   margin: 0;
-  max-width: 64%;
+  max-width: 88%;
   overflow-wrap: anywhere;
   padding: 14px 18px;
   text-align: center;
+  white-space: normal;
   width: fit-content;
 }
 .decision-dog-bubble { background-image: url('/assets/小狗气泡.png'); }
@@ -719,7 +751,7 @@ button { color: inherit; font: inherit; }
   max-width: 430px;
   min-height: 100dvh;
   overflow: hidden;
-  padding: max(4dvh, env(safe-area-inset-top)) 8% 0;
+  padding: max(2dvh, env(safe-area-inset-top)) 8% 0;
   width: 100%;
 }
 
@@ -765,7 +797,7 @@ button { color: inherit; font: inherit; }
 .intro-nickname-closing { color: rgba(74, 59, 46, .66); font-size: 13px; line-height: 1.9; padding: 0 4%; top: 68%; }
 .intro-nickname-confirm { top: 84%; }
 
-.flow-screen { display: flex; flex: 0 0 68dvh; flex-direction: column; height: 68dvh; min-height: 0; overflow: hidden; }
+.flow-screen { display: flex; flex: 0 0 56dvh; flex-direction: column; height: 56dvh; min-height: 0; overflow: hidden; }
 .flow-content { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 2%; scrollbar-width: none; }
 .flow-content::-webkit-scrollbar { display: none; }
 .flow-content > p { font-size: clamp(13px, 3.7vw, 16px); line-height: 1.68; margin: 0 0 4%; }
@@ -788,6 +820,7 @@ button { color: inherit; font: inherit; }
 .flow-submit-error { margin: 3% auto; max-width: 92%; }
 .flow-record { margin: 3% 0; padding-left: 3%; }
 .flow-record p, .flow-record strong { display: block; font-size: clamp(13px, 3.6vw, 16px); line-height: 1.75; margin: 0 0 3%; }
+.flow-record p { white-space: pre-line; }
 .flow-record strong { font-weight: 400; }
 .flow-options { display: grid; gap: 2%; margin: 2% 0 4%; }
 .flow-options button.is-selected { opacity: 1; }
@@ -856,8 +889,8 @@ button { color: inherit; font: inherit; }
 .flow-confirm-actions .flow-primary-action { flex: 1; }
 
 @media (max-height: 700px) {
-  .flow-page { padding-top: 4dvh; }
-  .flow-screen { flex-basis: 64dvh; height: 64dvh; min-height: 0; }
+  .flow-page { padding-top: 2dvh; }
+  .flow-screen { flex-basis: 55dvh; height: 55dvh; min-height: 0; }
   .flow-content > p { line-height: 1.55; margin-bottom: 2%; }
   .flow-options { gap: 1%; margin: 1% 0 2%; }
   .flow-recent-screen .flow-content { padding-top: 3dvh; }
@@ -867,11 +900,12 @@ button { color: inherit; font: inherit; }
 }
 
 /* Home utility objects */
-.stage > .dog-layer .dog-message-bubble {
-  bottom: 76%;
-  left: 94%;
-  max-width: min(150px, 40vw);
-  transform: rotate(4deg);
+.stage:not(.talk-page) > .dog-layer .dog-message-bubble {
+  bottom: 68%;
+  left: 96%;
+  max-width: min(105px, 32vw);
+  transform: rotate(-4deg);
+  width: max-content;
 }
 
 .vault-entry {
@@ -915,16 +949,24 @@ button { color: inherit; font: inherit; }
 .jar-amount { font-size: 10px; }
 
 /* Vault page */
-.vault-page-shell { background: var(--paper) url('/assets/paper-texture.png') repeat; }
-.vault-heading { margin: 2% auto 0; text-align: center; }
-.vault-heading h1 { font-size: clamp(21px, 6vw, 27px); font-weight: 400; line-height: 1.4; margin: 0; }
+.vault-page-shell { background: var(--paper) url('/assets/小金库背景图.jpg') center top / cover no-repeat; box-sizing: border-box; min-height: 100dvh; padding: 8% 6% 6%; }
+.vault-back { background: transparent; border: 0; left: 6%; position: absolute; top: 4%; z-index: 5; }
+.vault-back .back-arrow-icon { height: 22px; transform: scaleX(-1); width: 32px; }
+.vault-heading { margin: 1% auto 0; text-align: center; }
+.vault-heading h1 { font-size: clamp(21px, 6vw, 27px); font-weight: 400; line-height: 1.4; margin: 0 auto; max-width: 88%; overflow-wrap: anywhere; white-space: normal; }
 .vault-heading p { color: var(--muted); font-size: clamp(11px, 3vw, 13px); line-height: 1.65; margin: 1% auto 0; max-width: 82%; }
 .cards-page .vault-illustration { margin-top: 3%; width: min(32%, 13dvh); }
 .vault-card-section { width: 100%; }
-.vault-paper-board { display: flex; flex-wrap: wrap; gap: 4%; justify-content: center; margin: 3% auto 0; width: 100%; }
+.vault-paper-board { display: flex; flex-wrap: wrap; gap: 4%; justify-content: center; margin: 1% auto 0; width: 100%; }
 .principle-card-button { appearance: none; background: transparent; border: 0; cursor: pointer; padding: 0; width: 46%; }
+.vault-welcome-card-button { max-width: 270px; width: 64%; }
 .principle-card-button .principle-card { margin: 0; width: 100%; }
 .principle-card-button:active { transform: scale(.98); }
+.vault-welcome-card span { color: var(--ink); font-size: clamp(12px, 3.35vw, 15px); line-height: 1.78; margin-top: 0; text-align: left; white-space: pre-line; }
+.vault-art-stack { align-items: center; display: flex; flex-direction: column; margin: -1% auto 0; width: 100%; }
+.vault-art-stack .vault-illustration { margin-left: auto; margin-right: auto; }
+.vault-box-art { margin-top: 0; width: min(38%, 14dvh); }
+.vault-dog-art { margin-top: -8%; width: min(39%, 15dvh); }
 .principle-card-backdrop {
   align-items: center;
   background: rgba(251, 250, 247, .88);
@@ -951,6 +993,9 @@ button { color: inherit; font: inherit; }
   width: min(100vw, calc(100dvh * 375 / 812), 430px);
 }
 .companion-back { left: 6%; position: absolute; top: 4%; z-index: 2; }
+
+.back-arrow-button { align-items: center; display: flex; height: 44px; justify-content: center; padding: 0; width: 44px; }
+.back-arrow-icon { background: url('/assets/返回箭头.png') center / contain no-repeat; display: block; height: 28px; width: 42px; }
 
 .demo-badge {
   color: rgba(156, 139, 120, .82);

@@ -1,14 +1,45 @@
 # 小狗慢慢 · BondPup
 
-不替你决定、但会记住你如何做决定的钱包陪伴 Agent。
+第一份工资陪伴 Agent
 
-- 体验:https://bondpup.vercel.app
-- MCP:`https://bondpup.vercel.app/mcp`(Streamable HTTP,兼容 2026-07-28 与 2025-era 两代协议)
+## 入口
+- 体验链接:https://bondpup.vercel.app
+- 演示入口(评审推荐):https://bondpup.vercel.app/?demo=1
+- MCP Endpoint:(此处留空,队友补)
+- 健康检查:https://bondpup.vercel.app/health
+
+## 一句话 Agent 核心
+模型负责理解语言和选择动作,程序负责计算金额、校验和保存。
+任何改变状态的操作都需要用户确认。
 
 ## 快速验证
 
 ```bash
-npm install
+npm ci
+npm run verify
+```
+
+## 三分钟评测路径
+1. 打开 `/?demo=1`,已载入合成示例数据,页面常驻「示例数据」标识
+2. 点小狗 → 帮我看看要不要买 → 输入一个金额
+   → 只读安心罐余额 → 三个中性动作
+3. 首页回看卡 → 走完回看 → 出现候选金钱原则
+4. 回到决策,看到「参考了 1 条你确认过的原则」
+
+## MCP
+TODO:队友补公网端点和五个工具的调用说明。
+
+## 核心闭环
+分罐子 → 做决定 → 回看结果 → 长出一条你确认过的原则 → 下次被引用
+
+原来 README 里的架构说明、目录结构和 MCP 细节如下。
+
+- MCP:`https://bondpup.vercel.app/mcp`(Streamable HTTP,兼容 2026-07-28 与 2025-era 两代协议)
+
+## 快速验证(开发调试)
+
+```bash
+npm ci
 npm test                     # 单元测试
 npm run dev                  # http://localhost:3000
 bash scripts/verify-mcp.sh   # MCP 传输层验证(两代协议)
