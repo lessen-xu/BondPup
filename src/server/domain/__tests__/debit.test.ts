@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DomainError } from "@/contracts/errors";
 import { applyJarPlan } from "@/lib/plan/apply-jar-plan";
+import { createInitialMoneyState } from "@/lib/mock/money-state";
 import { commitJarDebit, undoJarDebit } from "../debit";
 
 function planState() {
@@ -63,11 +64,26 @@ describe("commitJarDebit 扣罐", () => {
     }
   });
 
-  it("罐子不存在 → not_found(未来罐未开启)", () => {
+  it("未来罐不可扣 → validation_error(长期积累只进不出)", () => {
     const s = planState();
     try {
       commitJarDebit(s, {
         jarKind: "future",
+        amount: 100,
+        expectedStateVersion: s.stateVersion,
+        idempotencyKey: "op-x",
+      });
+      expect.unreachable();
+    } catch (e) {
+      expect((e as DomainError).code).toBe("validation_error");
+    }
+  });
+
+  it("罐子不存在 → not_found(还没做过安排)", () => {
+    const s = createInitialMoneyState();
+    try {
+      commitJarDebit(s, {
+        jarKind: "comfort",
         amount: 100,
         expectedStateVersion: s.stateVersion,
         idempotencyKey: "op-x",

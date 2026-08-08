@@ -19,8 +19,20 @@ const SAFE_FALLBACK: AgentReply = {
 
 export type AgentProvider = "anthropic" | "compat" | "mock";
 
+/** 页面安全分流标记(与 safetyEvent 同源派生;字段名是 API→组件契约,受测试锁定) */
+export type AgentSafetyFlag = "crisis" | "debt" | "invest" | "offTopic";
+
+const SAFETY_FLAG: Record<string, AgentSafetyFlag> = {
+  self_harm: "crisis",
+  debt_loan: "debt",
+  investment: "invest",
+  generic_emotion: "offTopic",
+};
+
 export type AgentRunOutput = AgentTaskOutput & {
   provider?: AgentProvider;
+  /** 输入闸命中时的页面分流标记(crisis 进 SAFETY_EXIT,offTopic 进想聊聊分支) */
+  safetyFlags?: AgentSafetyFlag[];
   /** 输入闸命中时的审计草稿(不含原文);持有 moneyState 的一方用 recordSafetyEvent 写入 */
   safetyEvent?: { riskType: string; triggeredRule: string; responseTaken: string };
   /** 真实 provider 失败降级 Mock 时的原因(不含用户输入),便于排查 */
@@ -81,6 +93,7 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutpu
       return {
         task: "companion_reply",
         result: safetyReplyFor(hit.riskType),
+        safetyFlags: [SAFETY_FLAG[hit.riskType] ?? "offTopic"],
         safetyEvent: { ...hit, responseTaken: "agent_safety_reply" },
       };
     }

@@ -54,6 +54,29 @@ describe("契约收紧(评估修正)", () => {
     }
   });
 
+  it("有周期时四罐必须齐全:缺未来罐被拒,0 元也保留", () => {
+    const s = applyJarPlan({ disposable: 650000, livingPlanned: 220000 }).state;
+    expect(s.jars.map((j) => j.kind).sort()).toEqual(["comfort", "dream", "future", "living"]);
+    expect(s.jars.find((j) => j.kind === "dream")!.planned).toBe(0);
+    expect(s.jars.find((j) => j.kind === "future")!.planned).toBe(0);
+    const missing = { ...s, jars: s.jars.filter((j) => j.kind !== "future") };
+    expect(MoneyState.safeParse(missing).success).toBe(false);
+    expect(createInitialMoneyState().jars).toEqual([]); // 无周期时空罐合法
+  });
+
+  it("重排不静默删梦想目标:base 有 goal、入参没带时保留", () => {
+    const withGoal = applyJarPlan({
+      disposable: 650000,
+      livingPlanned: 220000,
+      dreamGoal: { name: "去看海", amount: 960000, saved: 0, monthsRemaining: 12 },
+    }).state;
+    const replanned = applyJarPlan({ baseState: withGoal, disposable: 650000, livingPlanned: 220000 }).state;
+    const dream = replanned.jars.find((j) => j.kind === "dream")!;
+    expect(dream.goal?.name).toBe("去看海");
+    expect(dream.label).toBe("去看海");
+    expect(dream.planned).toBe(0);
+  });
+
   it("扣罐金额 0 被拒(不产生无意义版本更新)", () => {
     const s = applyJarPlan({ disposable: 650000, livingPlanned: 220000 }).state;
     try {

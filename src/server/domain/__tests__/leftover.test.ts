@@ -49,8 +49,9 @@ describe("moveLeftover", () => {
     expect(r.movedNote).toContain("松一点");
   });
 
-  it("挪入未来罐:不存在则创建(用户主动,不是系统自动转)", () => {
+  it("挪入未来罐:planned 增加(用户主动,不是系统自动转;四罐契约下罐必已存在)", () => {
     const s = stateWithLeftover(30000);
+    expect(s.jars.find((j) => j.kind === "future")!.planned).toBe(0);
     const r = moveLeftover(s, {
       toKind: "future",
       amount: 30000,

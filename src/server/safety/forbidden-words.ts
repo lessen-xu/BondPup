@@ -21,4 +21,7 @@ export const FORBIDDEN_WORDS = [
   "你很厉害",
   "你好优秀",
   "加油",
+  "建议你",
+  "月光族",
+  "值不值",
 ] as const;

@@ -38,7 +38,7 @@ async function call(name, args) {
   const rpc = await res.json();
   if (rpc.error) throw new Error(`${name} rpc error: ${JSON.stringify(rpc.error)}`);
   const payload = JSON.parse(rpc.result.content[0].text);
-  return { payload, isError: rpc.result.isError === true };
+  return { payload, structured: rpc.result.structuredContent, isError: rpc.result.isError === true };
 }
 
 function assert(cond, msg) {
@@ -55,6 +55,10 @@ const key = () => `smoke-${calls}-${Math.random().toString(36).slice(2, 8)}`;
 const s1 = await call("create_money_session", {});
 let ms = s1.payload.moneyState;
 assert(ms.stateVersion === 1 && ms.demo === false, "新会话 v1 且 demo:false");
+assert(
+  s1.structured && s1.structured.sessionId === s1.payload.sessionId,
+  "结果带 structuredContent 且与 text 同源(outputSchema 结构化输出)"
+);
 
 // 2. 预览不改状态
 const planArgs = {
@@ -78,6 +82,8 @@ ms = p2.payload.moneyState;
 assert(ms.stateVersion === 2 && ms.cycle.confirmedAt, "确认后 v2 且 confirmedAt 存在");
 const sum = ms.jars.reduce((a, j) => a + j.planned, 0);
 assert(sum === 650000, `四罐恒等式:${sum} === 650000`);
+const kinds = ms.jars.map((j) => j.kind).sort().join(",");
+assert(kinds === "comfort,dream,future,living", `四罐齐全(0 元也保留):${kinds}`);
 
 // 4. 幂等重放
 const p3 = await call("plan_jars", {

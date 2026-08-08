@@ -12,6 +12,8 @@ import { buildCandidate, principleEligible, resolvePrinciple } from "@/server/do
 import { detectSafetyRisk, safetyReplyFor } from "@/server/safety/risk";
 import { validatePrincipleCandidate } from "@/server/safety/validate";
 import { generatePrincipleCandidate } from "@/server/agent";
+import { runMockAgentTask } from "@/server/agent/mock";
+import type { AgentTaskInput } from "@/server/agent/types";
 import { applyJarPlan } from "@/lib/plan/apply-jar-plan";
 import { createInitialMoneyState } from "@/lib/mock/money-state";
 
@@ -28,6 +30,15 @@ import { createInitialMoneyState } from "@/lib/mock/money-state";
  * 缓存 miss 时自动用初始态重建,不报错。
  */
 const sessions = new Map<string, MoneyState>();
+
+/** overview 的候选原则生成器:确定性 Mock。公开只读工具不触发真实模型(防额度被反复消耗) */
+const mockPrincipleGenerator = async (
+  input: Extract<AgentTaskInput, { task: "generate_principle" }>
+) => {
+  const out = runMockAgentTask(input);
+  if (out.task !== "generate_principle") throw new Error("unexpected mock output");
+  return out.result;
+};
 
 /**
  * moneyState 用 unknown 承接、运行时再 parse:
@@ -129,8 +140,12 @@ function requireWriteMeta(
   };
 }
 
-function ok(payload: unknown) {
-  return { content: [{ type: "text" as const, text: JSON.stringify(payload) }] };
+function ok(payload: Record<string, unknown>) {
+  // text 与 structuredContent 同源:老客户端读 text,新客户端(2026-07-28)按 outputSchema 读结构化
+  return {
+    content: [{ type: "text" as const, text: JSON.stringify(payload) }],
+    structuredContent: payload,
+  };
 }
 
 function fail(e: unknown) {
@@ -159,6 +174,74 @@ const DreamGoalInput = z.object({
   monthsRemaining: z.number().int().min(0),
 });
 
+/**
+ * 输出 schema(2026-07-28 structuredContent):浅层结构化,分支差异字段全部 optional;
+ * moneyState 与输入侧同一决策——unknown 承接,不在 schema 里展开(防 tools/list 膨胀数十 KB)。
+ * looseObject:多出的字段原样透传,不因 schema 滞后而被剥掉。
+ */
+const MoneyStateOut = z
+  .unknown()
+  .describe("完整 moneyState,原样链回下一次调用(跨实例主路径)");
+
+const SessionOut = z.looseObject({
+  sessionId: z.string(),
+  greeting: z.string(),
+  moneyState: MoneyStateOut,
+});
+
+const PlanJarsOut = z.looseObject({
+  sessionId: z.string(),
+  preview: z.boolean().optional(),
+  confirmed: z.boolean().optional(),
+  idempotent: z.boolean().optional(),
+  plan: z.unknown().optional(),
+  note: z.unknown().optional(),
+  requiresConfirmation: z.boolean().optional(),
+  howToConfirm: z.string().optional(),
+  moneyState: MoneyStateOut,
+});
+
+const MomentOut = z.looseObject({
+  sessionId: z.string(),
+  reply: z.string(),
+  mode: z.string().optional(),
+  proposal: z.unknown().optional().describe("候选动作,原样传给 confirm_action(confirm_debit)"),
+  requiresConfirmation: z.boolean().optional(),
+  safety: z.unknown().optional(),
+  safetyEvent: z.unknown().optional(),
+  moneyState: MoneyStateOut,
+});
+
+const ConfirmOut = z.looseObject({
+  sessionId: z.string(),
+  idempotent: z.boolean().optional(),
+  reply: z.string().optional(),
+  undoToken: z.string().optional(),
+  storyId: z.string().optional(),
+  undone: z.boolean().optional(),
+  story: z.unknown().optional(),
+  appliedDebit: z.unknown().optional(),
+  reviewedCount: z.number().optional(),
+  principle: z.unknown().optional(),
+  overPlanNote: z.string().optional(),
+  moneyState: MoneyStateOut,
+});
+
+const OverviewOut = z.looseObject({
+  sessionId: z.string(),
+  cycle: z.unknown().optional(),
+  jars: z.array(z.unknown()),
+  leftover: z.number(),
+  leftoverHistory: z.unknown().optional(),
+  cycleReview: z.unknown().optional(),
+  dueReviews: z.array(z.unknown()),
+  reviewedCount: z.number(),
+  principleCandidate: z.unknown().optional(),
+  principles: z.array(z.string()),
+  unit: z.string(),
+  moneyState: MoneyStateOut,
+});
+
 export function registerBondPupTools(server: McpServer): void {
   server.registerTool(
     "create_money_session",
@@ -167,6 +250,7 @@ export function registerBondPupTools(server: McpServer): void {
       description:
         "创建一个新的陪伴会话。返回 sessionId 与初始 moneyState。后续工具可传 sessionId,或直接把上一步返回的 moneyState 链回来(跨实例的主路径)。",
       inputSchema: z.object({ displayName: z.string().optional() }),
+      outputSchema: SessionOut,
     },
     async ({ displayName }) => {
       try {
@@ -204,6 +288,7 @@ export function registerBondPupTools(server: McpServer): void {
         expectedStateVersion: z.number().int().min(1).optional(),
         idempotencyKey: z.string().optional(),
       }),
+      outputSchema: PlanJarsOut,
     },
     async (input) => {
       try {
@@ -269,6 +354,7 @@ export function registerBondPupTools(server: McpServer): void {
         amount: Cents.optional(),
         jarHint: JarKind.optional(),
       }),
+      outputSchema: MomentOut,
     },
     async (input) => {
       try {
@@ -370,6 +456,7 @@ export function registerBondPupTools(server: McpServer): void {
         expectedStateVersion: z.number().int().min(1),
         idempotencyKey: z.string().min(1).max(100),
       }),
+      outputSchema: ConfirmOut,
     },
     async (input) => {
       try {
@@ -597,13 +684,17 @@ export function registerBondPupTools(server: McpServer): void {
       description:
         "读取当前会话的周期、罐子计划/实际、结余、到期待回看的故事、已确认原则;≥3 条已回看时附一条候选原则(未存储,确认走 confirm_action adopt_principle)。只读,不改状态。金额单位为分。",
       inputSchema: z.object({ ...SessionRef }),
+      outputSchema: OverviewOut,
     },
     async (input) => {
       try {
         const { sessionId, state } = resolveState(input);
         remember(sessionId, state);
         const due = dueReviews(state);
-        const candidate = principleEligible(state) ? await generatePrincipleCandidate(state) : null;
+        // 公开只读工具:候选原则固定用确定性 Mock 生成,不消耗真实模型额度(真模型走 /api/agent)
+        const candidate = principleEligible(state)
+          ? await generatePrincipleCandidate(state, mockPrincipleGenerator)
+          : null;
         return ok({
           sessionId,
           cycle: state.cycle,
