@@ -20,11 +20,10 @@ export const script = {
     confirm: "就叫这个",
   },
   firstRecord: {
-    title: "第一条: {alias}的小本本",
-    body: "第一次自己管钱,谁都会有点晕乎乎的。",
+    title: "{alias}的小本本",
+    body: "第一次自己管钱，谁都会有点晕乎乎的。\n\n但你说出了\n\"我有点不知道从哪开始\"——\n这样的你，我很喜欢。",
   },
   principleIntro: "我要悄悄记下关于你的事情,写成一张专属于你的金钱原则卡片。",
-  principleIntroMore: "这是我们的第一张,以后想起来还可以继续补充。",
   steps: {
     recent: {
       question: "这个月,你想用钱过什么样的生活呢?",

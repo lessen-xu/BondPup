@@ -108,7 +108,6 @@ export const REVIEW_NAV = { next: "继续", backHome: "返回首页" } as const;
 export const HOME_REVIEW_CARD = { subtitle: "我们说今天来看看" } as const;
 
 export const CARDS_PAGE = {
-  empty: "你的第一张已经在里面了。",
   labels: {
     confirmed: "已确认",
     edited: "已修改",
@@ -173,9 +172,6 @@ export const ERRORS = {
   loading: {
     line: "等我一下，我去翻翻小本本。",
   },
-  empty: {
-    cards: "你的第一张已经在里面了。",
-  },
 } as const;
 
 export const DEMO = {
@@ -216,7 +212,6 @@ export const SAFETY = {
     yesResponse: "那我们看看要不要调一下。",
     noResponse: "好，那就先放着。你想说的时候随时说。",
   },
-  ageNotice: "这里适合 18 岁以上的朋友使用。",
   timeReminder: {
     line: "我们聊了挺久了。",
     body: "要不要先歇一会儿？我不会走的。",

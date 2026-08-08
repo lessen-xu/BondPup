@@ -44,26 +44,27 @@ export default function VaultPage() {
   return (
     <main className="stage-shell flow-layout-shell">
       <section className="simple-page vault-page-shell" aria-label={withUser(moneyNoteScript.vault.title, user)}>
-        <button className="simple-back" type="button" onClick={() => router.push("/")} aria-label="返回首页">返回首页</button>
+        <button className="vault-back back-arrow-button" type="button" onClick={() => router.push("/")} aria-label="返回首页"><span className="back-arrow-icon" aria-hidden="true" /></button>
         <header className="vault-heading">
           <h1>{withUser(moneyNoteScript.vault.title, user)}</h1>
           <p>{CARDS_PAGE.greeting}</p>
         </header>
-        <section className="vault-card-section" aria-label="起点卡">
+        <section className="vault-card-section" aria-label="纪念卡">
           <div className="vault-paper-board">
-            {cards.filter((card) => card.type === "welcome").map((card) => <button className="principle-card-button" type="button" key={card.id} onClick={() => setExpandedId(card.id)} aria-label={`放大${card.title}`}><article className="principle-card"><p>{card.label}</p><strong>{card.title}</strong><span>{card.body}</span></article></button>)}
+            {cards.filter((card) => card.type === "welcome").map((card) => <button className="principle-card-button vault-welcome-card-button" type="button" key={card.id} onClick={() => setExpandedId(card.id)} aria-label="放大纪念卡"><article className="principle-card vault-welcome-card"><span>{card.body}</span></article></button>)}
           </div>
         </section>
-        {principleCards.length > 0 ? <section className="vault-card-section" aria-label="原则卡"><div className="vault-paper-board">{principleCards.map((card) => <button className="principle-card-button" type="button" key={card.id} onClick={() => setExpandedId(card.id)} aria-label={`放大${card.title}`}><article className="principle-card"><p>{card.label}</p><strong>{card.title}</strong><span>{card.body}</span></article></button>)}</div></section> : <p className="vault-empty-copy">{CARDS_PAGE.empty}</p>}
-        <section className="vault-illustration" aria-hidden="true"><img src="/assets/小金库.png" alt="" /></section>
-        <section className="vault-illustration" aria-label={alias}><Dog page="原则卡" alias={alias} message={null} /></section>
+        {principleCards.length > 0 && <section className="vault-card-section" aria-label="原则卡"><div className="vault-paper-board">{principleCards.map((card) => <button className="principle-card-button" type="button" key={card.id} onClick={() => setExpandedId(card.id)} aria-label={`放大${card.title}`}><article className="principle-card"><p>{card.label}</p><strong>{card.title}</strong><span>{card.body}</span></article></button>)}</div></section>}
+        <div className="vault-art-stack">
+          <section className="vault-illustration vault-box-art" aria-hidden="true"><img src="/assets/小金库.png" alt="" /></section>
+          <section className="vault-illustration vault-dog-art" aria-label={alias}><Dog page="原则卡" alias={alias} message={null} /></section>
+        </div>
         {expandedCard && (
           <div className="principle-card-backdrop" role="dialog" aria-modal="true" aria-label="放大的纸条" onClick={() => setExpandedId(null)}>
             <div className="principle-card-dialog" onClick={(event) => event.stopPropagation()}>
               <button className="simple-back principle-card-close" type="button" onClick={() => setExpandedId(null)} aria-label="关闭纸条">关闭</button>
-              <article className="principle-card principle-card-expanded">
-                <p>{expandedCard.label}</p>
-                <strong>{expandedCard.title}</strong>
+              <article className={`principle-card principle-card-expanded ${expandedCard.type === "welcome" ? "vault-welcome-card" : ""}`}>
+                {expandedCard.type !== "welcome" && <><p>{expandedCard.label}</p><strong>{expandedCard.title}</strong></>}
                 <span>{expandedCard.body}</span>
               </article>
             </div>

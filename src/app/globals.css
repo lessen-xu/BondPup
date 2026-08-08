@@ -204,7 +204,7 @@ button { color: inherit; font: inherit; }
   left: 6%;
   position: absolute;
   right: 6%;
-  top: 20%;
+  top: 16%;
   width: auto;
   z-index: 5;
 }
@@ -558,8 +558,14 @@ button { color: inherit; font: inherit; }
 }
 .talk-page .dog-layer { bottom: auto; left: auto; margin: 14% auto 0 4%; position: relative; top: auto; width: 46%; z-index: 2; }
 .decision-page .dog-layer { bottom: auto; left: auto; margin: -5% auto 0 5%; position: relative; top: auto; width: 34%; z-index: 2; }
-.buy-decision-page .dog-layer { margin: 5% auto 0 5%; }
-.talk-page > .dog-layer .dog-message-bubble { bottom: calc(100% + 12px); left: 50%; max-width: 88%; transform: translateX(-50%) rotate(-2deg); }
+.buy-decision-page .dog-layer { margin: 6% auto 0 3%; width: 46%; }
+.stage.talk-page:not(.decision-page) > .dog-layer .dog-message-bubble {
+  bottom: 68%;
+  left: 88%;
+  max-width: min(210px, 68vw);
+  transform: rotate(-3deg);
+  width: max-content;
+}
 .talk-page .talk-copy { background: rgba(255, 252, 242, .2) url('/assets/小狗气泡.png') center / 100% 100% no-repeat; font-size: clamp(14px, 4.2vw, 18px); line-height: 1.7; margin: -23% 0 0 auto; max-width: 64%; overflow-wrap: anywhere; padding: 14px 18px; text-align: center; }
 .talk-actions, .talk-record { display: flex; gap: 4%; justify-content: center; margin: 8% auto 0; max-width: 92%; }
 .talk-actions button, .talk-record button { background: transparent; border: 0; cursor: pointer; font-size: clamp(12px, 3.4vw, 15px); min-height: 44px; padding: 3% 2%; }
@@ -567,13 +573,22 @@ button { color: inherit; font: inherit; }
 .talk-record { align-items: flex-end; gap: 6%; margin-top: 3%; }
 .talk-record input { background: transparent; background-image: url('/assets/输入框横线.png'); background-position: bottom center; background-repeat: no-repeat; background-size: 100% auto; border: 0; color: var(--ink); flex: 1 1 auto; font: inherit; min-width: 0; outline: 0; padding: 2% 0 5%; width: auto; }
 .talk-record button { flex: 0 0 auto; white-space: nowrap; }
-.talk-companion-entry { background: transparent; border: 0; bottom: 5%; color: var(--muted); cursor: pointer; font-size: clamp(11px, 2.8vw, 13px); padding: 4px; position: absolute; right: 8%; }
 .companion-home-entry { background: transparent; border: 0; bottom: 5%; color: var(--muted); cursor: pointer; font-size: clamp(11px, 2.8vw, 13px); padding: 4px; position: absolute; right: 7%; }
 .talk-status { color: var(--muted); font-size: clamp(11px, 3vw, 14px); line-height: 1.6; margin: 4% auto 0; text-align: center; }
 
 .decision-page {
   background-image: url('/assets/paper-texture.png');
 }
+.money-note-page {
+  background-image: url('/assets/talk背景图.jpg');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+.money-note-page .dog-layer { margin: 6% auto 0 3%; width: 46%; }
+.money-note-page .decision-dialog { margin: -16% auto 0; }
+.money-note-page .decision-dog-bubble { left: 4%; max-width: 50%; position: relative; top: 8px; }
+.money-note-page .decision-user-bubble { max-width: 62%; }
 .decision-back { display: block; position: relative; z-index: 8; }
 .talk-page .back-arrow-button { margin-left: -2%; }
 .decision-dialog { margin: -23% auto 0; position: relative; width: 100%; z-index: 5; }
@@ -802,6 +817,7 @@ button { color: inherit; font: inherit; }
 .flow-submit-error { margin: 3% auto; max-width: 92%; }
 .flow-record { margin: 3% 0; padding-left: 3%; }
 .flow-record p, .flow-record strong { display: block; font-size: clamp(13px, 3.6vw, 16px); line-height: 1.75; margin: 0 0 3%; }
+.flow-record p { white-space: pre-line; }
 .flow-record strong { font-weight: 400; }
 .flow-options { display: grid; gap: 2%; margin: 2% 0 4%; }
 .flow-options button.is-selected { opacity: 1; }
@@ -882,11 +898,11 @@ button { color: inherit; font: inherit; }
 
 /* Home utility objects */
 .stage:not(.talk-page) > .dog-layer .dog-message-bubble {
-  bottom: 45%;
-  left: 100%;
-  max-width: min(150px, 88%);
-  transform: rotate(2deg);
-  width: min(150px, 88%);
+  bottom: 68%;
+  left: 96%;
+  max-width: min(105px, 32vw);
+  transform: rotate(-4deg);
+  width: max-content;
 }
 
 .vault-entry {
@@ -930,16 +946,24 @@ button { color: inherit; font: inherit; }
 .jar-amount { font-size: 10px; }
 
 /* Vault page */
-.vault-page-shell { background: var(--paper) url('/assets/paper-texture.png') repeat; }
-.vault-heading { margin: 2% auto 0; text-align: center; }
+.vault-page-shell { background: var(--paper) url('/assets/小金库背景图.jpg') center top / cover no-repeat; box-sizing: border-box; min-height: 100dvh; padding: 4% 6% 6%; }
+.vault-back { background: transparent; border: 0; left: 6%; position: absolute; top: 4%; z-index: 5; }
+.vault-back .back-arrow-icon { height: 22px; width: 32px; }
+.vault-heading { margin: 1% auto 0; text-align: center; }
 .vault-heading h1 { font-size: clamp(21px, 6vw, 27px); font-weight: 400; line-height: 1.4; margin: 0 auto; max-width: 88%; overflow-wrap: anywhere; white-space: normal; }
 .vault-heading p { color: var(--muted); font-size: clamp(11px, 3vw, 13px); line-height: 1.65; margin: 1% auto 0; max-width: 82%; }
 .cards-page .vault-illustration { margin-top: 3%; width: min(32%, 13dvh); }
 .vault-card-section { width: 100%; }
-.vault-paper-board { display: flex; flex-wrap: wrap; gap: 4%; justify-content: center; margin: 3% auto 0; width: 100%; }
+.vault-paper-board { display: flex; flex-wrap: wrap; gap: 4%; justify-content: center; margin: 1% auto 0; width: 100%; }
 .principle-card-button { appearance: none; background: transparent; border: 0; cursor: pointer; padding: 0; width: 46%; }
+.vault-welcome-card-button { max-width: 270px; width: 64%; }
 .principle-card-button .principle-card { margin: 0; width: 100%; }
 .principle-card-button:active { transform: scale(.98); }
+.vault-welcome-card span { color: var(--ink); font-size: clamp(12px, 3.35vw, 15px); line-height: 1.78; margin-top: 0; text-align: left; white-space: pre-line; }
+.vault-art-stack { align-items: center; display: flex; flex-direction: column; margin: -1% auto 0; width: 100%; }
+.vault-art-stack .vault-illustration { margin-left: auto; margin-right: auto; }
+.vault-box-art { margin-top: 0; width: min(38%, 14dvh); }
+.vault-dog-art { margin-top: -8%; width: min(39%, 15dvh); }
 .principle-card-backdrop {
   align-items: center;
   background: rgba(251, 250, 247, .88);

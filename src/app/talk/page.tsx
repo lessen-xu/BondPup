@@ -84,7 +84,6 @@ function TalkLanding() {
         </section>
         {detected && <section className="talk-actions" aria-label="话题选择"><TextEntry onClick={() => openDetected(true)}>{DAILY_TALK.together}</TextEntry><TextEntry onClick={() => openDetected(false)}>{DAILY_TALK.casual}</TextEntry></section>}
         <form className="talk-record" onSubmit={(event) => { event.preventDefault(); submitFreeTalk(); }}><input value={input} onChange={(event) => { setInput(event.target.value); window.sessionStorage.setItem(TALK_DRAFT_KEY, event.target.value); }} placeholder={replaceNames(DAILY_TALK.freePlaceholder, alias, user)} aria-label={replaceNames(DAILY_TALK.freePlaceholder, alias, user)} /><button type="submit">{DAILY_TALK.submit}</button></form>
-        <button className="talk-companion-entry" type="button" onClick={() => router.push("/companion")}>陪伴</button>
       </section>
     </main>
   );
