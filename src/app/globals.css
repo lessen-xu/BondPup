@@ -397,6 +397,9 @@ button { color: inherit; font: inherit; }
 .dog-state-jump { --dog-pose-scale: 1.03; }
 .dog-state-image-current { animation: dog-crossfade-in 150ms ease-out both; }
 .dog-state-image-previous { animation: dog-crossfade-out 150ms ease-out both; }
+.stage.talk-page .dog-state-image { --dog-pose-scale: 1; }
+.stage.talk-page .dog-state-ears { --dog-pose-scale: 1.2; }
+.stage.talk-page .dog-state-lying { --dog-pose-scale: 1.12; }
 .dog-react-lying { transform: translateY(3%) scaleY(.92); transition: transform 400ms ease; }
 .dog-react-think { animation: dog-think 1.2s ease-in-out infinite; }
 .dog-react-ears { animation: dog-ears 1.2s ease-in-out both; }
@@ -558,10 +561,10 @@ button { color: inherit; font: inherit; }
 }
 .talk-page .dog-layer { bottom: auto; left: auto; margin: 14% auto 0 4%; position: relative; top: auto; width: 46%; z-index: 2; }
 .decision-page .dog-layer { bottom: auto; left: auto; margin: -5% auto 0 5%; position: relative; top: auto; width: 34%; z-index: 2; }
-.buy-decision-page .dog-layer { margin: 6% auto 0 3%; width: 46%; }
+.buy-decision-page .dog-layer { margin: 9% auto 0 3%; width: 46%; }
 .stage.talk-page:not(.decision-page) > .dog-layer .dog-message-bubble {
-  bottom: 68%;
-  left: 88%;
+  bottom: 60%;
+  left: 100%;
   max-width: min(210px, 68vw);
   transform: rotate(-3deg);
   width: max-content;
@@ -585,15 +588,15 @@ button { color: inherit; font: inherit; }
   background-repeat: no-repeat;
   background-size: cover;
 }
-.money-note-page .dog-layer { margin: 6% auto 0 3%; width: 46%; }
-.money-note-page .decision-dialog { margin: -16% auto 0; }
-.money-note-page .decision-dog-bubble { left: 4%; max-width: 50%; position: relative; top: 8px; }
+.money-note-page .dog-layer { margin: 9% auto 0 3%; width: 46%; }
+.money-note-page .decision-dialog { margin: -26% auto 0; }
+.money-note-page .decision-dog-bubble { left: 4%; max-width: 50%; position: relative; top: -8px; }
 .money-note-page .decision-user-bubble { max-width: 62%; }
 .decision-back { display: block; position: relative; z-index: 8; }
 .talk-page .back-arrow-button { margin-left: -2%; }
 .decision-dialog { margin: -23% auto 0; position: relative; width: 100%; z-index: 5; }
-.buy-decision-page .decision-dialog { margin: 8% auto 0; }
-.buy-decision-page .decision-dog-bubble { max-width: 72%; }
+.buy-decision-page .decision-dialog { margin: -26% auto 0; }
+.buy-decision-page .decision-dog-bubble { left: 4%; max-width: 50%; position: relative; top: -8px; }
 .decision-dialog-below-dog { margin-top: 2%; }
 .decision-step { align-items: center; display: flex; flex-direction: column; gap: clamp(8px, 3vw, 16px); }
 .decision-dog-bubble, .decision-user-bubble {
