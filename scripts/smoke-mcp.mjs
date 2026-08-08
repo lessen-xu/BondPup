@@ -78,6 +78,8 @@ ms = p2.payload.moneyState;
 assert(ms.stateVersion === 2 && ms.cycle.confirmedAt, "确认后 v2 且 confirmedAt 存在");
 const sum = ms.jars.reduce((a, j) => a + j.planned, 0);
 assert(sum === 650000, `四罐恒等式:${sum} === 650000`);
+const kinds = ms.jars.map((j) => j.kind).sort().join(",");
+assert(kinds === "comfort,dream,future,living", `四罐齐全(0 元也保留):${kinds}`);
 
 // 4. 幂等重放
 const p3 = await call("plan_jars", {

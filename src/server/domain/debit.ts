@@ -34,6 +34,10 @@ export function commitJarDebit(state: MoneyState, req: DebitRequest): DebitResul
   if (!Cents.safeParse(req.amount).success || req.amount === 0) {
     throw new DomainError("validation_error", "金额必须是正整数(单位:分)");
   }
+  if (req.jarKind === "future") {
+    // 未来罐长期积累只进不出:进钱走结余挪入(moveLeftover)或计划(plan),不参与日常扣账
+    throw new DomainError("validation_error", "未来罐不参与日常扣账,长期积累只进不出");
+  }
   const undoToken = makeUndoToken(req.jarKind, req.amount, req.idempotencyKey);
   if (state.appliedOps.includes(req.idempotencyKey)) {
     return { state, undoToken, overPlan: 0, idempotent: true };
