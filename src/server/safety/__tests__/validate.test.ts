@@ -23,6 +23,10 @@ describe("validateReplyText", () => {
     const fails = validateReplyText("这个月超支了,你应该少花点,加油!");
     expect(fails.some((f) => f.rule === "forbidden_words")).toBe(true);
   });
+  it("「值不值」被拦下(决策三中性动作,不问值不值;真模型线上问过)", () => {
+    const fails = validateReplyText("你心里是不是在盘算它值不值得买?");
+    expect(fails.some((f) => f.rule === "forbidden_words")).toBe(true);
+  });
   it("超过三句被拦下", () => {
     const fails = validateReplyText("第一句。第二句。第三句。第四句。");
     expect(fails.some((f) => f.rule === "max_sentences")).toBe(true);
