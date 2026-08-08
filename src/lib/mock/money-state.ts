@@ -80,7 +80,8 @@ export const mockMoneyState: MoneyState = MoneyState.parse({
       planned: 80000,
       actual: 0,
       updatedAt: T,
-      goal: { name: "去看海", amount: 960000, saved: 0, targetMonth: "2027-07" },
+      // 演示态:已存一期月供,还差 8800 元;(9600-800)÷11 个月 = 800 与月供自洽
+      goal: { name: "去看海", amount: 960000, saved: 80000, targetMonth: "2027-07" },
     },
   ],
   leftover: { amount: 0, history: [] },
