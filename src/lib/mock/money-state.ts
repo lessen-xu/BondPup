@@ -51,6 +51,7 @@ const T = "2026-08-06T09:00:00.000Z";
  * 合成示例数据(demo:true 明确标识,与真实数据分离):
  * 工资 6500 元的第一次安排 —— 恒等式 2200 + 3500 + 800 + 0 = 6500(单位:元;存储为分)。
  * 四罐常驻:未来罐未启用时以 planned 0 存在于 jars,前端按数组渲染、不做缺失兜底。
+ * 故事:两条已回看 + 一条已到期待回看,评审当场完成第三次回看即可看到候选原则闭环。
  * 模块加载即 parse:contracts 一旦漂移,这里最先报错。
  */
 export const mockMoneyState: MoneyState = MoneyState.parse({
@@ -98,7 +99,46 @@ export const mockMoneyState: MoneyState = MoneyState.parse({
     },
   ],
   leftover: { amount: 0, history: [] },
-  stories: [],
+  // 两条已回看 + 一条已到期:评审可当场完成第三次回看(reviewed≥3)触发候选原则
+  stories: [
+    {
+      id: "story-demo-1",
+      intent: "刷到一个颈部按摩仪,有点种草",
+      amount: 12900,
+      action: "defer",
+      reviewAt: "2026-08-03T09:00:00.000Z",
+      outcome: {
+        reviewedAt: "2026-08-03T10:00:00.000Z",
+        happened: false,
+        feelingNote: "放了一天,好像也没那么想要了",
+      },
+      status: "reviewed",
+      createdAt: "2026-08-02T09:00:00.000Z",
+    },
+    {
+      id: "story-demo-2",
+      intent: "朋友约周末短途旅行,想报名",
+      amount: 19900,
+      action: "skip_this_time",
+      reviewAt: "2026-08-05T09:00:00.000Z",
+      outcome: {
+        reviewedAt: "2026-08-05T12:00:00.000Z",
+        happened: false,
+        feelingNote: "这次没去,想把钱留给看海",
+      },
+      status: "reviewed",
+      createdAt: "2026-08-04T09:00:00.000Z",
+    },
+    {
+      id: "story-demo-3",
+      intent: "想买那双白色的鞋",
+      amount: 39900,
+      action: "defer",
+      reviewAt: "2026-08-07T01:00:00.000Z",
+      status: "open",
+      createdAt: "2026-08-06T09:00:00.000Z",
+    },
+  ],
   principles: [],
   outfit: { owned: [], equipped: [], unlockSource: {}, assetsVersion: 1 },
   appliedOps: [],
