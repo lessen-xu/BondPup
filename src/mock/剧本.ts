@@ -282,14 +282,14 @@ export const DAILY_NOTE = {
 } as const;
 
 export const DAILY_TALK = {
-  prompt: "{alias}:今天想聊什么?",
+  prompt: "今天想聊什么?",
   freePlaceholder: "说什么都可以〜{alias}听着呢",
   submit: "说给我听",
-  detected: "{alias}:咦,你说的这个,要不要我们一起看看?还是你就是想随便聊聊?",
+  detected: "咦,你说的这个,要不要我们一起看看?还是你就是想随便聊聊?",
   together: "一起看看",
   casual: "随便聊聊",
-  silence: "{alias}:嗯……我就在这儿哦。你不用急着回答,发呆也可以的。",
-  return: "{alias}:嘿,你回来啦〜上次我们聊到一半,你还想继续说吗?不想说也没关系。",
+  silence: "嗯……我就在这儿哦。你不用急着回答,发呆也可以的。",
+  return: "嘿,你回来啦〜上次我们聊到一半,你还想继续说吗?不想说也没关系。",
   triggers: {
     decision: ["我想买", "要不要买", "值得买", "帮我看看", "想买"],
     note: ["收到一笔", "有笔钱", "花了笔钱", "退了笔钱", "奖金", "红包", "后悔"],

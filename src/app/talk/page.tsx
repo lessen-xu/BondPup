@@ -20,7 +20,7 @@ function replaceNames(text: string, alias: string, user: string): string {
 function TalkLanding() {
   const router = useRouter();
   const { state } = useMoneyState();
-  const alias = "慢慢";
+  const alias = state?.profile.dogName?.trim() || "慢慢";
   const user = state?.profile.displayName?.trim() || "你";
   const [input, setInput] = useState("");
   const [message, setMessage] = useState(replaceNames(DAILY_TALK.prompt, alias, user));
@@ -73,8 +73,8 @@ function TalkLanding() {
 
   return (
     <main className="stage-shell flow-layout-shell">
-      <section className="stage talk-page decision-page" aria-label={`和${alias}聊天`}>
-        <button className="simple-back decision-back" type="button" onClick={() => router.push("/")}>返回首页</button>
+      <section className="stage talk-page" aria-label={`和${alias}聊天`}>
+        <button className="simple-back decision-back back-arrow-button" type="button" onClick={() => router.push("/")} aria-label="返回首页"><span className="back-arrow-icon" aria-hidden="true" /></button>
         <section className="dog-layer" aria-label={alias}>
           <Dog page="对话" alias={alias} message={message} talkMode />
         </section>
@@ -84,6 +84,7 @@ function TalkLanding() {
         </section>
         {detected && <section className="talk-actions" aria-label="话题选择"><TextEntry onClick={() => openDetected(true)}>{DAILY_TALK.together}</TextEntry><TextEntry onClick={() => openDetected(false)}>{DAILY_TALK.casual}</TextEntry></section>}
         <form className="talk-record" onSubmit={(event) => { event.preventDefault(); submitFreeTalk(); }}><input value={input} onChange={(event) => { setInput(event.target.value); window.sessionStorage.setItem(TALK_DRAFT_KEY, event.target.value); }} placeholder={replaceNames(DAILY_TALK.freePlaceholder, alias, user)} aria-label={replaceNames(DAILY_TALK.freePlaceholder, alias, user)} /><button type="submit">{DAILY_TALK.submit}</button></form>
+        <button className="talk-companion-entry" type="button" onClick={() => router.push("/companion")}>陪伴</button>
       </section>
     </main>
   );

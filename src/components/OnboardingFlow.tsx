@@ -125,7 +125,7 @@ function restoreDraft(raw: string | null): OnboardingDraft | null {
 
 function withProfileAnswers(state: NonNullable<ReturnType<typeof useMoneyState>["state"]>, draft: OnboardingDraft, alias: string) {
   const concerns = draft.concerns.filter((concern, index) => draft.concernSelected[index] && concern.trim()).map((concern) => concern.trim());
-  return { ...state, profile: { ...state.profile, displayName: alias, expressionPrefs: concerns } };
+  return { ...state, profile: { ...state.profile, dogName: alias, expressionPrefs: concerns } };
 }
 
 export function OnboardingFlow() {
@@ -145,6 +145,7 @@ export function OnboardingFlow() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const alias = draft.alias.trim() || DEFAULT_ALIAS;
+  const displayName = state?.profile.displayName;
   const livingTotal = useMemo(() => computeLivingJar(draft.livingItems), [draft.livingItems]);
   const livingPlanned = draft.useLivingItems ? livingTotal : draft.livingPlanned;
   const livingCheck = useMemo(() => computeJars({
@@ -179,7 +180,7 @@ export function OnboardingFlow() {
     if (!hydrated) return;
     const timer = window.setTimeout(() => {
       try {
-        const initialState = state ?? createInitialMoneyState(alias);
+        const initialState = state ?? createInitialMoneyState(displayName, alias);
         const baseState = withProfileAnswers(initialState, draft, alias);
         const result = applyJarPlan({
           baseState,
@@ -197,7 +198,7 @@ export function OnboardingFlow() {
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [alias, draft, goal, hydrated, livingPlanned, state]);
+  }, [alias, displayName, draft, goal, hydrated, livingPlanned, state]);
 
   function patchDraft(patch: Partial<OnboardingDraft>) {
     setDraft((current) => ({ ...current, ...patch }));
@@ -314,7 +315,7 @@ export function OnboardingFlow() {
 
   function confirmPlan() {
     try {
-      const initialState = state ?? createInitialMoneyState(alias);
+      const initialState = state ?? createInitialMoneyState(displayName, alias);
       const baseState = withProfileAnswers(initialState, draft, alias);
       const result = applyJarPlan({
         baseState,

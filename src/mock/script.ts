@@ -81,7 +81,7 @@ export const script = {
   home: {
     settings: "设置", cards: "收藏", outfit: "装扮", review: "回看",
     startEntry: "从零开始", demoEntry: "用合成示例体验", buyEntry: "帮我看看要不要买", moneyEntry: "有笔钱想说说",
-    edit: "改一下", bubbleHint: "戳一戳 {alias},可以和我互动〜",
+    edit: "改一下", bubbleHint: "戳一戳我呀〜",
     pokeResponses: ["痒〜", "哎呀", "你怎么老戳我"],
   },
 } as const;

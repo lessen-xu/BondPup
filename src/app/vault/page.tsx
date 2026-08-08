@@ -14,7 +14,7 @@ export default function VaultPage() {
   const router = useRouter();
   const { state, ready } = useMoneyState();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const alias = "慢慢";
+  const alias = state?.profile.dogName?.trim() || "慢慢";
   const user = state?.profile.displayName?.trim() || "你";
 
   if (!ready) return <LoadingState />;

@@ -66,7 +66,7 @@ export function ReviewFlow() {
   const { state, ready, commit } = useMoneyState();
   const storyId = params.get("id");
   const record = useMemo(() => state?.stories.find((item) => item.id === storyId) ?? null, [state, storyId]);
-  const alias = state?.profile.displayName?.trim() || "慢慢";
+  const alias = state?.profile.dogName?.trim() || "慢慢";
   const [step, setStep] = useState<ReviewStep>("detail");
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [spent, setSpent] = useState<"spent" | "notBought" | "notYet" | null>(null);

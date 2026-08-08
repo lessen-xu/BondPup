@@ -46,7 +46,7 @@ function safetyKind(payload: unknown): "crisis" | "debt" | "invest" | "offTopic"
 export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) {
   const router = useRouter();
   const { state, ready, commit } = useMoneyState();
-  const alias = state?.profile.displayName?.trim() || "慢慢";
+  const alias = state?.profile.dogName?.trim() || "慢慢";
   const [step, setStep] = useState<NoteStep>("story");
   const [storyInput, setStoryInput] = useState(initialStory);
   const [story, setStory] = useState("");
