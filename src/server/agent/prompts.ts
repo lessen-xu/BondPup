@@ -50,7 +50,7 @@ export function buildTaskPrompt(input: AgentTaskInput): { instruction: string; p
     case "generate_principle":
       return {
         instruction:
-          "基于这几条已回看的选择故事,提炼一条候选金钱原则:第一人称、描述倾向而非规则、带暂时语气(好像/也许)、25 字以内、不与 existingStatements 重复。evidenceIds 从故事 id 里选 2-3 条。只输出 JSON:{\"statement\":\"...\",\"evidenceIds\":[\"...\"]}",
+          "基于这几条已回看的选择故事,提炼一条候选金钱原则:第一人称、描述倾向而非规则、带暂时语气(好像/也许)、不超过 20 个字(含标点,超长会被丢弃)、不与 existingStatements 重复。evidenceIds 从故事 id 里选 2-3 条。只输出 JSON:{\"statement\":\"...\",\"evidenceIds\":[\"...\"]}",
         payload: JSON.stringify({ stories: input.stories, existingStatements: input.existingStatements }),
       };
   }

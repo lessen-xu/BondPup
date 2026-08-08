@@ -74,19 +74,26 @@ export async function runCompatTask(input: AgentTaskInput): Promise<AgentTaskOut
   let lastError: unknown;
   for (let attempt = 0; attempt < 1; attempt++) {
     try {
+      const body: Record<string, unknown> = {
+        model: process.env.OPENAI_COMPAT_MODEL,
+        max_tokens: 1000,
+        messages: [
+          { role: "system", content: MANMAN_SYSTEM },
+          { role: "user", content: `${instruction}\n\n${payload}` },
+        ],
+      };
+      // DeepSeek 默认开思考,generate_principle 会长考近千 token(实测 9.2s,爆 8s 预算);
+      // 关掉后 1.4s。thinking 是 DeepSeek 方言参数,只对 deepseek 端点发,不污染其他兼容端点
+      if (base.includes("deepseek")) {
+        body.thinking = { type: "disabled" };
+      }
       const res = await fetch(`${base}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${process.env.OPENAI_COMPAT_API_KEY}`,
         },
-        body: JSON.stringify({
-          model: process.env.OPENAI_COMPAT_MODEL,
-          messages: [
-            { role: "system", content: MANMAN_SYSTEM },
-            { role: "user", content: `${instruction}\n\n${payload}` },
-          ],
-        }),
+        body: JSON.stringify(body),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
       if (!res.ok) throw new Error(`兼容端点 ${res.status}`);
