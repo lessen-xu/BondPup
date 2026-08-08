@@ -7,6 +7,8 @@ import { detectSafetyRisk, recordSafetyEvent, safetyReplyFor } from "../risk";
 describe("detectSafetyRisk 输入闸", () => {
   it("自伤 / 借贷 / 投资分别命中,普通消费不命中", () => {
     expect(detectSafetyRisk("最近觉得活着没意思,不想活了")?.riskType).toBe("self_harm");
+    expect(detectSafetyRisk("感觉活着没什么意思,钱也管不好")?.riskType).toBe("self_harm");
+    expect(detectSafetyRisk("活着没啥意思")?.riskType).toBe("self_harm");
     expect(detectSafetyRisk("我想开个网贷把这个月撑过去")?.riskType).toBe("debt_loan");
     expect(detectSafetyRisk("有人推荐我做借贷周转")?.riskType).toBe("debt_loan");
     expect(detectSafetyRisk("要不要拿工资去炒股翻倍")?.riskType).toBe("investment");
