@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const UserProfile = z.object({
   displayName: z.string().optional(),
+  /** 小狗的名字(起点流程用户起名);与 displayName(用户名)语义不同,勿混用 */
+  dogName: z.string().optional(),
   expressionPrefs: z.array(z.string()).optional(),
   mainGoalId: z.string().optional(),
   ageConfirmed: z.boolean().optional(),

@@ -25,11 +25,15 @@ export function cycleAfter(months: number, from: Date = new Date()): string {
  * 全新会话的初始状态:无周期、无罐子(无罐子也能和小狗说话,只是不能报告确定余额)。
  * 真实会话 demo:false;合成示例只有 mockMoneyState / enterDemo() 一条路(demo:true)。
  */
-export function createInitialMoneyState(displayName?: string): MoneyState {
+export function createInitialMoneyState(displayName?: string, dogName?: string): MoneyState {
   const now = new Date().toISOString();
   return MoneyState.parse({
     stateVersion: 1,
-    profile: { ...(displayName ? { displayName } : {}), createdAt: now },
+    profile: {
+      ...(displayName ? { displayName } : {}),
+      ...(dogName ? { dogName } : {}),
+      createdAt: now,
+    },
     cycle: null,
     jars: [],
     leftover: { amount: 0, history: [] },
@@ -46,12 +50,12 @@ const T = "2026-08-06T09:00:00.000Z";
 /**
  * 合成示例数据(demo:true 明确标识,与真实数据分离):
  * 工资 6500 元的第一次安排 —— 恒等式 2200 + 3500 + 800 + 0 = 6500(单位:元;存储为分)。
- * 首屏只生成三个罐子;未来罐 0 显示为可点入口,不出现在 jars 里。
+ * 四罐常驻:未来罐未启用时以 planned 0 存在于 jars,前端按数组渲染、不做缺失兜底。
  * 模块加载即 parse:contracts 一旦漂移,这里最先报错。
  */
 export const mockMoneyState: MoneyState = MoneyState.parse({
   stateVersion: 1,
-  profile: { displayName: "示例用户", createdAt: T },
+  profile: { displayName: "示例用户", dogName: "慢慢", createdAt: T },
   cycle: { cycle: "2026-08", disposable: 650000, confirmedAt: T, updatedAt: T },
   jars: [
     {
@@ -82,6 +86,15 @@ export const mockMoneyState: MoneyState = MoneyState.parse({
       updatedAt: T,
       // 演示态:已存一期月供,还差 8800 元;(9600-800)÷11 个月 = 800 与月供自洽
       goal: { name: "去看海", amount: 960000, saved: 80000, targetMonth: "2027-07" },
+    },
+    {
+      id: "jar-future",
+      kind: "future",
+      label: "未来罐",
+      renamable: false,
+      planned: 0,
+      actual: 0,
+      updatedAt: T,
     },
   ],
   leftover: { amount: 0, history: [] },
