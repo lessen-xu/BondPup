@@ -12,6 +12,8 @@ import { buildCandidate, principleEligible, resolvePrinciple } from "@/server/do
 import { detectSafetyRisk, safetyReplyFor } from "@/server/safety/risk";
 import { validatePrincipleCandidate } from "@/server/safety/validate";
 import { generatePrincipleCandidate } from "@/server/agent";
+import { runMockAgentTask } from "@/server/agent/mock";
+import type { AgentTaskInput } from "@/server/agent/types";
 import { applyJarPlan } from "@/lib/plan/apply-jar-plan";
 import { createInitialMoneyState } from "@/lib/mock/money-state";
 
@@ -28,6 +30,15 @@ import { createInitialMoneyState } from "@/lib/mock/money-state";
  * 缓存 miss 时自动用初始态重建,不报错。
  */
 const sessions = new Map<string, MoneyState>();
+
+/** overview 的候选原则生成器:确定性 Mock。公开只读工具不触发真实模型(防额度被反复消耗) */
+const mockPrincipleGenerator = async (
+  input: Extract<AgentTaskInput, { task: "generate_principle" }>
+) => {
+  const out = runMockAgentTask(input);
+  if (out.task !== "generate_principle") throw new Error("unexpected mock output");
+  return out.result;
+};
 
 /**
  * moneyState 用 unknown 承接、运行时再 parse:
@@ -603,7 +614,10 @@ export function registerBondPupTools(server: McpServer): void {
         const { sessionId, state } = resolveState(input);
         remember(sessionId, state);
         const due = dueReviews(state);
-        const candidate = principleEligible(state) ? await generatePrincipleCandidate(state) : null;
+        // 公开只读工具:候选原则固定用确定性 Mock 生成,不消耗真实模型额度(真模型走 /api/agent)
+        const candidate = principleEligible(state)
+          ? await generatePrincipleCandidate(state, mockPrincipleGenerator)
+          : null;
         return ok({
           sessionId,
           cycle: state.cycle,

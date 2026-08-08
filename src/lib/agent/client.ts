@@ -4,7 +4,8 @@ export type AgentRequestResult =
   | { ok: true; payload: unknown }
   | { ok: false; issue: AgentIssue };
 
-const DEFAULT_TIMEOUT_MS = 2500;
+/** 与服务端 provider 单次预算 8s 对齐(>8s):网页放弃时服务端也已结束,不产生白计费 */
+const DEFAULT_TIMEOUT_MS = 10000;
 
 export async function requestAgent(
   input: unknown,
