@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DomainError } from "@/contracts/errors";
-import { computeJars } from "../jars";
+import { balanceComfortJar, compareJarAllocation, computeJars } from "../jars";
 import { computeLivingJar } from "../living";
 
 describe("computeJars 四罐恒等式", () => {
@@ -46,6 +46,20 @@ describe("computeJars 四罐恒等式", () => {
     } catch (e) {
       expect((e as DomainError).code).toBe("validation_error");
     }
+  });
+});
+
+describe("四罐候选方案差额", () => {
+  it("只在用户候选金额与可安排金额不一致时返回差额", () => {
+    expect(compareJarAllocation({ disposable: 650000, living: 220000, comfort: 350000, dream: 80000, future: 0 }))
+      .toEqual({ total: 650000, missing: 0, excess: 0 });
+    expect(compareJarAllocation({ disposable: 650000, living: 200000, comfort: 350000, dream: 80000, future: 0 }))
+      .toEqual({ total: 630000, missing: 20000, excess: 0 });
+  });
+
+  it("平账只调整安心罐", () => {
+    expect(balanceComfortJar({ disposable: 650000, living: 200000, comfort: 350000, dream: 80000, future: 0 }))
+      .toEqual({ comfort: 370000, total: 650000, missing: 0, excess: 0 });
   });
 });
 

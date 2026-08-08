@@ -2,9 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { JarKind, MoneyState, StoryAction } from "@/contracts";
+import type { JarKind, MoneyPrinciple, MoneyState, StoryAction } from "@/contracts";
 import { MoneyState as MoneyStateSchema } from "@/contracts";
 import { completeReview } from "@/server/domain/story";
+import { buildCandidate, resolvePrinciple } from "@/server/domain/principle";
+import { validatePrincipleCandidate } from "@/server/safety/validate";
+import { requestAgent } from "@/lib/agent/client";
 import { commitJarDebit, undoJarDebit } from "@/server/domain/debit";
 import { loadMoneyState, useMoneyState } from "@/lib/state/money-store";
 import { setDogThinking } from "@/lib/state/dog-state";
@@ -20,6 +23,7 @@ import {
   REVIEW_STEP1,
   REVIEW_STEP3,
   REVIEW_STEP4,
+  PRINCIPLE_CANDIDATE,
   ERRORS,
 } from "@/mock/剧本";
 import { Dog } from "./Dog";
@@ -27,7 +31,7 @@ import { HandDrawnUnderline } from "./HandDrawnUnderline";
 import { LoadingState } from "./LoadingState";
 
 type ReviewMode = "now" | "tomorrow" | "skip";
-type ReviewStep = "detail" | "response" | "money" | "whichJar" | "confirmDebit" | "note" | "done" | "deferred";
+type ReviewStep = "detail" | "response" | "money" | "whichJar" | "confirmDebit" | "note" | "principle" | "done" | "deferred";
 type UndoToken = ReturnType<typeof commitJarDebit>["undoToken"];
 
 function isStateConflict(cause: unknown): boolean {
@@ -47,6 +51,60 @@ const JAR_NAMES: Record<JarKind, string> = {
   dream: "梦想罐",
   future: "未来罐",
 };
+
+type CandidateOutput = { statement: string; evidenceIds: string[] };
+type ProposedPrinciple = { state: MoneyState; principle: MoneyPrinciple };
+
+function replaceAlias(text: string, alias: string): string {
+  return text.replaceAll("{alias}", alias);
+}
+
+function hasConcreteClue(statement: string): boolean {
+  return /一晚|今天|明天|这个月|鞋|外套|投影|买|花|用|生活|场景/.test(statement);
+}
+
+function isUsableCandidate(candidate: CandidateOutput, state: MoneyState): boolean {
+  if (/[0-9０-９¥￥%％]/.test(candidate.statement) || !hasConcreteClue(candidate.statement)) return false;
+  return validatePrincipleCandidate(candidate, state.stories).length === 0;
+}
+
+async function proposePrinciple(state: MoneyState): Promise<ProposedPrinciple | null> {
+  const reviewed = state.stories.filter((story) => story.status === "reviewed");
+  if (reviewed.length < 3) return null;
+  const evidence = reviewed.slice(-3);
+  const evidenceIds = evidence.map((story) => story.id);
+  const evidenceKey = [...evidenceIds].sort().join("|");
+  if (state.principles.some((principle) => [...principle.evidenceIds].sort().join("|") === evidenceKey)) return null;
+  const response = await requestAgent({
+    task: "generate_principle",
+    stories: evidence.map((story) => ({
+      id: story.id,
+      intent: story.intent,
+      action: story.action,
+      ...(story.outcome ? { happened: story.outcome.happened } : {}),
+      ...(story.outcome?.feelingNote ? { feelingNote: story.outcome.feelingNote } : {}),
+    })),
+    existingStatements: state.principles
+      .filter((principle) => principle.status === "confirmed" || principle.status === "edited")
+      .map((principle) => principle.statement),
+    attempt: 0,
+  });
+  if (!response.ok || !response.payload || typeof response.payload !== "object") return null;
+  const payload = response.payload as { result?: CandidateOutput };
+  const candidate = payload.result;
+  if (!candidate || !isUsableCandidate(candidate, state)) return null;
+  try {
+    const result = buildCandidate(state, {
+      statement: candidate.statement,
+      evidenceIds: candidate.evidenceIds,
+      expectedStateVersion: state.stateVersion,
+      idempotencyKey: globalThis.crypto.randomUUID(),
+    });
+    return { state: result.state, principle: result.principle };
+  } catch {
+    return null;
+  }
+}
 
 function postponeReview(state: MoneyState, storyId: string): MoneyState {
   const story = state.stories.find((item) => item.id === storyId);
@@ -76,6 +134,10 @@ export function ReviewFlow() {
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [dogState, setDogState] = useState<"ears" | null>(null);
+  const [candidate, setCandidate] = useState<MoneyPrinciple | null>(null);
+  const [candidateEvidenceOpen, setCandidateEvidenceOpen] = useState(false);
+  const [candidateEditing, setCandidateEditing] = useState(false);
+  const [candidateEditText, setCandidateEditText] = useState("");
 
   useEffect(() => () => {
     setDogThinking(false);
@@ -93,7 +155,8 @@ export function ReviewFlow() {
   const item = currentRecord.intent;
   const price = currentRecord.amount === undefined ? "" : formatYuan(currentRecord.amount);
   const action = REVIEW_ACTION_LABELS[currentRecord.action as keyof typeof REVIEW_ACTION_LABELS] ?? "这件事";
-  const summary = REVIEW_STEP1.summary.replace("{item}", item).replace("{price}", price).replace("{action}", action);
+  const summaryTemplate = price ? REVIEW_STEP1.summary : REVIEW_STEP1.summary.replace("，{price}元", "");
+  const summary = summaryTemplate.replace("{item}", item).replace("{price}", price).replace("{action}", action);
   const question = mode ? REVIEW_CARD.body[mode].replace("{item}", item) : REVIEW_CARD.body.skip.replace("{item}", item);
   const options = mode ? REVIEW_OPTIONS[mode] : REVIEW_OPTIONS.skip;
 
@@ -189,7 +252,7 @@ export function ReviewFlow() {
     }
   }
 
-  function finishReview(includeNote: boolean) {
+  async function finishReview(includeNote: boolean) {
     try {
       const result = completeReview(currentState, {
         storyId: currentRecord.id,
@@ -202,7 +265,17 @@ export function ReviewFlow() {
       commit(result.state);
       setDogState("ears");
       window.setTimeout(() => setDogState(null), 1200);
-      setStep("done");
+      const nextCandidate = await proposePrinciple(result.state);
+      if (nextCandidate) {
+        commit(nextCandidate.state);
+        setCandidate(nextCandidate.principle);
+        setCandidateEditText(nextCandidate.principle.statement);
+        setCandidateEvidenceOpen(false);
+        setCandidateEditing(false);
+        setStep("principle");
+      } else {
+        setStep("done");
+      }
     } catch (cause) {
       if (isStateConflict(cause)) {
         const latest = loadMoneyState();
@@ -211,6 +284,30 @@ export function ReviewFlow() {
       } else {
         setError(`${ERRORS.validation.line} ${ERRORS.validation.sub}`);
       }
+    }
+  }
+
+  function resolveCandidate(decision: "like_me" | "edit" | "defer") {
+    if (!candidate) return;
+    if (decision === "edit" && !candidateEditing) {
+      setCandidateEditing(true);
+      return;
+    }
+    try {
+      const latestState = loadMoneyState();
+      if (!latestState) return;
+      const result = resolvePrinciple(latestState, {
+        id: candidate.id,
+        decision,
+        ...(decision === "edit" ? { editedText: candidateEditText } : {}),
+        expectedStateVersion: latestState.stateVersion,
+        idempotencyKey: globalThis.crypto.randomUUID(),
+      });
+      commit(result.state);
+      setCandidate(result.principle);
+      setStep("done");
+    } catch {
+      setStep("done");
     }
   }
 
@@ -231,6 +328,7 @@ export function ReviewFlow() {
           {step === "whichJar" && <div className="decision-step"><p className="decision-dog-bubble">{REVIEW_ASK_MONEY.whichJar.question}</p><div className="decision-options review-options">{REVIEW_ASK_MONEY.whichJar.options.map((option) => <button key={option} className="decision-option" type="button" onClick={() => selectJar(option === "不记得了" ? "forgotten" : (Object.entries(JAR_NAMES).find(([, label]) => label === option)?.[0] as JarKind))}>{option}</button>)}</div></div>}
           {step === "confirmDebit" && selectedJar && <div className="decision-step"><p className="decision-dog-bubble">{REVIEW_CONFIRM_DEDUCT.question.replace("{jar}", JAR_NAMES[selectedJar]).replace("{amount}", price)}</p>{error && <p className="talk-status">{error}</p>}<div className="decision-options"><button className="decision-option" type="button" onClick={confirmDebit}>{REVIEW_CONFIRM_DEDUCT.confirm}</button><button className="decision-option" type="button" onClick={() => setStep("whichJar")}>{REVIEW_CONFIRM_DEDUCT.cancel}</button></div></div>}
           {step === "note" && <div className="decision-step">{noteLead && <p className="decision-dog-bubble">{noteLead}</p>}<p className="decision-dog-bubble">{REVIEW_STEP3.placeholder}</p><input className="decision-input" value={note} onChange={(event) => setNote(event.target.value)} aria-label={REVIEW_STEP3.placeholder} />{undoToken && <button className="decision-text-action" type="button" onClick={undoDebit}>{REVIEW_CONFIRM_DEDUCT.undo}<HandDrawnUnderline /></button>}{error && <p className="talk-status">{error}</p>}<div className="decision-options"><button className="decision-option" type="button" onClick={() => finishReview(true)}>{REVIEW_STEP3.save}</button><button className="decision-option" type="button" onClick={() => finishReview(false)}>{REVIEW_STEP3.skip}</button></div></div>}
+          {step === "principle" && candidate && <div className="decision-step principle-candidate-step"><article className="principle-card principle-candidate-card"><p>{replaceAlias(PRINCIPLE_CANDIDATE.lead, alias)}</p><strong>{candidate.statement}</strong><button className="principle-evidence-toggle" type="button" onClick={() => setCandidateEvidenceOpen((open) => !open)}>{PRINCIPLE_CANDIDATE.evidence} {candidateEvidenceOpen ? "^" : "▾"}</button>{candidateEvidenceOpen && <div className="principle-evidence-list">{candidate.evidenceIds.map((id) => { const story = currentState.stories.find((item) => item.id === id); return <p key={id}>{story ? `${story.intent}${story.outcome?.feelingNote ? ` · ${story.outcome.feelingNote}` : ""}` : id}</p>; })}</div>}</article>{candidateEditing && <input className="decision-input principle-edit-input" value={candidateEditText} onChange={(event) => setCandidateEditText(event.target.value)} aria-label={candidate.statement} />}{candidateEditing ? <div className="decision-options principle-candidate-actions"><button className="decision-option" type="button" onClick={() => resolveCandidate("edit")}>{PRINCIPLE_CANDIDATE.saveEdit}</button><button className="decision-option" type="button" onClick={() => resolveCandidate("defer")}>{PRINCIPLE_CANDIDATE.actions.defer}</button></div> : <div className="decision-options principle-candidate-actions"><button className="decision-option" type="button" onClick={() => resolveCandidate("like_me")}>{PRINCIPLE_CANDIDATE.actions.like}</button><button className="decision-option" type="button" onClick={() => resolveCandidate("edit")}>{PRINCIPLE_CANDIDATE.actions.edit}</button><button className="decision-option" type="button" onClick={() => resolveCandidate("defer")}>{PRINCIPLE_CANDIDATE.actions.defer}</button></div>}</div>}
           {step === "deferred" && <div className="decision-step"><p className="decision-dog-bubble">{REVIEW_ASK_MONEY.notYetResponse}</p><p className="decision-dog-bubble">{REVIEW_ASK_MONEY.notYetFollowUp}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>{REVIEW_NAV.backHome}<HandDrawnUnderline /></button></div>}
           {step === "done" && <div className="decision-step"><p className="decision-dog-bubble">{REVIEW_STEP4.closing}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>{REVIEW_NAV.backHome}<HandDrawnUnderline /></button></div>}
         </section>

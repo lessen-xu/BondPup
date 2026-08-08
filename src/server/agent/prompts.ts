@@ -21,7 +21,7 @@ export function buildTaskPrompt(input: AgentTaskInput): { instruction: string; p
       return {
         instruction:
           "把用户模糊的愿望拆成 3-4 条具体「在意的事」,每条一句短话、用户视角、不含建议。只输出 JSON:{\"concerns\":[\"...\"]}",
-        payload: JSON.stringify({ wish: input.wish, nearChoice: input.nearChoice ?? null }),
+        payload: JSON.stringify({ wish: input.wish, nearChoice: input.nearChoice ?? null, goal: input.goal ?? null }),
       };
     case "companion_reply": {
       // 金额由代码换算成展示文本再进 prompt,模型永远不做数字计算

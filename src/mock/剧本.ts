@@ -30,7 +30,7 @@ export const moneyNoteScript = {
   },
   modelReply: NOTE_MODEL_REPLY,
   vault: {
-    title: "{user}的小金库",
+    title: "{alias}的小金库",
     subtitle: "我替你收着的纸条,想看的时候就来看看。",
     empty: "还没有写下纸条。",
   },
@@ -78,7 +78,7 @@ export const REVIEW_ASK_MONEY = {
   options: { spent: "花了", notBought: "最后没买", notYet: "还没" },
   whichJar: {
     question: "打算用哪个罐子里的钱？",
-    options: ["生活罐", "安心罐", "梦想罐", "未来罐", "不记得了"],
+    options: ["生活罐", "安心罐", "梦想罐", "不记得了"],
     jarResponse: "好，从{jar}里拿的，我记上了。",
     forgottenResponse: "好，那数字先不动。我帮你记着这件事。",
   },
@@ -112,9 +112,26 @@ export const CARDS_PAGE = {
     confirmed: "已确认",
     edited: "已修改",
     unsure: "暂不确定",
+    candidate: "候选",
     welcome: "起点",
   },
   greeting: "每张卡片都是你对自己的了解。",
+} as const;
+
+export const PRINCIPLE_CANDIDATE = {
+  lead: "{alias} 悄悄记下了一件事",
+  evidence: "依据",
+  actions: {
+    like: "这很像我",
+    edit: "改成我的说法",
+    defer: "暂时不能确定",
+  },
+  saveEdit: "保存这句话",
+} as const;
+
+export const DECISION_REFERENCE = {
+  label: "参考了 {count} 条你确认过的原则",
+  close: "收起",
 } as const;
 
 export const REVIEW_ACTION_LABELS = {
@@ -187,6 +204,15 @@ export const DEMO = {
   exitDone: "好，清干净了。我们从头开始吧。",
 } as const;
 
+export const SETTINGS = {
+  title: "设置",
+  exportData: "导出我的数据",
+  clearData: "清空所有数据",
+  clearConfirm: "真的要清空吗？清空后会回到欢迎页。",
+  clearYes: "确认清空",
+  clearNo: "先留着",
+} as const;
+
 export const SAFETY = {
   crisis: {
     line: "我停一下。",
@@ -224,7 +250,7 @@ export const SAFETY = {
 export const DAILY_DECISION = {
   entry: "帮我看看要不要买",
   intro: "好呀〜你想买什么?跟我说说看",
-  itemPlaceholder: "比如「一双运动鞋」「一个投影仪」「一件大衣」……",
+  itemPlaceholder: "比如「一个投影仪」",
   itemHint: "还没想好具体是什么也没关系,先说说看〜",
   itemNext: "告诉我",
   priceQuestion: "嗯嗯,我记下了。那它大概多少钱呀?",
