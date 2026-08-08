@@ -38,7 +38,7 @@ async function call(name, args) {
   const rpc = await res.json();
   if (rpc.error) throw new Error(`${name} rpc error: ${JSON.stringify(rpc.error)}`);
   const payload = JSON.parse(rpc.result.content[0].text);
-  return { payload, isError: rpc.result.isError === true };
+  return { payload, structured: rpc.result.structuredContent, isError: rpc.result.isError === true };
 }
 
 function assert(cond, msg) {
@@ -55,6 +55,10 @@ const key = () => `smoke-${calls}-${Math.random().toString(36).slice(2, 8)}`;
 const s1 = await call("create_money_session", {});
 let ms = s1.payload.moneyState;
 assert(ms.stateVersion === 1 && ms.demo === false, "新会话 v1 且 demo:false");
+assert(
+  s1.structured && s1.structured.sessionId === s1.payload.sessionId,
+  "结果带 structuredContent 且与 text 同源(outputSchema 结构化输出)"
+);
 
 // 2. 预览不改状态
 const planArgs = {
