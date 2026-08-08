@@ -5,7 +5,7 @@
 ## 入口
 - 体验链接:https://bondpup.vercel.app
 - 演示入口(评审推荐):https://bondpup.vercel.app/?demo=1
-- MCP Endpoint:(此处留空,队友补)
+- MCP Endpoint:`https://bondpup.vercel.app/mcp`
 - 健康检查:https://bondpup.vercel.app/health
 
 ## 一句话 Agent 核心
@@ -27,14 +27,44 @@ npm run verify
 4. 回到决策,看到「参考了 1 条你确认过的原则」
 
 ## MCP
-TODO:队友补公网端点和五个工具的调用说明。
+
+- 端点:`https://bondpup.vercel.app/mcp`(Streamable HTTP;兼容 2026-07-28 与 2025-era 两代协议;无需鉴权与模型密钥)
+
+### 工具(共 5 个)
+
+| 工具 | 作用 |
+|---|---|
+| `create_money_session` | 创建会话,返回 `sessionId` 与初始 `moneyState`(可传 `displayName`) |
+| `plan_jars` | 四罐分配:默认只预览;`confirm:true` 才写入 |
+| `record_money_moment` | 说一笔想花的钱 → 返回带签名的 proposal(只预览,不写状态) |
+| `confirm_action` | 用户确认后的写入:扣罐 / 撤销 / 只记录 / 完成回看 / 采纳原则 / 周期确认 / 挪结余 |
+| `get_money_overview` | 总览:四罐、待回看、候选原则、周期回顾、结余历史 |
+
+### 调用契约
+
+- 服务端不持久化状态:每个响应回传完整 `moneyState`,下一次调用原样链回即可(`sessionId` 仅单实例缓存)
+- 写操作一律要求 `expectedStateVersion` + `idempotencyKey`;版本不符拒绝,重放幂等
+- `confirm_action` 只接受 `record_money_moment` 签发的 proposal,状态版本变过即过期,伪造签名会被拒绝
+- 风险输入(自伤/借贷/投资/泛化情绪)返回安全回应而非罐子建议,审计事件不含用户原文
+
+### 最小示例(复制即可运行)
+
+```bash
+curl -sS https://bondpup.vercel.app/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "MCP-Protocol-Version: 2026-07-28" \
+  -H "Mcp-Method: tools/list" \
+  --data-binary '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"probe","version":"0"},"io.modelcontextprotocol/clientCapabilities":{}}}}'
+```
+
+2026-07-28 代协议要求 `Mcp-Method` 头与 body 方法一致(`tools/call` 另加 `Mcp-Name: <工具名>`),缺失返回 -32020。
+
+- 图形化:`npx @modelcontextprotocol/inspector@latest` → Streamable HTTP → 上述端点
+- 端到端闭环(22 条断言:分配→扣罐→撤销→回看→原则→引用):`node scripts/smoke-mcp.mjs https://bondpup.vercel.app`
 
 ## 核心闭环
 分罐子 → 做决定 → 回看结果 → 长出一条你确认过的原则 → 下次被引用
-
-原来 README 里的架构说明、目录结构和 MCP 细节如下。
-
-- MCP:`https://bondpup.vercel.app/mcp`(Streamable HTTP,兼容 2026-07-28 与 2025-era 两代协议)
 
 ## 快速验证(开发调试)
 
@@ -60,16 +90,6 @@ node scripts/smoke-mcp.mjs   # MCP 端到端闭环断言(决定→回看→原�
 | `src/app/` | 页面与 API 路由:`/`、`/api/agent`、`/health`、`/mcp` |
 
 核心原则:金额一律整数分;金额由代码计算,理由由模型生成,改变状态必须用户确认;跨罐永不自动级联。
-
-## MCP 工具
-
-`create_money_session` / `plan_jars` / `record_money_moment` / `confirm_action` / `get_money_overview`
-
-- 完整闭环可被外部客户端走通:分配 → 扣罐(绑定 proposal,可撤销)→ 回看 → 候选原则 → 确认 → 下次引用
-- 预览与写入分离:`plan_jars` 默认预览;所有写操作(确认/扣罐/撤销/回看/原则)强制 `expectedStateVersion` + `idempotencyKey`
-- `confirm_action` 只确认 `record_money_moment` 返回的 proposal,状态变过即过期,不接受任意改写
-- 服务端不持久化状态:每个响应回传完整 `moneyState`,客户端链回即可
-- 风险输入(自伤/借贷/投资/泛化情绪)返回安全回应而非罐子建议,审计不含原文
 
 ## 环境变量
 
