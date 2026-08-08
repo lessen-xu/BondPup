@@ -41,8 +41,9 @@ export interface MoveLeftoverResult {
 
 /**
  * 由用户发起的碎钻移动(系统永不自动转):
- * living/comfort/future → planned 增加(本期可用变多);future 不存在则创建;
+ * living/comfort/future → planned 增加(本期可用变多);
  * dream → actual 增加(计入本期已放月供,跨周期折进 goal.saved)。
+ * 有碎钻必有周期,有周期必四罐(schema 强制)——目标罐必然存在,缺罐即 not_found。
  */
 export function moveLeftover(state: MoneyState, req: MoveLeftoverRequest): MoveLeftoverResult {
   if (!Cents.safeParse(req.amount).success || req.amount === 0) {
@@ -64,22 +65,9 @@ export function moveLeftover(state: MoneyState, req: MoveLeftoverRequest): MoveL
   let jars = state.jars;
   const target = jars.find((j) => j.kind === req.toKind);
   if (!target) {
-    if (req.toKind !== "future") {
-      throw new DomainError("not_found", `还没有 ${req.toKind} 罐,先完成一次安排`);
-    }
-    jars = [
-      ...jars,
-      {
-        id: "jar-future",
-        kind: "future" as const,
-        label: "未来罐",
-        renamable: false,
-        planned: req.amount,
-        actual: 0,
-        updatedAt: now,
-      },
-    ];
-  } else if (req.toKind === "dream") {
+    throw new DomainError("not_found", `还没有 ${req.toKind} 罐,先完成一次安排`);
+  }
+  if (req.toKind === "dream") {
     jars = jars.map((j) =>
       j.kind === "dream" ? { ...j, actual: j.actual + req.amount, updatedAt: now } : j
     );
