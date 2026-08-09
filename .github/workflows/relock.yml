@@ -1,5 +1,7 @@
 name: relock
-on: workflow_dispatch
+on:
+  push:
+    branches: [fix/lockfile-sync]
 jobs:
   relock:
     runs-on: ubuntu-latest
