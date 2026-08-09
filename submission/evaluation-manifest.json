@@ -27,16 +27,16 @@
     "outputSchema": true,
     "structuredContent": true,
     "runsWithoutModelKey": true,
-    "notes": "2026-07-28 requires Mcp-Method header matching body method; tools/call also requires Mcp-Name. confirm_action now includes delete_principle."
+    "notes": "2026-07-28 requires Mcp-Method header matching body method; tools/call also requires Mcp-Name. confirm_action per-action required fields are published as allOf/if-then in inputSchema; proposals are HMAC-bound to the issuing moneyState digest."
   },
   "verification": {
     "endToEnd": {
       "command": "node scripts/smoke-mcp.mjs https://bondpup.vercel.app",
-      "calls": 27,
-      "assertions": 26,
-      "covers": "分配→扣罐→撤销→回看→候选原则→确认→引用→删除,含乐观锁/幂等/proposal 与撤销令牌验签/413/四罐齐全"
+      "calls": 32,
+      "assertions": 29,
+      "covers": "分配→扣罐→撤销→回看→候选原则→确认→引用→删除,含乐观锁/幂等/proposal 与撤销令牌验签/跨会话 proposal 拒绝/统一错误契约/if-then 公开 schema/413/四罐齐全"
     },
-    "unitTests": 117,
+    "unitTests": 137,
     "commands": [
       "npm ci",
       "npm test",
@@ -68,10 +68,10 @@
     ]
   },
   "safety": {
-    "inputGate": "keyword routing for self_harm / debt_loan / investment / generic_emotion; risky input never reaches the model",
+    "inputGate": "keyword routing for self_harm / debt_loan / investment / generic_emotion on current input; hard-risk scan (self_harm/debt_loan/investment) additionally covers every model-bound string: principle stories, existing statements, concerns, rich context (recentStories/principles/concerns/item); risky entries are stripped or generation is withheld, so risky text never reaches the model",
     "crisisResponse": "fixed copy with 24h helpline 12356, verified at the API layer by contract tests",
-    "outputGate": "20-word forbidden list + max 3 sentences; one retry then safe fallback; static UI copy scanned in CI",
-    "principleGate": "first person, <=25 codepoints, evidence must reference reviewed stories; retry once then silently withhold (v7.4); demo mode may opt into a deterministic candidate",
+    "outputGate": "20-word forbidden list; sentence budget by scene (decision 5 with mandatory three neutral actions, review_note 2, others 3); decompose output gate (forbidden words / length / user perspective); one retry then deterministic fallback; static UI copy scanned in CI",
+    "principleGate": "first person, <=25 codepoints, evidence must reference reviewed stories, no duplicate evidence ids, hard-risk semantics rejected (self-harm/debt/investment cannot be adopted as principles); retry once then silently withhold (v7.4); demo mode may opt into a deterministic candidate",
     "auditEvents": "risk type and rule only, never user text"
   },
   "privacy": {

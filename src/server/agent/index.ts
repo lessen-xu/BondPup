@@ -1,12 +1,13 @@
 import type { AgentReply, MoneyState } from "@/contracts";
 import { DomainError } from "@/contracts/errors";
 import {
+  validateConcernsOutput,
   validateDecisionReply,
   validatePrincipleCandidate,
   validatePrincipleWithIds,
   validateReplyText,
 } from "@/server/safety/validate";
-import { detectSafetyRisk, safetyReplyFor } from "@/server/safety/risk";
+import { detectHardRisk, detectSafetyRisk, safetyReplyFor } from "@/server/safety/risk";
 import { principleContext, principleEligible } from "@/server/domain/principle";
 import type { AgentTaskInput, AgentTaskOutput, GeneratePrincipleOutput } from "./types";
 import { runMockAgentTask } from "./mock";
@@ -90,11 +91,52 @@ async function runProviderTask(
   return { out: runMockAgentTask(input), provider: "mock" };
 }
 
+/**
+ * 厚上下文的背景清洗(P0 封口的一半):
+ * 输入闸必须覆盖所有会进 prompt 的字符串,不止当前输入。
+ * 背景字段(过往故事/原则/在意的事/物品)只扫硬红线(自伤/借贷/投资),
+ * 命中的条目直接剔除、不进模型——她当前说的话是干净的,不该因为一条旧笔记整场拒答;
+ * generic_emotion 不在此列(感受笔记里有「想哭」是产品的正常内容)。
+ */
+export function sanitizeCompanionContext(
+  input: Extract<AgentTaskInput, { task: "companion_reply" }>
+): Extract<AgentTaskInput, { task: "companion_reply" }> {
+  const next = { ...input };
+  let dropped = 0;
+  if (next.principles) {
+    const kept = next.principles.filter((p) => !detectHardRisk(p));
+    dropped += next.principles.length - kept.length;
+    next.principles = kept;
+  }
+  if (next.concerns) {
+    const kept = next.concerns.filter((c) => !detectHardRisk(c));
+    dropped += next.concerns.length - kept.length;
+    next.concerns = kept;
+  }
+  if (next.recentStories) {
+    const kept = next.recentStories.filter((s) => !detectHardRisk(`${s.intent} ${s.feelingNote ?? ""}`));
+    dropped += next.recentStories.length - kept.length;
+    next.recentStories = kept;
+  }
+  if (next.item && detectHardRisk(next.item.name)) {
+    delete next.item;
+    dropped++;
+  }
+  if (next.context && detectHardRisk(`${next.context.item} ${next.context.action} ${next.context.outcome}`)) {
+    delete next.context;
+    dropped++;
+  }
+  if (dropped > 0) {
+    console.error(JSON.stringify({ event: "risky_context_stripped", task: input.task, dropped }));
+  }
+  return next;
+}
+
 export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutput> {
   // 输入闸:自伤/借贷/投资/泛化情绪命中 → 绕过模型,统一以 companion_reply 形态返回安全回应
   const userText =
     input.task === "decompose_wish"
-      ? [input.wish, input.nearChoice].filter(Boolean).join(" ")
+      ? [input.wish, input.nearChoice, input.goal?.name].filter(Boolean).join(" ")
       : input.task === "companion_reply"
         ? input.userText
         : undefined;
@@ -114,17 +156,25 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutpu
   if (input.task === "generate_principle") {
     return runPrincipleTask(input, sourceOf);
   }
-  // 输出闸按场景取校验:decision 走语义闸(三选项缺一不可,句数预算 5),
-  // review_note 预算 2,其余 3。不合格 → 重试一次 → 仍不合格用确定性兜底,绝不放行。
-  const gate = (text: string) => {
-    if (input.task !== "companion_reply") return [];
-    if (input.scene === "decision") return validateDecisionReply(text);
-    return validateReplyText(text, { maxSentences: input.scene === "review_note" ? 2 : 3 });
+  const safeInput = input.task === "companion_reply" ? sanitizeCompanionContext(input) : input;
+  // 输出闸按任务/场景取校验:decision 走语义闸(三选项缺一不可,句数预算 5),
+  // review_note 预算 2,其余回应 3;decompose 的每条「在意的事」过 validateConcernsOutput。
+  // 不合格 → 重试一次 → 仍不合格用确定性兜底,绝不放行。
+  const failuresOf = (o: AgentTaskOutput) => {
+    if (o.task === "companion_reply") {
+      if (safeInput.task === "companion_reply" && safeInput.scene === "decision") {
+        return validateDecisionReply(o.result.text);
+      }
+      const budget = safeInput.task === "companion_reply" && safeInput.scene === "review_note" ? 2 : 3;
+      return validateReplyText(o.result.text, { maxSentences: budget });
+    }
+    if (o.task === "decompose_wish") return validateConcernsOutput(o.result.concerns);
+    return [];
   };
-  const { out, provider, degraded } = await runProviderTask(input);
-  if (out.task === "companion_reply" && gate(out.result.text).length > 0) {
-    const retry = await runProviderTask(input);
-    if (retry.out.task === "companion_reply" && gate(retry.out.result.text).length === 0) {
+  const { out, provider, degraded } = await runProviderTask(safeInput);
+  if (failuresOf(out).length > 0) {
+    const retry = await runProviderTask(safeInput);
+    if (failuresOf(retry.out).length === 0) {
       return {
         ...retry.out,
         provider: retry.provider,
@@ -133,12 +183,17 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutpu
       };
     }
     // 兜底是规则产物,即使 provider 是真模型也标 rule。
-    // decision 场景兜底用确定性 Mock 回应(三选项天然齐全),其余用安全兜底文案。
-    if (input.task === "companion_reply" && input.scene === "decision") {
-      const mock = runMockAgentTask(input);
+    // decision 用确定性 Mock 回应(三选项天然齐全),decompose 用确定性 Mock 拆解,
+    // 其余用安全兜底文案。
+    if (safeInput.task === "companion_reply" && safeInput.scene === "decision") {
+      const mock = runMockAgentTask(safeInput);
       if (mock.task === "companion_reply") {
         return { ...mock, provider, source: "rule" };
       }
+    }
+    if (safeInput.task === "decompose_wish") {
+      const mock = runMockAgentTask(safeInput);
+      return { ...mock, provider, source: "rule" };
     }
     return { task: "companion_reply", result: SAFE_FALLBACK, provider, source: "rule" };
   }
@@ -187,6 +242,18 @@ async function runPrincipleTask(
   input: Extract<AgentTaskInput, { task: "generate_principle" }>,
   sourceOf: (p: AgentProvider) => AgentSource
 ): Promise<AgentRunOutput> {
+  // P0 封口的另一半:故事摘要/既有原则/在意的事都会进 prompt,同样要过硬红线。
+  // 命中即整个不生成(demo 兜底也不例外)——从危机笔记里提炼的原则会把风险固化成长期语句,
+  // 生产实测过 feelingNote=「感觉活着没什么意思」被真模型写成了自伤原则。
+  const modelBound = [
+    ...input.stories.flatMap((s) => [s.intent, s.feelingNote ?? ""]),
+    ...input.existingStatements,
+    ...input.concerns,
+  ];
+  if (modelBound.some((t) => t && detectHardRisk(t))) {
+    console.error(JSON.stringify({ event: "principle_input_risk_refused", task: input.task }));
+    throw new DomainError("validation_error", "这次先不提炼原则,证据还不够");
+  }
   const allowedIds = new Set(input.stories.map((s) => s.id));
   const check = (c: GeneratePrincipleOutput) => validatePrincipleWithIds(c, allowedIds).length === 0;
   for (let attempt = 0; attempt < 2; attempt++) {

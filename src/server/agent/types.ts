@@ -74,20 +74,21 @@ export const CompanionReplyInput = z.object({
 
 export const GeneratePrincipleInput = z.object({
   task: z.literal("generate_principle"),
-  /** 已回看故事的最小摘要(不传完整倾诉原文) */
+  /** 已回看故事的最小摘要(不传完整倾诉原文);上限防公开 API 被灌超长上下文 */
   stories: z
     .array(
       z.object({
-        id: z.string(),
-        intent: z.string(),
-        action: z.string(),
+        id: z.string().max(150),
+        intent: z.string().max(200),
+        action: z.string().max(30),
         happened: z.boolean().optional(),
-        feelingNote: z.string().optional(),
+        feelingNote: z.string().max(300).optional(),
       })
     )
-    .min(3),
+    .min(3)
+    .max(12),
   /** 已确认原则(防重复;冲突时并列不覆盖,由用户选) */
-  existingStatements: z.array(z.string()).default([]),
+  existingStatements: z.array(z.string().max(60)).max(20).default([]),
   /**
    * 起点问卷「在意的事」(profile.expressionPrefs):只作理解这个人的背景,
    * 不能被引用成原则、不能作 evidence——校验层只认 stories 里的 id

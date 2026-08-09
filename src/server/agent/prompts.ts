@@ -72,7 +72,8 @@ export function buildTaskPrompt(input: AgentTaskInput): { instruction: string; p
         instruction:
           input.scene === "decision"
             ? "用户在犹豫要不要买 item。把她的情况摆出来,而不是给结论:" +
-              "①先接住情绪;②说事实——安心罐还剩多少(comfortAvailableText 原样引用),如果有 shortfallText 也原样说;" +
+              "①先接住情绪,但不评价她的犹豫或决定本身(不说「犹豫是对的」「这个决定挺好」这类话——评价对错也是评判);" +
+              "②说事实——安心罐还剩多少(comfortAvailableText 原样引用),如果有 shortfallText 也原样说;" +
               "③recentStories 里如果有和这次真相关的(同类东西/同类犹豫),用一句话提它后来怎么样了(happened/feelingNote);principles 和 concerns 里如果有真相关的,用她自己的话问一句(如「你说过想……这个算在里面吗?」)。不相关就都不提。" +
               "④最后一句必须把「现在买」「放到明天」「这次先不买」三个词组原样写出来,并列、不偏向任何一个,绝不问值不值;" +
               "然后交还决定权,比如「我能想到的就这些了,买不买你定」。最多五句话。直接输出回应文本,不要 JSON。"
