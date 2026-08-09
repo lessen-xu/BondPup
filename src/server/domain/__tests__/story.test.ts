@@ -44,6 +44,20 @@ describe("createDecisionStory", () => {
     expect(r2.idempotent).toBe(true);
     expect(r2.state.stories).toHaveLength(1);
   });
+
+  it("待确认决定不生成回看时间", () => {
+    const s = base();
+    const result = createDecisionStory(s, {
+      intent: "投影仪",
+      action: "pending_confirmation",
+      amount: 400000,
+      expectedStateVersion: s.stateVersion,
+      idempotencyKey: "pending-1",
+    });
+    expect(result.story.status).toBe("pending");
+    expect(result.story.reviewAt).toBeUndefined();
+    expect(dueReviews(result.state)).toEqual([]);
+  });
 });
 
 describe("completeReview", () => {

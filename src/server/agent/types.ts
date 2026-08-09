@@ -35,6 +35,32 @@ export const CompanionReplyInput = z.object({
     action: z.string().max(80),
     outcome: z.string().max(200),
   }).optional(),
+  noteContext: z.object({
+    jars: z.array(z.object({
+      kind: z.string().max(40),
+      label: z.string().max(40),
+      amount: z.number().int().nonnegative(),
+    })).max(4),
+    principles: z.array(z.object({
+      statement: z.string().max(80),
+    })).max(5),
+    concerns: z.array(z.string().max(120)).max(4),
+    stories: z.array(z.object({
+      intent: z.string().max(120),
+      action: z.string().max(80),
+      amount: z.number().int().nonnegative().optional(),
+      confirmedJar: z.string().max(40).optional(),
+      outcome: z.object({
+        happened: z.boolean(),
+        actualAmount: z.number().int().nonnegative().optional(),
+        feelingNote: z.string().max(200).optional(),
+      }).optional(),
+    })).max(3),
+    conversation: z.array(z.object({
+      role: z.enum(["user", "assistant"]),
+      text: z.string().min(1).max(500),
+    })).max(8),
+  }).optional(),
 });
 
 export const GeneratePrincipleInput = z.object({

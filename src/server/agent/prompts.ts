@@ -34,12 +34,39 @@ export function buildTaskPrompt(input: AgentTaskInput): { instruction: string; p
             updatedAt: input.stateSummary.updatedAt ?? null,
           }
         : null;
+      const noteContext = input.noteContext
+        ? {
+            jars: input.noteContext.jars.map((jar) => ({
+              kind: jar.kind,
+              label: jar.label,
+              amountText: fmtYuan(jar.amount),
+            })),
+            principles: input.noteContext.principles,
+            concerns: input.noteContext.concerns,
+            stories: input.noteContext.stories.map((story) => ({
+              intent: story.intent,
+              action: story.action,
+              ...(story.amount !== undefined ? { amountText: fmtYuan(story.amount) } : {}),
+              confirmedJar: story.confirmedJar ?? null,
+              outcome: story.outcome
+                ? {
+                    happened: story.outcome.happened,
+                    ...(story.outcome.actualAmount !== undefined
+                      ? { actualAmountText: fmtYuan(story.outcome.actualAmount) }
+                      : {}),
+                    feelingNote: story.outcome.feelingNote ?? null,
+                  }
+                : null,
+            })),
+            conversation: input.noteContext.conversation,
+          }
+        : null;
       return {
         instruction:
           input.scene === "decision"
-            ? "用户在犹豫要不要买。先接住情绪;若 comfortAvailableText 有值,用『我这里记的安心罐还有 comfortAvailableText』的口吻提一句,金额原样引用,不要自己计算。最后一句必须完整给出三个并列选择:现在买、放到明天、这次先不买——三个都要出现,不偏向任何一个,绝不问值不值。直接输出回应文本,不要 JSON。"
+            ? "用户正在决定要不要买,页面已经持续显示三个中性动作。结合当前话语和 conversation 自然接住;若引用 comfortAvailableText,金额原样引用,不要自己计算。不要重复三个动作,不要推进选择,不偏向任何一个,绝不问值不值。最多三句,一次最多问一个问题。直接输出回应文本,不要 JSON。"
             : input.scene === "note"
-              ? "用户想说一笔钱。先接住情绪,再说可以告诉你金额记下来,也可以只说说不改余额。直接输出回应文本。"
+              ? "用户正在聊一笔钱。结合当前话语和提供的上下文自然接住;可以引用用户自己说过的话、做过的决定,也可以指出这次与过去某次的相似或不同。不要评价、不给建议、不总结教训,不说『你应该』。最多三句,一次最多问一个问题。不要主动推进记账流程。直接输出回应文本。"
               : input.scene === "review_note"
                 ? "用户在回看一段已经发生过的金钱故事,刚写下自己的感受。只接住这句话,不评价、不追问、不给建议、不总结教训。最多两句。直接输出回应文本。"
               : "用户点了你。说一句自然的开场,表示你在,可以聊钱也可以不聊。直接输出回应文本。",
@@ -47,6 +74,7 @@ export function buildTaskPrompt(input: AgentTaskInput): { instruction: string; p
           userText: input.userText ?? null,
           stateSummary: summary,
           context: input.context ?? null,
+          noteContext,
         }),
       };
     }

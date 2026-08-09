@@ -39,6 +39,7 @@ const ACTION_MODE: Record<StoryAction, ReviewMode | null> = {
   defer: "tomorrow",
   skip_this_time: "skip",
   note_only: null,
+  pending_confirmation: null,
 };
 
 const JAR_NAMES: Record<JarKind, string> = {

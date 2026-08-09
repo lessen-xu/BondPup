@@ -25,6 +25,25 @@ export interface ComputeJarsResult {
   shortfall: number;
 }
 
+export interface LivingShortfallResolution {
+  livingPlanned: number;
+  plan: ComputeJarsResult;
+}
+
+const JarIncreaseInput = z.object({
+  current: Cents,
+  addition: Cents,
+});
+
+/** 梦想罐、未来罐的新增金额换算成候选总额。 */
+export function computeIncreasedJarAmount(input: z.input<typeof JarIncreaseInput>): number {
+  const parsed = JarIncreaseInput.safeParse(input);
+  if (!parsed.success) {
+    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);
+  }
+  return parsed.data.current + parsed.data.addition;
+}
+
 const JarAllocationInput = z.object({
   disposable: Cents,
   living: Cents,
@@ -69,6 +88,14 @@ export function computeComfortCandidate(input: ComputeJarsInput): number {
   return parsed.data.disposable - parsed.data.livingPlanned - parsed.data.dreamMonthly - parsed.data.futurePlanned;
 }
 
+/** 预览里安心罐剩 0-20 元时,给出可忽略的轻提示。 */
+export function isComfortBalanceLow(cents: number): boolean {
+  if (!Cents.safeParse(cents).success) {
+    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)");
+  }
+  return cents > 0 && cents <= 2_000;
+}
+
 /**
  * 四罐恒等式:living + comfort + dream + future === disposable(+shortfall 时差额可解释)。
  * 安心罐是被动余项(余数进安心罐,不进未来罐——不预设「存钱=好」)。
@@ -86,5 +113,19 @@ export function computeJars(input: ComputeJarsInput): ComputeJarsResult {
     dream: dreamMonthly,
     future: futurePlanned,
     shortfall: Math.max(0, fixed - disposable),
+  };
+}
+
+/** 安心罐归零后,用户明确选择生活罐时,由生活罐吸收候选方案的缺口。 */
+export function resolveShortfallFromLiving(input: ComputeJarsInput): LivingShortfallResolution {
+  const parsed = ComputeJarsInput.safeParse(input);
+  if (!parsed.success) {
+    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);
+  }
+  const current = computeJars(parsed.data);
+  const livingPlanned = Math.max(0, parsed.data.livingPlanned - current.shortfall);
+  return {
+    livingPlanned,
+    plan: computeJars({ ...parsed.data, livingPlanned }),
   };
 }

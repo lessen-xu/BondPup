@@ -51,7 +51,7 @@ export function createDecisionStory(state: MoneyState, req: CreateStoryRequest):
       ? { reviewAt: new Date(now.getTime() + req.reviewInDays * 86400000).toISOString() }
       : {}),
     ...(req.emotionSummary ? { emotionSummary: req.emotionSummary } : {}),
-    status: "open",
+    status: req.action === "pending_confirmation" ? "pending" : "open",
     createdAt: now.toISOString(),
   });
   const newState = MoneyState.parse({
@@ -96,8 +96,8 @@ export function completeReview(state: MoneyState, req: CompleteReviewRequest): C
   if (!existing) {
     throw new DomainError("not_found", "没有找到这条故事");
   }
-  if (existing.status === "reviewed") {
-    throw new DomainError("state_conflict", "这条故事已经回看过了");
+  if (existing.status !== "open") {
+    throw new DomainError("state_conflict", "这条故事现在不能进入回看");
   }
 
   const now = new Date().toISOString();

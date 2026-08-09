@@ -46,6 +46,7 @@ export function createInitialMoneyState(displayName?: string, dogName?: string):
 }
 
 const T = "2026-08-06T09:00:00.000Z";
+const DEMO_DUE_REVIEW_AT = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
 /**
  * 合成示例数据(demo:true 明确标识,与真实数据分离):
@@ -103,38 +104,38 @@ export const mockMoneyState: MoneyState = MoneyState.parse({
   stories: [
     {
       id: "story-demo-1",
-      intent: "刷到一个颈部按摩仪,有点种草",
-      amount: 12900,
+      intent: "那双白色的鞋",
+      amount: 39900,
       action: "defer",
       reviewAt: "2026-08-03T09:00:00.000Z",
       outcome: {
         reviewedAt: "2026-08-03T10:00:00.000Z",
-        happened: false,
-        feelingNote: "放了一天,好像也没那么想要了",
+        happened: true,
+        feelingNote: "我还是觉得它好看，但买回来发现搭配的场合很少",
       },
       status: "reviewed",
       createdAt: "2026-08-02T09:00:00.000Z",
     },
     {
       id: "story-demo-2",
-      intent: "朋友约周末短途旅行,想报名",
-      amount: 19900,
-      action: "skip_this_time",
+      intent: "一件外套",
+      amount: 59900,
+      action: "defer",
       reviewAt: "2026-08-05T09:00:00.000Z",
       outcome: {
         reviewedAt: "2026-08-05T12:00:00.000Z",
         happened: false,
-        feelingNote: "这次没去,想把钱留给看海",
+        feelingNote: "想了三天，发现想不出什么时候会穿",
       },
       status: "reviewed",
       createdAt: "2026-08-04T09:00:00.000Z",
     },
     {
       id: "story-demo-3",
-      intent: "想买那双白色的鞋",
-      amount: 39900,
-      action: "defer",
-      reviewAt: "2026-08-07T01:00:00.000Z",
+      intent: "一个投影仪",
+      amount: 240000,
+      action: "buy_now",
+      reviewAt: DEMO_DUE_REVIEW_AT,
       status: "open",
       createdAt: "2026-08-06T09:00:00.000Z",
     },
