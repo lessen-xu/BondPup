@@ -49,6 +49,32 @@ describe("moveLeftover", () => {
     expect(r.movedNote).toContain("松一点");
   });
 
+  it("挪入后四罐恒等式保持:Σplanned === cycle.disposable(曾实测 66 万≠65 万)", () => {
+    const s = stateWithLeftover(30000);
+    const r = moveLeftover(s, {
+      toKind: "comfort",
+      amount: 10000,
+      expectedStateVersion: s.stateVersion,
+      idempotencyKey: "m-id",
+    });
+    const sumPlanned = r.state.jars.reduce((sum, j) => sum + j.planned, 0);
+    expect(sumPlanned).toBe(r.state.cycle!.disposable);
+    expect(r.state.cycle!.disposable).toBe(650000 + 10000);
+  });
+
+  it("挪入梦想罐走 actual:planned 与 disposable 都不变", () => {
+    const s = stateWithLeftover(30000);
+    const r = moveLeftover(s, {
+      toKind: "dream",
+      amount: 10000,
+      expectedStateVersion: s.stateVersion,
+      idempotencyKey: "m-dream-id",
+    });
+    expect(r.state.cycle!.disposable).toBe(650000);
+    const sumPlanned = r.state.jars.reduce((sum, j) => sum + j.planned, 0);
+    expect(sumPlanned).toBe(650000);
+  });
+
   it("挪入未来罐:planned 增加(用户主动,不是系统自动转;四罐契约下罐必已存在)", () => {
     const s = stateWithLeftover(30000);
     expect(s.jars.find((j) => j.kind === "future")!.planned).toBe(0);

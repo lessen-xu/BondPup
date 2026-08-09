@@ -59,26 +59,34 @@ describe("generate_principle 统一编排(网页与 MCP 同一条路径)", () =>
     { id: "s3", intent: "白色的鞋", action: "defer" as const, happened: true },
   ];
 
-  it("API 返回的候选必定通过 safety 校验(第一人称/≤25 字/无禁词/证据可追溯)", async () => {
+  it("deterministicFallback=true(演示模式):候选必过 safety 校验,source=rule", async () => {
     const out = await runAgentTask({
       task: "generate_principle",
       stories,
       existingStatements: [],
+      concerns: ["想攒钱去看海"],
+      deterministicFallback: true,
       attempt: 0,
     });
     expect(out.task).toBe("generate_principle");
     if (out.task !== "generate_principle") return;
     const allowed = new Set(stories.map((s) => s.id));
     expect(validatePrincipleWithIds(out.result, allowed)).toEqual([]);
+    // concerns 只是背景:evidence 仍必须全部指向 stories(校验层钉死)
+    for (const id of out.result.evidenceIds) {
+      expect(allowed.has(id)).toBe(true);
+    }
     expect(out.source).toBe("rule"); // 无密钥环境:确定性候选
   });
 
-  it("证据不足(只有 1 条故事)→ 不硬凑,抛 validation_error", async () => {
+  it("默认(宁缺毋滥):证据不足不硬凑,抛 validation_error 而不是兜底", async () => {
     await expect(
       runAgentTask({
         task: "generate_principle",
         stories: [stories[0]],
         existingStatements: [],
+        concerns: [],
+        deterministicFallback: false,
         attempt: 0,
       })
     ).rejects.toThrow();

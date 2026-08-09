@@ -1,4 +1,4 @@
-import { DecisionStory, JarKind, MoneyState, StoryAction } from "@/contracts";
+import { appendOp, DecisionStory, JarKind, MoneyState, StoryAction } from "@/contracts";
 import { Cents } from "@/contracts/money";
 import { DomainError } from "@/contracts/errors";
 
@@ -58,7 +58,7 @@ export function createDecisionStory(state: MoneyState, req: CreateStoryRequest):
     ...state,
     stateVersion: state.stateVersion + 1,
     stories: [...state.stories, story],
-    appliedOps: [...state.appliedOps.slice(-19), req.idempotencyKey],
+    appliedOps: appendOp(state.appliedOps, req.idempotencyKey),
   });
   return { state: newState, story };
 }
@@ -146,7 +146,7 @@ export function completeReview(state: MoneyState, req: CompleteReviewRequest): C
     stateVersion: state.stateVersion + 1,
     jars,
     stories: state.stories.map((s) => (s.id === story.id ? story : s)),
-    appliedOps: [...state.appliedOps.slice(-19), req.idempotencyKey],
+    appliedOps: appendOp(state.appliedOps, req.idempotencyKey),
   });
   return { state: newState, story, appliedDebit };
 }

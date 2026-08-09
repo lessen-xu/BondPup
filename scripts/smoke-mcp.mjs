@@ -204,6 +204,17 @@ const forged = await call("confirm_action", {
 });
 assert(forged.isError && forged.payload.code === "validation_error", "篡改 proposal → 验签失败");
 
+// 8c. 篡改撤销令牌(改金额)被拒:签名覆盖整个令牌
+const tampered = c1.payload.undoToken.replace(/:(\d+):/, ":10000:");
+const forgedUndo = await call("confirm_action", {
+  moneyState: ms,
+  action: "undo",
+  undoToken: tampered,
+  expectedStateVersion: ms.stateVersion,
+  idempotencyKey: key(),
+});
+assert(forgedUndo.isError && forgedUndo.payload.code === "validation_error", "篡改撤销令牌 → 验签失败");
+
 // 9. 撤销(故事一起抹掉)+ 撤销自身幂等
 const undoKey = key();
 const u1 = await call("confirm_action", {
@@ -291,4 +302,17 @@ ms = a1.payload.moneyState;
 const o2 = await call("get_money_overview", { moneyState: ms });
 assert(o2.payload.principles.includes(candidate.statement), "已确认原则可被引用");
 
-console.log(`\n全部通过(${calls} 次调用)——决定→行动→回看→候选原则→确认→引用 闭环成立。`);
+// 12. 删除原则(用户拥有=可删):删掉后不再被引用
+const delTarget = ms.principles.find((p) => p.statement === candidate.statement);
+const del = await call("confirm_action", {
+  moneyState: ms,
+  action: "delete_principle",
+  principleId: delTarget.id,
+  expectedStateVersion: ms.stateVersion,
+  idempotencyKey: key(),
+});
+ms = del.payload.moneyState;
+const o3 = await call("get_money_overview", { moneyState: ms });
+assert(!o3.payload.principles.includes(candidate.statement), "删除原则后不再被引用");
+
+console.log(`\n全部通过(${calls} 次调用)——决定→行动→回看→候选原则→确认→引用→删除 全链路成立。`);

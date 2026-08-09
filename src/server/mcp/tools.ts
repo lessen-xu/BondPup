@@ -8,7 +8,7 @@ import { commitJarDebit, makeUndoToken, undoJarDebit } from "@/server/domain/deb
 import { buildCycleReviewProposal, confirmCycleReview, isNewCycle } from "@/server/domain/cycle";
 import { moveLeftover } from "@/server/domain/leftover";
 import { completeReview, createDecisionStory, dueReviews } from "@/server/domain/story";
-import { buildCandidate, principleEligible, resolvePrinciple } from "@/server/domain/principle";
+import { buildCandidate, principleEligible, removePrinciple, resolvePrinciple } from "@/server/domain/principle";
 import { detectSafetyRisk, safetyReplyFor } from "@/server/safety/risk";
 import { validatePrincipleCandidate } from "@/server/safety/validate";
 import { generatePrincipleCandidate } from "@/server/agent";
@@ -78,12 +78,24 @@ function resolveState(ref: { sessionId?: string; moneyState?: unknown }): {
 }
 
 /**
- * proposal 完整性签名:内容由 record_money_moment 签发,confirm 时验签,防改写/伪造。
- * 生产环境必须配置 PROPOSAL_SECRET,未配置时 fail closed(公开的开发缺省值等于没有签名)。
+ * proposal / 撤销令牌完整性签名:服务端签发,回传时验签,防改写/伪造。
+ * 生产环境未配置 PROPOSAL_SECRET 时,用每进程随机密钥兜底:
+ * 防伪不降级(密钥不可知),单进程闭环完整可用(源码 ZIP 评测的空环境路径);
+ * 代价是多实例/重启后旧签名失效——需要跨实例稳定就配固定密钥,启动日志会提醒。
  */
 const PROPOSAL_SECRET =
   process.env.PROPOSAL_SECRET ??
-  (process.env.NODE_ENV === "production" ? null : "bondpup-dev-proposal-secret");
+  (process.env.NODE_ENV === "production"
+    ? (() => {
+        console.error(
+          JSON.stringify({
+            event: "proposal_secret_ephemeral",
+            message: "PROPOSAL_SECRET 未配置,已生成每进程随机密钥;多实例部署请配置固定密钥",
+          })
+        );
+        return `${randomUUID()}${randomUUID()}`;
+      })()
+    : "bondpup-dev-proposal-secret");
 
 function signProposal(p: {
   proposalId: string;
@@ -92,13 +104,33 @@ function signProposal(p: {
   intent: string;
   stateVersion: number;
 }): string {
-  if (!PROPOSAL_SECRET) {
-    throw new DomainError("internal_error", "服务端未配置 PROPOSAL_SECRET,候选动作签发与确认已停用");
-  }
   return createHmac("sha256", PROPOSAL_SECRET)
     .update(`${p.proposalId}|${p.jarKind}|${p.amount}|${p.intent}|${p.stateVersion}`)
     .digest("hex")
     .slice(0, 32);
+}
+
+/**
+ * 撤销令牌在 MCP 面加签:domain 的 makeUndoToken 在浏览器里也要跑(无密钥),
+ * 所以签名只能包在服务端这层——签发时包上,回传时验签并剥掉再交给 domain。
+ * 曾被实测篡改金额部分撤销成功,这里是封口。
+ */
+function signUndoToken(base: string): string {
+  const sig = createHmac("sha256", PROPOSAL_SECRET).update(base).digest("hex").slice(0, 32);
+  return `${base}:${sig}`;
+}
+
+function verifyUndoToken(token: string): string {
+  const at = token.lastIndexOf(":");
+  if (at <= 0) {
+    throw new DomainError("validation_error", "撤销令牌不合法");
+  }
+  const base = token.slice(0, at);
+  const sig = createHmac("sha256", PROPOSAL_SECRET).update(base).digest("hex").slice(0, 32);
+  if (token.slice(at + 1) !== sig) {
+    throw new DomainError("validation_error", "撤销令牌不是本服务签发或被改动过");
+  }
+  return base;
 }
 
 function remember(sessionId: string, state: MoneyState): void {
@@ -418,7 +450,7 @@ export function registerBondPupTools(server: McpServer): void {
     {
       title: "确认动作(扣罐/撤销/决定/回看/原则/周期/碎钻)",
       description:
-        "所有改变状态的用户确认动作走这里,按 action 区分:confirm_debit=确认 record_money_moment 返回的 proposal 并扣罐(可用 chosenJar 换罐);undo=按 undoToken 撤销扣罐并抹掉关联故事;note_only=只说说,记一条不改余额的故事;log_decision=记录一个购买决定(现在买/放到明天/这次先不买,不动余额);complete_review=完成一次回看(实际买了且当时未扣罐时,带 chosenJar 补记账);adopt_principle=对候选原则做 像我/改说法/暂不确定;confirm_cycle=新周期确认(月供重算、结余进碎钻);move_leftover=把碎钻挪进某个罐(可部分)。全部动作必须带 expectedStateVersion 与 idempotencyKey。",
+        "所有改变状态的用户确认动作走这里,按 action 区分:confirm_debit=确认 record_money_moment 返回的 proposal 并扣罐(可用 chosenJar 换罐);undo=按 undoToken 撤销扣罐并抹掉关联故事;note_only=只说说,记一条不改余额的故事;log_decision=记录一个购买决定(现在买/放到明天/这次先不买,不动余额);complete_review=完成一次回看(实际买了且当时未扣罐时,带 chosenJar 补记账);adopt_principle=对候选原则做 像我/改说法/暂不确定;delete_principle=删除一条原则(principleId,任何状态可删,删后不再被引用);confirm_cycle=新周期确认(月供重算、结余进碎钻);move_leftover=把碎钻挪进某个罐(可部分)。全部动作必须带 expectedStateVersion 与 idempotencyKey。",
       inputSchema: z.object({
         ...SessionRef,
         action: z.enum([
@@ -428,6 +460,7 @@ export function registerBondPupTools(server: McpServer): void {
           "log_decision",
           "complete_review",
           "adopt_principle",
+          "delete_principle",
           "confirm_cycle",
           "move_leftover",
         ]),
@@ -447,6 +480,7 @@ export function registerBondPupTools(server: McpServer): void {
           .optional(),
         decision: z.enum(["like_me", "edit", "defer"]).optional(),
         editedText: z.string().max(50).optional(),
+        principleId: z.string().max(150).optional(),
         disposable: Cents.optional(),
         livingPlanned: Cents.optional(),
         dreamMonthly: Cents.optional(),
@@ -471,7 +505,7 @@ export function registerBondPupTools(server: McpServer): void {
               return ok({
                 sessionId,
                 idempotent: true,
-                undoToken: makeUndoToken(story.confirmedJar, story.amount, meta.idempotencyKey),
+                undoToken: signUndoToken(makeUndoToken(story.confirmedJar, story.amount, meta.idempotencyKey)),
                 storyId,
                 moneyState: state,
               });
@@ -513,7 +547,7 @@ export function registerBondPupTools(server: McpServer): void {
             return ok({
               sessionId,
               reply: `已从${JAR_LABEL[jarKind]}记下 ${fmtYuan(input.proposal.amount)}。想撤销随时说。`,
-              undoToken: debit.undoToken,
+              undoToken: signUndoToken(debit.undoToken),
               storyId: story.id,
               ...(debit.overPlan > 0
                 ? { overPlanNote: `这个月${JAR_LABEL[jarKind]}记的比计划多了 ${fmtYuan(debit.overPlan)},数字我先记着,不急着调整。` }
@@ -525,7 +559,7 @@ export function registerBondPupTools(server: McpServer): void {
             if (!input.undoToken) {
               throw new DomainError("validation_error", "undo 需要 undoToken");
             }
-            const undone = undoJarDebit(state, input.undoToken, {
+            const undone = undoJarDebit(state, verifyUndoToken(input.undoToken), {
               expectedStateVersion: meta.expectedStateVersion,
               idempotencyKey: meta.idempotencyKey,
             });
@@ -635,6 +669,22 @@ export function registerBondPupTools(server: McpServer): void {
                   ? "好,先放着,不确认就不会被用到。"
                   : "记住了。这句话以后只在合适的时候被引用,随时可以改或删。",
               moneyState: resolved.state,
+            });
+          }
+          case "delete_principle": {
+            if (!input.principleId) {
+              throw new DomainError("validation_error", "delete_principle 需要 principleId");
+            }
+            const removed = removePrinciple(state, {
+              id: input.principleId,
+              expectedStateVersion: meta.expectedStateVersion,
+              idempotencyKey: meta.idempotencyKey,
+            });
+            remember(sessionId, removed.state);
+            return ok({
+              sessionId,
+              reply: "删掉了,这句话不会再被引用。",
+              moneyState: removed.state,
             });
           }
           case "confirm_cycle": {

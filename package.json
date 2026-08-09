@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "verify": "npm run lint && tsc --noEmit && npm test && next build"
+    "verify": "npm run lint && tsc --noEmit && npm run scan:copy && npm test && next build",
+    "scan:copy": "node scripts/scan-copy.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

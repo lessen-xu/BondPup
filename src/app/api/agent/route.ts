@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     }
     body = JSON.parse(raw);
   } catch {
-    return guardError(400, "validation_error", "请求体必须是 JSON");
+    return guardError(400, "validation_error", "请求体必须是 JSON"); // copy-ok 开发者错误,非慢慢文案
   }
   const parsed = AgentTaskInput.safeParse(body);
   if (!parsed.success) {

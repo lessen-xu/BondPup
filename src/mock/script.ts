@@ -18,7 +18,7 @@ export const script = {
   nickname: {
     prompt: "给我起个小名吧〜以后你就这么叫我啦",
     placeholder: "慢慢",
-    closing: "我会做你最好的伙伴，陪你慢慢学会和钱自由自在地相处〜",
+    closing: "我会做你最好的伙伴，陪你慢慢学会和钱自由自在地相处〜", // copy-ok 「你最好的伙伴」为巧合子串,非劝告语气
     confirm: "就叫这个",
   },
   firstRecord: {
@@ -91,7 +91,7 @@ export const script = {
       futureSummary: "未来罐 ▢▢▢ 元 · 安心罐会变成 ▢▢▢ 元",
       futureLow: "这样安心罐就只剩 ▢▢▢ 了,要不要少留一点?",
       futureReduce: "少留一点", stepHint: "每个数字都可以再改。",
-      negativeComfort: "这样安心罐就不够了，要不要回去调一下?",
+      negativeComfort: "这样算下来，安心罐会是负的，要不要回去调一下?",
       adjustPrevious: "回到上一步",
       concernRef: ONBOARDING_MONEY.concernRef,
       concernRefSingle: ONBOARDING_MONEY.concernRefSingle,

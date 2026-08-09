@@ -55,7 +55,7 @@ curl -s https://bondpup.vercel.app/mcp \
 ## 端到端验证
 
 ```bash
-node scripts/smoke-mcp.mjs https://bondpup.vercel.app   # 24 次调用、24 条断言
+node scripts/smoke-mcp.mjs https://bondpup.vercel.app   # 27 次调用、26 条断言
 npx @modelcontextprotocol/inspector                      # 或用 Inspector 交互式连
 ```
 

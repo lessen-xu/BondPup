@@ -133,9 +133,10 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutpu
 
 /**
  * 原则任务的统一编排(网页与 MCP 同一条路径):
- * 真模型生成 → safety 校验 → 不合规重试一次 → 仍不合规用确定性 Mock 候选(必定合规)。
- * 网页曾因 API 直接返回未校验的模型结果、前端再自己判一遍而闭环断裂——校验只此一处。
- * 兜底候选是代码产物,source 标 rule;资格判断(≥3 条已回看)在调用方。
+ * 真模型生成 → safety 校验 → 不合规重试一次 → 仍不合规按 v7.4「宁缺毋滥」不提
+ * (一条像贴标签的原则,伤害比没有原则大)。
+ * 例外:deterministicFallback=true(演示模式由前端显式传)时用确定性 Mock 候选兜底,
+ * 评委路径不断;兜底是代码产物,source 标 rule。校验只此一处,前端不再自设闸门。
  */
 async function runPrincipleTask(
   input: Extract<AgentTaskInput, { task: "generate_principle" }>,
@@ -149,11 +150,12 @@ async function runPrincipleTask(
       return { ...out, provider, source: sourceOf(provider), ...(degraded ? { degraded } : {}) };
     }
   }
-  const fallback = runMockAgentTask({ ...input, attempt: 0 });
-  if (fallback.task === "generate_principle" && check(fallback.result)) {
-    return { ...fallback, provider: "mock", source: "rule" };
+  if (input.deterministicFallback) {
+    const fallback = runMockAgentTask({ ...input, attempt: 0 });
+    if (fallback.task === "generate_principle" && check(fallback.result)) {
+      return { ...fallback, provider: "mock", source: "rule" };
+    }
   }
-  // 连确定性候选都不合规(证据 id 不合法等):宁可不给,也不给一条像贴标签的原则
   throw new DomainError("validation_error", "这次先不提炼原则,证据还不够");
 }
 
@@ -188,6 +190,9 @@ export async function generatePrincipleCandidate(
       ...(s.outcome?.feelingNote ? { feelingNote: s.outcome.feelingNote } : {}),
     })),
     existingStatements,
+    // 起点问卷「在意的事」同源接入(与网页路径同一字段);只作背景,校验层保证不进 evidence
+    concerns: state.profile.expressionPrefs ?? [],
+    deterministicFallback: false,
     attempt: 0,
   };
   for (let attempt = 0; attempt < 2; attempt++) {

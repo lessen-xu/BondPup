@@ -1,4 +1,4 @@
-import { JarKind, MoneyState } from "@/contracts";
+import { appendOp, JarKind, MoneyState } from "@/contracts";
 import { Cents } from "@/contracts/money";
 import { DomainError } from "@/contracts/errors";
 
@@ -60,7 +60,7 @@ export function commitJarDebit(state: MoneyState, req: DebitRequest): DebitResul
     jars: state.jars.map((j) =>
       j.kind === req.jarKind ? { ...j, actual: newActual, updatedAt: now } : j
     ),
-    appliedOps: [...state.appliedOps.slice(-19), req.idempotencyKey],
+    appliedOps: appendOp(state.appliedOps, req.idempotencyKey),
   });
   return { state: newState, undoToken, overPlan: Math.max(0, newActual - jar.planned) };
 }
@@ -119,7 +119,7 @@ export function undoJarDebit(
     jars: state.jars.map((j) =>
       j.kind === kindParsed.data ? { ...j, actual: j.actual - amount, updatedAt: now } : j
     ),
-    appliedOps: [...state.appliedOps.filter((k) => k !== key).slice(-19), meta.idempotencyKey],
+    appliedOps: appendOp(state.appliedOps.filter((k) => k !== key), meta.idempotencyKey),
   });
   return { state: newState, undoneKey: key };
 }

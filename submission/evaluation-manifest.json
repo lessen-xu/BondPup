@@ -12,7 +12,10 @@
   "mcp": {
     "transport": "streamable-http",
     "auth": "none",
-    "protocolVersions": ["2026-07-28", "2025-era"],
+    "protocolVersions": [
+      "2026-07-28",
+      "2025-era"
+    ],
     "toolCount": 5,
     "tools": [
       "create_money_session",
@@ -24,31 +27,46 @@
     "outputSchema": true,
     "structuredContent": true,
     "runsWithoutModelKey": true,
-    "notes": "2026-07-28 requires Mcp-Method header matching body method; tools/call also requires Mcp-Name."
+    "notes": "2026-07-28 requires Mcp-Method header matching body method; tools/call also requires Mcp-Name. confirm_action now includes delete_principle."
   },
   "verification": {
     "endToEnd": {
       "command": "node scripts/smoke-mcp.mjs https://bondpup.vercel.app",
-      "calls": 24,
-      "assertions": 24,
-      "covers": "分配→扣罐→撤销→回看→候选原则→确认→引用,含乐观锁/幂等/验签/413/四罐齐全"
+      "calls": 27,
+      "assertions": 26,
+      "covers": "分配→扣罐→撤销→回看→候选原则→确认→引用→删除,含乐观锁/幂等/proposal 与撤销令牌验签/413/四罐齐全"
     },
-    "unitTests": 98,
-    "commands": ["npm ci", "npm test", "npx tsc --noEmit", "npm run build"],
+    "unitTests": 117,
+    "commands": [
+      "npm ci",
+      "npm test",
+      "npx tsc --noEmit",
+      "npm run build"
+    ],
     "ci": "GitHub Actions job \"verify\" on every PR; red never merged"
   },
   "model": {
-    "providers": ["anthropic (claude-sonnet-5)", "openai-compatible (deepseek-v4-flash)", "deterministic mock"],
+    "providers": [
+      "anthropic (claude-sonnet-5)",
+      "openai-compatible (deepseek-v4-flash)",
+      "deterministic mock"
+    ],
     "selection": "env-var based; failure or timeout degrades to deterministic mock",
     "singleAttemptBudgetMs": 8000,
     "clientTimeoutMs": 10000,
-    "responseFields": ["provider", "source (ai|rule)", "safetyFlags", "safetyEvent", "degraded"]
+    "responseFields": [
+      "provider",
+      "source (ai|rule)",
+      "safetyFlags",
+      "safetyEvent",
+      "degraded"
+    ]
   },
   "safety": {
     "inputGate": "keyword routing for self_harm / debt_loan / investment / generic_emotion; risky input never reaches the model",
     "crisisResponse": "fixed copy with 24h helpline 12356, verified at the API layer by contract tests",
-    "outputGate": "26-word forbidden list + max 3 sentences; one retry then safe fallback",
-    "principleGate": "first person, <=25 codepoints, evidence must reference reviewed stories; retry once then deterministic candidate",
+    "outputGate": "20-word forbidden list + max 3 sentences; one retry then safe fallback; static UI copy scanned in CI",
+    "principleGate": "first person, <=25 codepoints, evidence must reference reviewed stories; retry once then silently withhold (v7.4); demo mode may opt into a deterministic candidate",
     "auditEvents": "risk type and rule only, never user text"
   },
   "privacy": {
@@ -67,7 +85,7 @@
   },
   "knownGaps": [
     "网页面的 CYCLE_REVIEW 与结余碎钻尚未接入(MCP 面可用)",
-    "已确认原则暂只支持查看,修改/删除待接入",
-    "真实目标用户试用尚未完成,文档未作任何用户结论声称"
+    "真实目标用户试用尚未完成,文档未作任何用户结论声称",
+    "已确认原则的修改/删除后端与 MCP 已就绪,网页 UI 接入中"
   ]
 }

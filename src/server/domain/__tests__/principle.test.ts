@@ -6,6 +6,7 @@ import {
   buildCandidate,
   confirmedPrinciples,
   principleEligible,
+  removePrinciple,
   resolvePrinciple,
 } from "../principle";
 
@@ -178,5 +179,62 @@ describe("主闭环集成:决定 → 回看 → 候选 → 确认 → 引用", (
     const cited = confirmedPrinciples(state);
     expect(cited).toHaveLength(1);
     expect(cited[0].evidenceIds.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("removePrinciple 删除(原则归用户所有,任何状态可删)", () => {
+  function withConfirmed() {
+    let state = stateWithReviewed(3);
+    state = buildCandidate(state, {
+      statement: "我放一晚再决定,好像更踏实",
+      evidenceIds: state.stories.slice(0, 2).map((s) => s.id),
+      expectedStateVersion: state.stateVersion,
+      idempotencyKey: "del-build",
+    }).state;
+    state = resolvePrinciple(state, {
+      id: "principle-del-build",
+      decision: "like_me",
+      expectedStateVersion: state.stateVersion,
+      idempotencyKey: "del-resolve",
+    }).state;
+    return state;
+  }
+
+  it("删除后不再出现、不再被引用,版本 +1", () => {
+    const state = withConfirmed();
+    expect(confirmedPrinciples(state)).toHaveLength(1);
+    const r = removePrinciple(state, {
+      id: "principle-del-build",
+      expectedStateVersion: state.stateVersion,
+      idempotencyKey: "del-1",
+    });
+    expect(r.state.principles).toHaveLength(0);
+    expect(confirmedPrinciples(r.state)).toHaveLength(0);
+    expect(r.state.stateVersion).toBe(state.stateVersion + 1);
+  });
+
+  it("幂等重放;删不存在的 → not_found", () => {
+    const state = withConfirmed();
+    const r = removePrinciple(state, {
+      id: "principle-del-build",
+      expectedStateVersion: state.stateVersion,
+      idempotencyKey: "del-1",
+    });
+    const replay = removePrinciple(r.state, {
+      id: "principle-del-build",
+      expectedStateVersion: 999,
+      idempotencyKey: "del-1",
+    });
+    expect(replay.idempotent).toBe(true);
+    try {
+      removePrinciple(r.state, {
+        id: "principle-nope",
+        expectedStateVersion: r.state.stateVersion,
+        idempotencyKey: "del-2",
+      });
+      expect.unreachable();
+    } catch (e) {
+      expect((e as import("@/contracts/errors").DomainError).code).toBe("not_found");
+    }
   });
 });
