@@ -1,4 +1,4 @@
-import { DecisionStory, JarKind, MoneyState, StoryAction } from "@/contracts";
+import { appendOp, DecisionStory, JarKind, MoneyState, StoryAction } from "@/contracts";
 import { Cents } from "@/contracts/money";
 import { DomainError } from "@/contracts/errors";
 
@@ -58,7 +58,7 @@ export function createDecisionStory(state: MoneyState, req: CreateStoryRequest):
     ...state,
     stateVersion: state.stateVersion + 1,
     stories: [...state.stories, story],
-    appliedOps: [...state.appliedOps.slice(-19), req.idempotencyKey],
+    appliedOps: appendOp(state.appliedOps, req.idempotencyKey),
   });
   return { state: newState, story };
 }
@@ -108,6 +108,10 @@ export function completeReview(state: MoneyState, req: CompleteReviewRequest): C
     if (!req.happened) {
       throw new DomainError("validation_error", "没有实际发生的决定不需要记账");
     }
+    if (req.debitJar === "future") {
+      // 与 commitJarDebit 同一条冻结规则:未来罐只进不出,补记账这条路也不能绕过去
+      throw new DomainError("validation_error", "未来罐不参与日常扣账,长期积累只进不出");
+    }
     if (existing.confirmedJar !== undefined) {
       throw new DomainError("state_conflict", "这笔当时已经记过账了,不能重复记");
     }
@@ -142,7 +146,7 @@ export function completeReview(state: MoneyState, req: CompleteReviewRequest): C
     stateVersion: state.stateVersion + 1,
     jars,
     stories: state.stories.map((s) => (s.id === story.id ? story : s)),
-    appliedOps: [...state.appliedOps.slice(-19), req.idempotencyKey],
+    appliedOps: appendOp(state.appliedOps, req.idempotencyKey),
   });
   return { state: newState, story, appliedDebit };
 }

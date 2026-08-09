@@ -171,6 +171,23 @@ describe("completeReview 补记账(决定→回看→余额一致)", () => {
     expect(r.story.confirmedJar).toBe("comfort");
   });
 
+  it("补记账不能扣未来罐(冻结规则:只进不出,回看这条路也不能绕)", () => {
+    const { state } = decided();
+    try {
+      completeReview(state, {
+        storyId: "story-d1",
+        happened: true,
+        actualAmount: 30000,
+        debitJar: "future",
+        expectedStateVersion: state.stateVersion,
+        idempotencyKey: "r-future",
+      });
+      expect.unreachable();
+    } catch (e) {
+      expect((e as DomainError).code).toBe("validation_error");
+    }
+  });
+
   it("金额缺省取故事金额;没发生却要记账 → validation_error", () => {
     const { state } = decided();
     const r = completeReview(state, {

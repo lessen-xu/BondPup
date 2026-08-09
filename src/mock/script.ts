@@ -18,7 +18,7 @@ export const script = {
   nickname: {
     prompt: "给我起个小名吧〜以后你就这么叫我啦",
     placeholder: "慢慢",
-    closing: "我会做你最好的伙伴，陪你慢慢学会和钱自由自在地相处〜",
+    closing: "我会做你最好的伙伴，陪你慢慢学会和钱自由自在地相处〜", // copy-ok 「你最好的伙伴」为巧合子串,非劝告语气
     confirm: "就叫这个",
   },
   firstRecord: {

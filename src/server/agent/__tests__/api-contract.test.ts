@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { runAgentTask } from "@/server/agent";
 import { runMockAgentTask } from "@/server/agent/mock";
-import { validateReplyText } from "@/server/safety/validate";
+import { buildTaskPrompt } from "@/server/agent/prompts";
+import { validateDecisionReply, validatePrincipleWithIds, validateReplyText } from "@/server/safety/validate";
 
 /**
  * API→组件契约测试:锁定 /api/agent 响应里页面依赖的安全字段。
@@ -49,6 +50,82 @@ describe("/api/agent 安全字段契约(防漂移)", () => {
     if (out.task === "decompose_wish") {
       expect(out.result.concerns.length).toBeGreaterThanOrEqual(3);
     }
+  });
+});
+
+describe("generate_principle 统一编排(网页与 MCP 同一条路径)", () => {
+  const stories = [
+    { id: "s1", intent: "按摩仪", action: "defer" as const, happened: false },
+    { id: "s2", intent: "短途旅行", action: "skip_this_time" as const, happened: false },
+    { id: "s3", intent: "白色的鞋", action: "defer" as const, happened: true },
+  ];
+
+  it("deterministicFallback=true(演示模式):候选必过 safety 校验,source=rule", async () => {
+    const out = await runAgentTask({
+      task: "generate_principle",
+      stories,
+      existingStatements: [],
+      concerns: ["想攒钱去看海"],
+      deterministicFallback: true,
+      attempt: 0,
+    });
+    expect(out.task).toBe("generate_principle");
+    if (out.task !== "generate_principle") return;
+    const allowed = new Set(stories.map((s) => s.id));
+    expect(validatePrincipleWithIds(out.result, allowed)).toEqual([]);
+    // concerns 只是背景:evidence 仍必须全部指向 stories(校验层钉死)
+    for (const id of out.result.evidenceIds) {
+      expect(allowed.has(id)).toBe(true);
+    }
+    expect(out.source).toBe("rule"); // 无密钥环境:确定性候选
+  });
+
+  it("默认(宁缺毋滥):证据不足不硬凑,抛 validation_error 而不是兜底", async () => {
+    await expect(
+      runAgentTask({
+        task: "generate_principle",
+        stories: [stories[0]],
+        existingStatements: [],
+        concerns: [],
+        deterministicFallback: false,
+        attempt: 0,
+      })
+    ).rejects.toThrow();
+  });
+});
+
+describe("厚上下文:金额只以文本进 prompt,模型永远见不到裸分值", () => {
+  it("decision 场景:payload 含格式化金额与她的上下文,不含原始分值", () => {
+    const { payload, instruction } = buildTaskPrompt({
+      task: "companion_reply",
+      scene: "decision",
+      userText: "想买个投影仪",
+      stateSummary: { comfortAvailable: 350000, shortfall: 50000 },
+      principles: ["我放一晚再决定,好像更踏实"],
+      concerns: ["周末能出去走走"],
+      recentStories: [{ intent: "想买那双白色的鞋", action: "defer", happened: true, feelingNote: "穿得不多", amount: 39900 }],
+      item: { name: "投影仪", amount: 400000 },
+    });
+    expect(payload).toContain("3500 元");
+    expect(payload).toContain("买了差 500 元");
+    expect(payload).toContain("399 元");
+    expect(payload).toContain("4000 元");
+    expect(payload).not.toMatch(/350000|50000|39900|400000/);
+    expect(payload).toContain("周末能出去走走");
+    expect(instruction).toContain("交还");
+  });
+
+  it("Mock 决策回应天然通过三选项语义闸(降级路径安全)", async () => {
+    const out = await runAgentTask({
+      task: "companion_reply",
+      scene: "decision",
+      userText: "犹豫要不要买",
+      stateSummary: { comfortAvailable: 350000 },
+    });
+    expect(out.task).toBe("companion_reply");
+    if (out.task !== "companion_reply") return;
+    expect(validateDecisionReply(out.result.text)).toEqual([]);
+    expect(out.source).toBe("rule");
   });
 });
 

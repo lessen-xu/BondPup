@@ -22,14 +22,49 @@ export const CompanionReplyInput = z.object({
   task: z.literal("companion_reply"),
   scene: z.enum(["greet", "decision", "note", "review_note"]),
   userText: z.string().max(500).optional(),
-  /** 只传最小摘要,不传完整倾诉原文 */
+  /**
+   * 厚上下文:模型手上没东西只能说套话(用户实测反馈「像过家家」)。
+   * 全部可选,前端有什么传什么;金额一律为分,由 prompts 层格式化成文本再进 prompt。
+   */
   stateSummary: z
     .object({
       comfortAvailable: z.number().int().optional(),
+      /** 这次要买的差额(分),由前端 previewDecision 算好传入——模型不做算术 */
+      shortfall: z.number().int().optional(),
+      jars: z
+        .array(
+          z.object({
+            kind: z.string().max(20),
+            label: z.string().max(30),
+            planned: z.number().int(),
+            actual: z.number().int(),
+          })
+        )
+        .max(4)
+        .optional(),
       hasCycle: z.boolean().optional(),
       updatedAt: z.string().optional(),
     })
     .optional(),
+  /** 已确认的金钱原则原文(她自己确认过的话) */
+  principles: z.array(z.string().max(60)).max(5).optional(),
+  /** 起点问卷「在意的事」 */
+  concerns: z.array(z.string().max(100)).max(6).optional(),
+  /** 最近的相关决定故事(带结果与感受);模型只在真相关时引用 */
+  recentStories: z
+    .array(
+      z.object({
+        intent: z.string().max(120),
+        action: z.string().max(30),
+        happened: z.boolean().optional(),
+        feelingNote: z.string().max(200).optional(),
+        amount: z.number().int().optional(),
+      })
+    )
+    .max(3)
+    .optional(),
+  /** 这次的物品与金额(分) */
+  item: z.object({ name: z.string().max(120), amount: z.number().int().optional() }).optional(),
   context: z.object({
     item: z.string().max(120),
     action: z.string().max(80),
@@ -79,6 +114,16 @@ export const GeneratePrincipleInput = z.object({
     .min(3),
   /** 已确认原则(防重复;冲突时并列不覆盖,由用户选) */
   existingStatements: z.array(z.string()).default([]),
+  /**
+   * 起点问卷「在意的事」(profile.expressionPrefs):只作理解这个人的背景,
+   * 不能被引用成原则、不能作 evidence——校验层只认 stories 里的 id
+   */
+  concerns: z.array(z.string().max(100)).max(6).default([]),
+  /**
+   * 两轮生成都不合规时是否用确定性候选兜底。默认 false = v7.4「宁缺毋滥」:
+   * 再失败就不提。演示模式由前端显式传 true(评委路径不断)。
+   */
+  deterministicFallback: z.boolean().default(false),
   /** 重试轮次(校验失败重试一次时 +1,让生成结果变化) */
   attempt: z.number().int().min(0).default(0),
 });

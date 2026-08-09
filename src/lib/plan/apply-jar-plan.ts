@@ -1,4 +1,4 @@
-import { MoneyState } from "@/contracts";
+import { appendOp, MoneyState } from "@/contracts";
 import { DomainError } from "@/contracts/errors";
 import { computeJars, type ComputeJarsResult } from "@/server/domain/jars";
 import { computeLivingJar, type LivingItems } from "@/server/domain/living";
@@ -134,7 +134,7 @@ export function applyJarPlan(input: ApplyJarPlanInput): ApplyJarPlanResult {
     },
     jars,
     appliedOps: input.idempotencyKey
-      ? [...base.appliedOps.slice(-19), input.idempotencyKey]
+      ? appendOp(base.appliedOps, input.idempotencyKey)
       : base.appliedOps,
   });
 

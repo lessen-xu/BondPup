@@ -51,8 +51,11 @@ function mockReply(input: Extract<AgentTaskInput, { task: "companion_reply" }>):
       const line = comfort !== undefined
         ? `我这里记的安心罐还有 ${comfort % 100 === 0 ? comfort / 100 : (comfort / 100).toFixed(2)} 元。`
         : "我听着呢。";
+      const isFollowUp = Boolean(input.noteContext?.conversation.length);
       return {
-        text: `嗯,你还在想着这件东西。${line}还想说什么就接着说吧。`,
+        text: isFollowUp
+          ? `嗯,你还在想着这件东西。${line}还想说什么就接着说吧。`
+          : `嗯,你还在想着这件东西。${line}现在买、放到明天、这次先不买,都可以,你来定。`,
         requiresConfirmation: false,
       };
     }

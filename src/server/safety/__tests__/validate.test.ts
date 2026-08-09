@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DecisionStory } from "@/contracts";
-import { validatePrincipleCandidate, validateReplyText } from "../validate";
+import { isVague } from "@/server/agent";
+import { validateDecisionReply, validatePrincipleCandidate, validateReplyText } from "../validate";
 
 function story(id: string, status: "open" | "reviewed"): DecisionStory {
   return DecisionStory.parse({
@@ -34,6 +35,44 @@ describe("validateReplyText", () => {
   it("全角!?也算句号:真模型线上出过 4 句全角标点回复溜过闸", () => {
     const fails = validateReplyText("第一句！第二句？第三句。第四句！");
     expect(fails.some((f) => f.rule === "max_sentences")).toBe(true);
+  });
+});
+
+describe("validateDecisionReply(决策语义闸:三个中性动作缺一不可)", () => {
+  const full =
+    "犹豫很正常。我这里记的安心罐还有 3500 元,买了差 500 元。上次那双鞋你放了三天,后来说穿得不多。你可以现在买,也可以放到明天,或者这次先不买。我能想到的就这些了,买不买你定。";
+
+  it("三选项齐全 + 五句以内 → 通过", () => {
+    expect(validateDecisionReply(full)).toEqual([]);
+  });
+  it("只回一句情绪(线上真实案例)→ 缺三选项被拒", () => {
+    const fails = validateDecisionReply("听起来你已经想了一会儿了。");
+    expect(fails.some((f) => f.rule === "three_actions")).toBe(true);
+  });
+  it("缺任一选项都被拒", () => {
+    const noSkip = full.replace("或者这次先不买。", "");
+    expect(validateDecisionReply(noSkip).some((f) => f.rule === "three_actions")).toBe(true);
+  });
+  it("六句超预算被拒(decision 预算为 5)", () => {
+    const six = "一句。两句。三句。四句。五句。你可以现在买,放到明天,或者这次先不买。";
+    expect(validateDecisionReply(six).some((f) => f.rule === "max_sentences")).toBe(true);
+  });
+});
+
+describe("isVague(原则空泛度:对谁都成立=对她没用)", () => {
+  const stories = [
+    { intent: "想买那双白色的鞋", feelingNote: "还是觉得它好看" },
+    { intent: "犹豫一个投影仪" },
+  ];
+  it("「你还是想买你真正想买的」→ 空泛(虚词蒙混不过去)", () => {
+    expect(isVague("我还是想买我真正想买的", stories)).toBe(true);
+  });
+  it("含证据实义词(白色/投影)→ 具体", () => {
+    expect(isVague("对白色的鞋这类,我会先等等", stories)).toBe(false);
+    expect(isVague("投影仪这种大件,我想先看看", stories)).toBe(false);
+  });
+  it("含时间线索 → 具体(Mock 模板「放一晚」天然通过)", () => {
+    expect(isVague("我放一晚再决定,好像更踏实", [])).toBe(false);
   });
 });
 

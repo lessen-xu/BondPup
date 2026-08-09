@@ -12,6 +12,21 @@ import { buildTaskPrompt, MANMAN_SYSTEM } from "./prompts";
 
 const TIMEOUT_MS = 8000;
 
+/**
+ * 场景 → 模型映射:短回应(陪伴/拆解)用快模型保时延;原则生成一天最多几次、
+ * 质量要求最高,配置了 *_MODEL_STRONG 就用强模型,没配回落默认。
+ */
+function compatModelFor(task: AgentTaskInput["task"]): string | undefined {
+  return task === "generate_principle"
+    ? process.env.OPENAI_COMPAT_MODEL_STRONG ?? process.env.OPENAI_COMPAT_MODEL
+    : process.env.OPENAI_COMPAT_MODEL;
+}
+
+function anthropicModelFor(task: AgentTaskInput["task"]): string {
+  const base = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5";
+  return task === "generate_principle" ? process.env.ANTHROPIC_MODEL_STRONG ?? base : base;
+}
+
 /** 模型输出里抠 JSON(容忍 ```json 围栏与前后闲话) */
 function extractJson(text: string): unknown {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -52,7 +67,7 @@ export async function runAnthropicTask(input: AgentTaskInput): Promise<AgentTask
   });
   const { instruction, payload } = buildTaskPrompt(input);
   const params: Record<string, unknown> = {
-    model: process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5",
+    model: anthropicModelFor(input.task),
     max_tokens: 1000,
     system: MANMAN_SYSTEM,
     output_config: { effort: "low" },
@@ -75,7 +90,7 @@ export async function runCompatTask(input: AgentTaskInput): Promise<AgentTaskOut
   for (let attempt = 0; attempt < 1; attempt++) {
     try {
       const body: Record<string, unknown> = {
-        model: process.env.OPENAI_COMPAT_MODEL,
+        model: compatModelFor(input.task),
         max_tokens: 1000,
         messages: [
           { role: "system", content: MANMAN_SYSTEM },

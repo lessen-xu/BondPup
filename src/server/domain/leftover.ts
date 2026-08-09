@@ -1,4 +1,4 @@
-import { JarKind, MoneyState } from "@/contracts";
+import { appendOp, JarKind, MoneyState } from "@/contracts";
 import { Cents } from "@/contracts/money";
 import { DomainError } from "@/contracts/errors";
 
@@ -61,27 +61,36 @@ export function moveLeftover(state: MoneyState, req: MoveLeftoverRequest): MoveL
   if (req.amount > state.leftover.amount) {
     throw new DomainError("state_conflict", "碎钻里没有这么多");
   }
+  if (!state.cycle) {
+    // 有碎钻必有周期(结余只能从周期确认产生);走到这里说明状态已损坏
+    throw new DomainError("state_conflict", "当前没有进行中的周期,碎钻先放着");
+  }
   const now = new Date().toISOString();
   let jars = state.jars;
+  let cycle = state.cycle;
   const target = jars.find((j) => j.kind === req.toKind);
   if (!target) {
     throw new DomainError("not_found", `还没有 ${req.toKind} 罐,先完成一次安排`);
   }
   if (req.toKind === "dream") {
+    // 计入本期已放月供(actual):计划恒等式只看 planned,disposable 不动
     jars = jars.map((j) =>
       j.kind === "dream" ? { ...j, actual: j.actual + req.amount, updatedAt: now } : j
     );
   } else {
+    // planned 增加 = 本期可安排变多:disposable 同步增加,四罐恒等式保持成立
     jars = jars.map((j) =>
       j.kind === req.toKind ? { ...j, planned: j.planned + req.amount, updatedAt: now } : j
     );
+    cycle = { ...cycle, disposable: cycle.disposable + req.amount, updatedAt: now };
   }
   const newState = MoneyState.parse({
     ...state,
     stateVersion: state.stateVersion + 1,
+    cycle,
     jars,
     leftover: { ...state.leftover, amount: state.leftover.amount - req.amount },
-    appliedOps: [...state.appliedOps.slice(-19), req.idempotencyKey],
+    appliedOps: appendOp(state.appliedOps, req.idempotencyKey),
   });
   return { state: newState, movedNote: "好,这个月就松一点了。" };
 }
