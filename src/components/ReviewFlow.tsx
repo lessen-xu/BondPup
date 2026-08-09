@@ -87,6 +87,9 @@ async function proposePrinciple(state: MoneyState): Promise<ProposedPrinciple | 
     existingStatements: state.principles
       .filter((principle) => principle.status === "confirmed" || principle.status === "edited")
       .map((principle) => principle.statement),
+    // 演示模式评委路径不能概率性断:真模型两轮都被严闸拒掉时用确定性候选兜底;
+    // 真实模式保持 v7.4 宁缺毋滥(不传即 false)
+    deterministicFallback: state.demo,
     attempt: 0,
   });
   if (!response.ok || !response.payload || typeof response.payload !== "object") return null;
