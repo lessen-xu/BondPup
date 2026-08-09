@@ -25,6 +25,7 @@ SOFTWARE.
 上述 MIT 授权仅覆盖本仓库的代码与文档。美术素材(插画、图片等视觉资产)
 为团队以 AI 生成后手工调整的原创资产,版权归创作者保留,不随本授权开放使用。
 
-内嵌第三方字体(均为 SIL Open Font License 1.1):
-- Long Cang
-- Caveat
+内嵌第三方字体(均为 SIL Open Font License 1.1,仓库内为按需生成的子集):
+- Long Cang(long-cang-v1.woff2,正文手写体)
+- Caveat(caveat.woff2,西文)
+- Yozai(manman-symbols.woff2 的来源,补充主字体缺失的符号字形)
