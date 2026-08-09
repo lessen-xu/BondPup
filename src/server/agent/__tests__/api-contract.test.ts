@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { runAgentTask } from "@/server/agent";
+import { runAgentTask, sanitizeCompanionContext } from "@/server/agent";
 import { runMockAgentTask } from "@/server/agent/mock";
 import { buildTaskPrompt } from "@/server/agent/prompts";
-import { validateDecisionReply, validatePrincipleWithIds, validateReplyText } from "@/server/safety/validate";
+import {
+  validateConcernsOutput,
+  validateDecisionReply,
+  validatePrincipleWithIds,
+  validateReplyText,
+} from "@/server/safety/validate";
 
 /**
  * API→组件契约测试:锁定 /api/agent 响应里页面依赖的安全字段。
@@ -80,6 +85,37 @@ describe("generate_principle 统一编排(网页与 MCP 同一条路径)", () =>
     expect(out.source).toBe("rule"); // 无密钥环境:确定性候选
   });
 
+  it("P0 封口:故事摘要含硬红线(自伤)→ 整个不生成,demo 兜底也不例外(生产复现过自伤原则)", async () => {
+    const risky = [
+      { id: "s1", intent: "一次消费", action: "defer" as const, feelingNote: "感觉活着没什么意思" },
+      stories[1],
+      stories[2],
+    ];
+    await expect(
+      runAgentTask({
+        task: "generate_principle",
+        stories: risky,
+        existingStatements: [],
+        concerns: [],
+        deterministicFallback: true,
+        attempt: 0,
+      })
+    ).rejects.toThrow();
+  });
+
+  it("concerns 含硬红线(借贷)同样不生成", async () => {
+    await expect(
+      runAgentTask({
+        task: "generate_principle",
+        stories,
+        existingStatements: [],
+        concerns: ["想借网贷周转一下"],
+        deterministicFallback: true,
+        attempt: 0,
+      })
+    ).rejects.toThrow();
+  });
+
   it("默认(宁缺毋滥):证据不足不硬凑,抛 validation_error 而不是兜底", async () => {
     await expect(
       runAgentTask({
@@ -129,7 +165,52 @@ describe("厚上下文:金额只以文本进 prompt,模型永远见不到裸分�
   });
 });
 
+describe("厚上下文背景清洗(P0:输入闸覆盖所有入模字符串)", () => {
+  it("硬红线条目被剔除,干净条目保留;泛化情绪(想哭)是正常内容不剔", () => {
+    const out = sanitizeCompanionContext({
+      task: "companion_reply",
+      scene: "decision",
+      userText: "犹豫要不要买",
+      principles: ["我放一晚再决定,好像更踏实", "我想借网贷也要买到手"],
+      concerns: ["想去炒股翻倍", "周末能出去走走"],
+      recentStories: [
+        { intent: "想买那双白色的鞋", action: "defer", feelingNote: "想哭但放下了" },
+        { intent: "买比特币", action: "buy_now" },
+      ],
+      item: { name: "投影仪", amount: 400000 },
+    });
+    expect(out.principles).toEqual(["我放一晚再决定,好像更踏实"]);
+    expect(out.concerns).toEqual(["周末能出去走走"]);
+    expect(out.recentStories?.map((s) => s.intent)).toEqual(["想买那双白色的鞋"]);
+    expect(out.item?.name).toBe("投影仪");
+  });
+  it("item 本身命中硬红线 → 整个剔除", () => {
+    const out = sanitizeCompanionContext({
+      task: "companion_reply",
+      scene: "decision",
+      userText: "想买这个",
+      item: { name: "虚拟币合约课程", amount: 100000 },
+    });
+    expect(out.item).toBeUndefined();
+  });
+});
+
 describe("decompose_wish 拆解输入", () => {
+  it("Mock 拆解天然通过输出闸(decompose 兜底路径安全)", () => {
+    for (const input of [
+      { task: "decompose_wish" as const, wish: "想攒钱也想过得舒服" },
+      {
+        task: "decompose_wish" as const,
+        wish: "想攒下来一点",
+        nearChoice: "save",
+        goal: { name: "去日本旅行", amount: 960000, monthsRemaining: 12 },
+      },
+    ]) {
+      const out = runMockAgentTask(input);
+      if (out.task !== "decompose_wish") throw new Error("任务类型不符");
+      expect(validateConcernsOutput(out.result.concerns)).toEqual([]);
+    }
+  });
   it("两组不同输入返回不同 concerns,并带入远期目标", () => {
     const travel = runMockAgentTask({
       task: "decompose_wish",

@@ -1,5 +1,10 @@
-import { createHmac, randomUUID } from "node:crypto";
-import type { McpServer } from "@modelcontextprotocol/server";
+import { createHash, createHmac, randomUUID } from "node:crypto";
+import {
+  fromJsonSchema,
+  type JsonSchemaValidatorResult,
+  type jsonSchemaValidator,
+  type McpServer,
+} from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { Cents, JarKind, MoneyState } from "@/contracts";
 import { DomainError } from "@/contracts/errors";
@@ -97,15 +102,41 @@ const PROPOSAL_SECRET =
       })()
     : "bondpup-dev-proposal-secret");
 
-function signProposal(p: {
-  proposalId: string;
-  jarKind: string;
-  amount: number;
-  intent: string;
-  stateVersion: number;
-}): string {
+/**
+ * 递归键排序的稳定序列化:同一状态无论客户端以什么键序链回,摘要一致
+ * (JS 客户端 JSON 往返保序,但 Python 等客户端可能按字典序重排键)。
+ */
+function canonicalJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(canonicalJson).join(",")}]`;
+  if (v !== null && typeof v === "object") {
+    const o = v as Record<string, unknown>;
+    return `{${Object.keys(o)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${canonicalJson(o[k])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(v) ?? "null";
+}
+
+/** proposal 与当前 moneyState 内容绑定的摘要:同版本号的不同用户状态不可互换 */
+function stateDigest(state: MoneyState): string {
+  return createHash("sha256").update(canonicalJson(state)).digest("hex").slice(0, 16);
+}
+
+function signProposal(
+  p: {
+    proposalId: string;
+    jarKind: string;
+    amount: number;
+    intent: string;
+    stateVersion: number;
+  },
+  digest: string
+): string {
+  // 曾被实测:A 会话签发的 proposal 在版本号恰好相同的 B 会话成功扣款——
+  // stateVersion 只防「同一状态变了」,不防「不同状态碰巧同版本」,所以把状态摘要签进去
   return createHmac("sha256", PROPOSAL_SECRET)
-    .update(`${p.proposalId}|${p.jarKind}|${p.amount}|${p.intent}|${p.stateVersion}`)
+    .update(`${p.proposalId}|${p.jarKind}|${p.amount}|${p.intent}|${p.stateVersion}|${digest}`)
     .digest("hex")
     .slice(0, 32);
 }
@@ -435,7 +466,7 @@ export function registerBondPupTools(server: McpServer): void {
         };
         return ok({
           sessionId,
-          proposal: { ...proposalBody, sig: signProposal(proposalBody) },
+          proposal: { ...proposalBody, sig: signProposal(proposalBody, stateDigest(state)) },
           requiresConfirmation: true,
           reply: `我先按${JAR_LABEL[candidateJar]}记这 ${fmtYuan(input.amount)},可以吗?也可以换个罐子,或者只说说、不改余额。`,
           moneyState: state,
@@ -455,77 +486,114 @@ export function registerBondPupTools(server: McpServer): void {
     sig: z.string().min(1).describe("record_money_moment 签发的完整性签名,原样带回"),
   });
 
+  const ConfirmActionBase = z.object({
+    ...SessionRef,
+    action: z.enum([
+      "confirm_debit",
+      "undo",
+      "note_only",
+      "log_decision",
+      "complete_review",
+      "adopt_principle",
+      "delete_principle",
+      "confirm_cycle",
+      "move_leftover",
+    ]),
+    proposal: PendingProposal.optional().describe("confirm_debit 必填:record_money_moment 返回的 proposal 原样传回"),
+    chosenJar: JarKind.optional().describe("confirm_debit 可选换罐;complete_review 补记账时指定扣哪个罐"),
+    reviewInDays: z.union([z.literal(1), z.literal(3)]).optional().describe("confirm_debit/log_decision 可选:几天后回看"),
+    undoToken: z.string().max(200).optional().describe("undo 必填:confirm_debit 响应里的带签名令牌"),
+    intent: z.string().min(1).max(120).optional().describe("log_decision/note_only 必填:这件事是什么"),
+    decisionAction: z.enum(["buy_now", "defer", "skip_this_time"]).optional().describe("log_decision 必填"),
+    amount: Cents.optional().describe("log_decision 可选;move_leftover 必填(分)"),
+    storyId: z.string().max(150).optional().describe("complete_review 必填"),
+    happened: z.boolean().optional().describe("complete_review 必填:后来实际发生了吗"),
+    actualAmount: Cents.optional().describe("complete_review 可选:实际金额(分)"),
+    feelingNote: z.string().max(200).optional().describe("complete_review 可选:一句感受"),
+    candidate: z
+      .object({ statement: z.string().min(1).max(50), evidenceIds: z.array(z.string()).min(2).max(3) })
+      .optional()
+      .describe("adopt_principle 必填:get_money_overview 返回的 principleCandidate"),
+    decision: z.enum(["like_me", "edit", "defer"]).optional().describe("adopt_principle 必填"),
+    editedText: z.string().max(50).optional().describe("adopt_principle decision=edit 时必填"),
+    principleId: z.string().max(150).optional().describe("delete_principle 必填"),
+    disposable: Cents.optional().describe("confirm_cycle 必填:新周期可安排金额(分)"),
+    livingPlanned: Cents.optional().describe("confirm_cycle 必填"),
+    dreamMonthly: Cents.optional().describe("confirm_cycle 可选:确认的新月供"),
+    extendMonths: z.number().int().min(0).max(24).optional().describe("confirm_cycle 可选:目标时间往后挪几个月"),
+    futurePlanned: Cents.optional().describe("confirm_cycle 可选"),
+    toKind: JarKind.optional().describe("move_leftover 必填:挪进哪个罐"),
+    expectedStateVersion: z.number().int().min(1),
+    idempotencyKey: z.string().min(1).max(100),
+  });
+
+  /** action 专属必填(公开 schema 的 if-then 与 handler 校验共用同一张表) */
+  const REQUIRED_BY_ACTION: Record<string, string[]> = {
+    confirm_debit: ["proposal"],
+    undo: ["undoToken"],
+    note_only: ["intent"],
+    log_decision: ["intent", "decisionAction"],
+    complete_review: ["storyId", "happened"],
+    adopt_principle: ["candidate", "decision"],
+    delete_principle: ["principleId"],
+    confirm_cycle: ["disposable", "livingPlanned"],
+    move_leftover: ["toKind", "amount"],
+  };
+
+  /**
+   * 双轨 schema:
+   * - tools/list 公开的 JSON Schema 带 allOf/if-then 条件必填,自动调用器可静态推导
+   *   「note_only 需要 intent」这类约束(根仍是 object,不用 discriminatedUnion 根)。
+   * - 运行时只用 zod 校验基础形状;action 专属必填由 handler 校验并返回统一
+   *   {code:"validation_error", message}——放进运行时 schema 会在 SDK 层变成协议错误文本,
+   *   破坏 docs/MCP.md 承诺的错误契约(实测过 superRefine 版本正是这样漏的)。
+   */
+  const confirmActionJsonSchema = {
+    ...z.toJSONSchema(ConfirmActionBase, { io: "input" }),
+    allOf: Object.entries(REQUIRED_BY_ACTION).map(([action, required]) => ({
+      if: { properties: { action: { const: action } }, required: ["action"] },
+      then: { required },
+    })),
+  } as Parameters<typeof fromJsonSchema>[0];
+
+  const zodBaseValidator: jsonSchemaValidator = {
+    getValidator: <T,>() => (data: unknown): JsonSchemaValidatorResult<T> => {
+      const r = ConfirmActionBase.safeParse(data);
+      return r.success
+        ? { valid: true, data: r.data as T, errorMessage: undefined }
+        : {
+            valid: false,
+            data: undefined,
+            errorMessage: r.error.issues
+              .map((i) => `${i.path.join(".")}: ${i.message}`)
+              .join("; "),
+          };
+    },
+  };
+
+  const ConfirmActionInput = fromJsonSchema<z.infer<typeof ConfirmActionBase>>(
+    confirmActionJsonSchema,
+    zodBaseValidator
+  );
+
   server.registerTool(
     "confirm_action",
     {
       title: "确认动作(扣罐/撤销/决定/回看/原则/周期/碎钻)",
       description:
-        "所有改变状态的用户确认动作走这里,按 action 区分:confirm_debit=确认 record_money_moment 返回的 proposal 并扣罐(可用 chosenJar 换罐);undo=按 undoToken 撤销扣罐并抹掉关联故事;note_only=只说说,记一条不改余额的故事;log_decision=记录一个购买决定(现在买/放到明天/这次先不买,不动余额);complete_review=完成一次回看(实际买了且当时未扣罐时,带 chosenJar 补记账);adopt_principle=对候选原则做 像我/改说法/暂不确定;delete_principle=删除一条原则(principleId,任何状态可删,删后不再被引用);confirm_cycle=新周期确认(月供重算、结余进碎钻);move_leftover=把碎钻挪进某个罐(可部分)。全部动作必须带 expectedStateVersion 与 idempotencyKey。",
-      inputSchema: z.object({
-        ...SessionRef,
-        action: z.enum([
-          "confirm_debit",
-          "undo",
-          "note_only",
-          "log_decision",
-          "complete_review",
-          "adopt_principle",
-          "delete_principle",
-          "confirm_cycle",
-          "move_leftover",
-        ]),
-        proposal: PendingProposal.optional().describe("confirm_debit 必填:record_money_moment 返回的 proposal 原样传回"),
-        chosenJar: JarKind.optional().describe("confirm_debit 可选换罐;complete_review 补记账时指定扣哪个罐"),
-        reviewInDays: z.union([z.literal(1), z.literal(3)]).optional().describe("confirm_debit/log_decision 可选:几天后回看"),
-        undoToken: z.string().max(200).optional().describe("undo 必填:confirm_debit 响应里的带签名令牌"),
-        intent: z.string().min(1).max(120).optional().describe("log_decision/note_only 必填:这件事是什么"),
-        decisionAction: z.enum(["buy_now", "defer", "skip_this_time"]).optional().describe("log_decision 必填"),
-        amount: Cents.optional().describe("log_decision 可选;move_leftover 必填(分)"),
-        storyId: z.string().max(150).optional().describe("complete_review 必填"),
-        happened: z.boolean().optional().describe("complete_review 必填:后来实际发生了吗"),
-        actualAmount: Cents.optional().describe("complete_review 可选:实际金额(分)"),
-        feelingNote: z.string().max(200).optional().describe("complete_review 可选:一句感受"),
-        candidate: z
-          .object({ statement: z.string().min(1).max(50), evidenceIds: z.array(z.string()).min(2).max(3) })
-          .optional()
-          .describe("adopt_principle 必填:get_money_overview 返回的 principleCandidate"),
-        decision: z.enum(["like_me", "edit", "defer"]).optional().describe("adopt_principle 必填"),
-        editedText: z.string().max(50).optional().describe("adopt_principle decision=edit 时必填"),
-        principleId: z.string().max(150).optional().describe("delete_principle 必填"),
-        disposable: Cents.optional().describe("confirm_cycle 必填:新周期可安排金额(分)"),
-        livingPlanned: Cents.optional().describe("confirm_cycle 必填"),
-        dreamMonthly: Cents.optional().describe("confirm_cycle 可选:确认的新月供"),
-        extendMonths: z.number().int().min(0).max(24).optional().describe("confirm_cycle 可选:目标时间往后挪几个月"),
-        futurePlanned: Cents.optional().describe("confirm_cycle 可选"),
-        toKind: JarKind.optional().describe("move_leftover 必填:挪进哪个罐"),
-        expectedStateVersion: z.number().int().min(1),
-        idempotencyKey: z.string().min(1).max(100),
-      }).superRefine((v, ctx) => {
-        // 按 action 校验必填:在 schema 入口就把「缺什么」说清楚,
-        // 自动调用器首调失败也能从错误信息直接自纠(根级 discriminatedUnion 会让
-        // inputSchema 根不是 object,有评测器兼容风险,故用 superRefine)
-        const REQUIRED: Record<string, (keyof typeof v)[]> = {
-          confirm_debit: ["proposal"],
-          undo: ["undoToken"],
-          note_only: ["intent"],
-          log_decision: ["intent", "decisionAction"],
-          complete_review: ["storyId", "happened"],
-          adopt_principle: ["candidate", "decision"],
-          delete_principle: ["principleId"],
-          confirm_cycle: ["disposable", "livingPlanned"],
-          move_leftover: ["toKind", "amount"],
-        };
-        for (const field of REQUIRED[v.action] ?? []) {
-          if (v[field] === undefined) {
-            ctx.addIssue({ code: "custom", path: [field], message: `action=${v.action} 必须提供 ${String(field)}` });
-          }
-        }
-      }),
+        "所有改变状态的用户确认动作走这里,按 action 区分:confirm_debit=确认 record_money_moment 返回的 proposal 并扣罐(可用 chosenJar 换罐);undo=按 undoToken 撤销扣罐并抹掉关联故事;note_only=只说说,记一条不改余额的故事;log_decision=记录一个购买决定(现在买/放到明天/这次先不买,不动余额);complete_review=完成一次回看(实际买了且当时未扣罐时,带 chosenJar 补记账);adopt_principle=对候选原则做 像我/改说法/暂不确定;delete_principle=删除一条原则(principleId,任何状态可删,删后不再被引用);confirm_cycle=新周期确认(月供重算、结余进碎钻);move_leftover=把碎钻挪进某个罐(可部分)。全部动作必须带 expectedStateVersion 与 idempotencyKey;各 action 的专属必填见 inputSchema 的 allOf/if-then。",
+      inputSchema: ConfirmActionInput,
       outputSchema: ConfirmOut,
     },
     async (input) => {
       try {
         const { sessionId, state } = resolveState(input);
+        // action 专属必填与公开 schema 的 if-then 同一张表;这里返回统一 {code,message}
+        for (const field of REQUIRED_BY_ACTION[input.action] ?? []) {
+          if ((input as Record<string, unknown>)[field] === undefined) {
+            throw new DomainError("validation_error", `action=${input.action} 必须提供 ${field}`);
+          }
+        }
         const meta = requireWriteMeta(state, input);
         if (meta.idempotent) {
           // 幂等重放从首次写入的故事恢复结果——不信任重放请求里的参数(chosenJar 可能被换)
@@ -551,11 +619,13 @@ export function registerBondPupTools(server: McpServer): void {
               throw new DomainError("validation_error", "confirm_debit 需要 record_money_moment 返回的 proposal");
             }
             const { sig, ...proposalBody } = input.proposal;
-            if (signProposal(proposalBody) !== sig) {
-              throw new DomainError("validation_error", "proposal 不是本服务签发或内容被改动过,请重新说一笔");
-            }
+            // 先查版本(自家状态变了 → 友好的 state_conflict),再验签名+状态摘要
+            // (摘要不匹配 = 伪造/改动/拿别人会话的 proposal 来用,统一拒绝)
             if (input.proposal.stateVersion !== state.stateVersion) {
               throw new DomainError("state_conflict", "候选动作已过期:状态在这之后变过,请重新说一笔");
+            }
+            if (signProposal(proposalBody, stateDigest(state)) !== sig) {
+              throw new DomainError("validation_error", "proposal 不是本服务为当前状态签发的(内容被改动或来自其他会话),请重新说一笔");
             }
             const jarKind = input.chosenJar ?? input.proposal.jarKind;
             const debit = commitJarDebit(state, {

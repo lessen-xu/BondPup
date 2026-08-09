@@ -51,6 +51,20 @@ export function detectSafetyRisk(text: string): SafetyHit | null {
   return null;
 }
 
+/**
+ * 硬红线(自伤/借贷/投资):用于扫描进入模型的背景字段(过往故事、原则、在意的事)
+ * 与原则语句本身。generic_emotion 是对「当前输入」的分流规则——
+ * 历史感受笔记里出现「想哭」是产品的正常内容,不算风险,所以这里不含它。
+ */
+export function detectHardRisk(text: string): SafetyHit | null {
+  const t = normalizeForMatching(text);
+  for (const r of RULES) {
+    if (r.riskType === "generic_emotion") continue;
+    if (r.pattern.test(t)) return { riskType: r.riskType, triggeredRule: r.rule };
+  }
+  return null;
+}
+
 /** 各风险类的固定安全回应(不调模型,不含禁用词,≤3 句) */
 export function safetyReplyFor(riskType: SafetyRiskType): AgentReply {
   switch (riskType) {

@@ -1,5 +1,6 @@
 import type { DecisionStory } from "@/contracts";
 import { FORBIDDEN_WORDS } from "./forbidden-words";
+import { detectHardRisk } from "./risk";
 
 /**
  * 语气硬校验层。模型输出在这里过闸,不合格的回应/原则宁可不要:
@@ -7,7 +8,7 @@ import { FORBIDDEN_WORDS } from "./forbidden-words";
  */
 
 export interface ValidationFailure {
-  rule: "forbidden_words" | "max_sentences" | "max_length" | "first_person" | "evidence" | "three_actions" | "vague";
+  rule: "forbidden_words" | "max_sentences" | "max_length" | "first_person" | "evidence" | "three_actions" | "vague" | "risk";
   message: string;
 }
 
@@ -68,6 +69,37 @@ export function validatePrincipleStatement(statement: string): ValidationFailure
   if (!s.includes("我") || s.startsWith("你")) {
     failures.push({ rule: "first_person", message: "必须是第一人称的表述" });
   }
+  // 生产实测过真模型把自伤笔记提炼成原则(「我感觉活着没意思的时候…」)——
+  // 原则会被长期引用,自伤/借贷/投资语义绝不能被固化,不论来自模型还是用户改说法
+  if (detectHardRisk(s)) {
+    failures.push({ rule: "risk", message: "这句话不适合作为金钱原则记下来" });
+  }
+  return failures;
+}
+
+/**
+ * decompose_wish 输出闸:拆出来的每条「在意的事」都要过——
+ * 无禁用词(不说教)、≤40 字、用户视角(不以「你」开头)、无硬红线语义。
+ * 此前这条路径完全没有输出闸,真模型连续 5/5 输出过含「应该」的条目。
+ */
+export function validateConcernsOutput(concerns: string[]): ValidationFailure[] {
+  const failures: ValidationFailure[] = [];
+  for (const c of concerns) {
+    const s = c.trim();
+    const hits = findForbiddenWords(s);
+    if (hits.length > 0) {
+      failures.push({ rule: "forbidden_words", message: `包含禁用词:${hits.join("、")}` });
+    }
+    if ([...s].length > 40) {
+      failures.push({ rule: "max_length", message: "单条超过 40 字" });
+    }
+    if (s.startsWith("你")) {
+      failures.push({ rule: "first_person", message: "必须是用户视角的表述,不是对用户说话" });
+    }
+    if (detectHardRisk(s)) {
+      failures.push({ rule: "risk", message: "包含不适合写进在意的事的内容" });
+    }
+  }
   return failures;
 }
 
@@ -83,6 +115,12 @@ export function validatePrincipleWithIds(
   const failures: ValidationFailure[] = [...validatePrincipleStatement(candidate.statement)];
   if (candidate.evidenceIds.length < 2 || candidate.evidenceIds.length > 3) {
     failures.push({ rule: "evidence", message: "证据必须是 2-3 条故事" });
+    return failures;
+  }
+  // 与 contracts 层 MoneyPrinciple 的唯一性规则同一道闸:重复 id 在这里就拒,
+  // 不让它穿透到写入层变成 internal_error
+  if (new Set(candidate.evidenceIds).size !== candidate.evidenceIds.length) {
+    failures.push({ rule: "evidence", message: "证据故事不得重复" });
     return failures;
   }
   const missing = candidate.evidenceIds.filter((id) => !allowedIds.has(id));

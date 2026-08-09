@@ -315,4 +315,71 @@ ms = del.payload.moneyState;
 const o3 = await call("get_money_overview", { moneyState: ms });
 assert(!o3.payload.principles.includes(candidate.statement), "删除原则后不再被引用");
 
+// 13. 跨会话 proposal 拒绝:A 会话签发的 proposal 不能在 B 会话确认
+// (签名绑定状态摘要;两个全新状态版本号同为 1,但内容不同,曾被实测互换扣款成功)
+const sA = await call("create_money_session", { displayName: "甲" });
+const rA = await call("record_money_moment", {
+  moneyState: sA.payload.moneyState,
+  description: "A 会话的一笔",
+  amount: 100000,
+});
+const sB = await call("create_money_session", { displayName: "乙" });
+const cross = await call("confirm_action", {
+  moneyState: sB.payload.moneyState,
+  action: "confirm_debit",
+  proposal: rA.payload.proposal,
+  expectedStateVersion: 1,
+  idempotencyKey: key(),
+});
+assert(
+  cross.isError && cross.payload.code === "validation_error",
+  "别人会话的 proposal(同版本号不同状态)→ 验签拒绝"
+);
+
+// 14. 缺 action 专属必填 → 统一 {code,message} 错误(不是 SDK 协议错误文本)
+const missing = await call("confirm_action", {
+  moneyState: ms,
+  action: "note_only",
+  expectedStateVersion: ms.stateVersion,
+  idempotencyKey: key(),
+});
+assert(
+  missing.isError && missing.payload.code === "validation_error" && missing.payload.message.includes("intent"),
+  "缺 action 专属必填 → 统一 validation_error 且点名缺什么"
+);
+
+// 15. tools/list 的 confirm_action 公开 schema 含 if-then 条件必填(自动调用器可静态推导)
+{
+  const res = await fetch(`${BASE}/mcp`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "tools/list",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1000,
+      method: "tools/list",
+      params: {
+        _meta: {
+          "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+          "io.modelcontextprotocol/clientInfo": { name: "smoke", version: "0" },
+          "io.modelcontextprotocol/clientCapabilities": {},
+        },
+      },
+    }),
+  });
+  const rpc = await res.json();
+  const confirmTool = rpc.result.tools.find((t) => t.name === "confirm_action");
+  const conds = confirmTool?.inputSchema?.allOf ?? [];
+  assert(
+    conds.some(
+      (c) => c.if?.properties?.action?.const === "note_only" && c.then?.required?.includes("intent")
+    ) && conds.some((c) => c.if?.properties?.action?.const === "undo" && c.then?.required?.includes("undoToken")),
+    "tools/list 公开 schema 含 if-then 条件必填(note_only→intent,undo→undoToken)"
+  );
+}
+
 console.log(`\n全部通过(${calls} 次调用)——决定→行动→回看→候选原则→确认→引用→删除 全链路成立。`);

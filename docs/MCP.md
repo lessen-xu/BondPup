@@ -25,7 +25,9 @@
 - `expectedStateVersion`:当前 `moneyState.stateVersion`,不匹配 → `state_conflict`(HTTP 409 语义)
 - `idempotencyKey`:客户端生成的唯一串;重放返回首次结果,不重复写入
 
-`confirm_action(confirm_debit)` 还必须带 `record_money_moment` 返回的完整 `proposal`:内容由服务端 HMAC-SHA256 签发,确认时验签——改金额、换罐子、伪造签名都会被拒;`proposal.stateVersion` 落后于当前状态 → `state_conflict`(候选动作过期)。
+`confirm_action(confirm_debit)` 还必须带 `record_money_moment` 返回的完整 `proposal`:内容由服务端 HMAC-SHA256 签发,签名同时绑定签发时刻的 moneyState 摘要——改金额、换罐子、伪造签名、拿其他会话(即使版本号相同)的 proposal 来确认,都会被拒;`proposal.stateVersion` 落后于当前状态 → `state_conflict`(候选动作过期)。
+
+`confirm_action` 各 action 的专属必填字段(如 `note_only`→`intent`、`undo`→`undoToken`)以 `allOf`/`if-then` 形式写在公开 `inputSchema` 里,自动调用器可静态推导;运行时缺失同样返回统一 `{code:"validation_error", message}` 并点名缺什么。
 
 ## 协议版本
 
@@ -55,7 +57,7 @@ curl -s https://bondpup.vercel.app/mcp \
 ## 端到端验证
 
 ```bash
-node scripts/smoke-mcp.mjs https://bondpup.vercel.app   # 27 次调用、26 条断言
+node scripts/smoke-mcp.mjs https://bondpup.vercel.app   # 32 次调用、29 条断言
 npx @modelcontextprotocol/inspector                      # 或用 Inspector 交互式连
 ```
 

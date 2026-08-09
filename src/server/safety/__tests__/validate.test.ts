@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { DecisionStory } from "@/contracts";
 import { isVague } from "@/server/agent";
-import { validateDecisionReply, validatePrincipleCandidate, validateReplyText } from "../validate";
+import {
+  validateConcernsOutput,
+  validateDecisionReply,
+  validatePrincipleCandidate,
+  validateReplyText,
+} from "../validate";
 
 function story(id: string, status: "open" | "reviewed"): DecisionStory {
   return DecisionStory.parse({
@@ -76,6 +81,27 @@ describe("isVague(原则空泛度:对谁都成立=对她没用)", () => {
   });
 });
 
+describe("validateConcernsOutput(decompose 输出闸:此前这条路径 5/5 漏过「应该」)", () => {
+  it("干净的用户视角条目通过", () => {
+    expect(
+      validateConcernsOutput(["想给自己攒一笔说走就走的钱", "买东西之前想清楚是不是真的需要"])
+    ).toEqual([]);
+  });
+  it("含禁用词(应该)被拒", () => {
+    const fails = validateConcernsOutput(["每个月都应该省着花"]);
+    expect(fails.some((f) => f.rule === "forbidden_words")).toBe(true);
+  });
+  it("对用户说话(你开头)与超长条目被拒", () => {
+    const fails = validateConcernsOutput(["你要对自己好一点", "想".repeat(41)]);
+    expect(fails.some((f) => f.rule === "first_person")).toBe(true);
+    expect(fails.some((f) => f.rule === "max_length")).toBe(true);
+  });
+  it("硬红线语义(投资)被拒", () => {
+    const fails = validateConcernsOutput(["想拿工资去炒股翻倍"]);
+    expect(fails.some((f) => f.rule === "risk")).toBe(true);
+  });
+});
+
 describe("validatePrincipleCandidate", () => {
   const stories = [story("s1", "reviewed"), story("s2", "reviewed"), story("s3", "reviewed")];
 
@@ -101,6 +127,20 @@ describe("validatePrincipleCandidate", () => {
       stories
     );
     expect(fails.map((f) => f.rule)).toContain("max_length");
+  });
+  it("重复 evidenceId 在校验层就被拒(不穿透到写入层变 internal_error;生产复现过)", () => {
+    const fails = validatePrincipleCandidate(
+      { statement: "我放一晚再决定,好像更踏实", evidenceIds: ["s1", "s1"] },
+      stories
+    );
+    expect(fails.some((f) => f.rule === "evidence" && f.message.includes("不得重复"))).toBe(true);
+  });
+  it("自伤语义的原则被拒(生产实测真模型把危机笔记提炼成过原则)", () => {
+    const fails = validatePrincipleCandidate(
+      { statement: "我活着没意思时更要花钱", evidenceIds: ["s1", "s2"] },
+      stories
+    );
+    expect(fails.some((f) => f.rule === "risk")).toBe(true);
   });
   it("证据不足 / 指向未回看故事被拒", () => {
     expect(
