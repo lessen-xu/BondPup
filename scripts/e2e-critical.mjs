@@ -165,18 +165,25 @@ console.log("\n--- 2. 演示数据回看 → 候选原则 → 确认 ---");
   const entered = await clickFirst(page, ["我们说今天来看看", "来看看", "回看", "看看"]);
   assert(entered !== null, `能进入回看(实际点了:${entered ?? "没找到入口"})`);
 
-  // 走完回看:是否发生 → 感受 → 完成
-  for (let step = 0; step < 6; step++) {
-    const clicked = await clickFirst(page, [
-      "放下了", "还惦记着", "在等个时机", "后来买了", // 回看四选项(选副作用最小的优先)
-      "还会想", "还在等", // 旧三选项(兼容)
-      "买了", "还是买了", "没买", "没有买", "还没买",
-      "跳过", "记下来", // 感受输入这一步
-      "继续", "下一步", "完成", "记下了", "好",
-    ]);
+  // 走完回看:是否发生 → 感受 → 完成。
+  // 每步真模型回应 2-3s 才出下一组按钮,单次快照找不到就等一等再找,
+  // 连续 12s 无可点才算流程真的结束(实测过快照式 break 把第三条回看留在半路)
+  for (let step = 0; step < 8; step++) {
+    let clicked = null;
+    const t0 = Date.now();
+    while (!clicked && Date.now() - t0 < 12000) {
+      clicked = await clickFirst(page, [
+        "放下了", "还惦记着", "在等个时机", "后来买了", // 回看四选项(选副作用最小的优先)
+        "还会想", "还在等", // 旧三选项(兼容)
+        "买了", "还是买了", "没买", "没有买", "还没买",
+        "跳过", "记下来", // 感受输入这一步
+        "继续", "下一步", "完成", "记下了", "好",
+      ]);
+      if (!clicked) await page.waitForTimeout(500);
+    }
     if (!clicked) break;
   }
-  await waitForText(page, ["这很像我", "像我", "改个说法", "原则"], 8000);
+  await waitForText(page, ["这很像我", "像我", "改个说法", "原则"], 20000);
   const text = (await page.locator("body").innerText()).replace(/\s+/g, " ");
   const gotPrinciple =
     /这很像我|像我|改个说法|暂不确定|原则/.test(text) ||
