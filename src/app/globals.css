@@ -848,6 +848,8 @@ button { color: inherit; font: inherit; }
 .flow-primary, .flow-primary-action, .flow-option-action, .flow-options button { align-items: center; background-color: rgba(255, 252, 242, .24); background-position: center; background-repeat: no-repeat; background-size: 100% 100%; border: 0; border-radius: 0; cursor: pointer; display: inline-flex; font-size: clamp(13px, 3.8vw, 16px); justify-content: center; line-height: 1.5; min-height: 44px; padding: 3% 8%; text-align: center; transition: transform 150ms ease-out; }
 .flow-primary, .flow-primary-action { background-image: url('/assets/主按钮.png'); }
 .flow-option-action, .flow-options button { background-image: url('/assets/选项按钮.png'); }
+.future-options button.is-selected, .flow-reverse-copy .flow-inline-actions button.is-selected { opacity: 1; }
+.future-options button:not(.is-selected), .flow-reverse-copy .flow-inline-actions button:not(.is-selected) { opacity: .74; }
 .flow-primary:active, .flow-primary-action:active, .flow-option-action:active, .flow-options button:active { transform: scale(.97); }
 .flow-primary { align-self: center; margin-top: 4%; }
 .flow-input { background-color: transparent; background-image: url('/assets/输入框横线.png'); background-position: bottom center; background-repeat: no-repeat; background-size: 100% auto; border: 0; border-radius: 0; color: var(--ink); font: inherit; font-size: clamp(14px, 4vw, 17px); line-height: 1.6; outline: 0; padding: 2% 0 5%; width: 100%; }
@@ -1143,3 +1145,9 @@ button { color: inherit; font: inherit; }
 .safety-exit-copy { font-size: clamp(14px, 4vw, 17px); line-height: 1.8; margin: 8% auto 0; max-width: 88%; text-align: center; white-space: pre-line; }
 .safety-exit-copy p { margin: 0 0 5%; }
 .safety-exit-actions { display: flex; gap: 6%; justify-content: center; margin-top: auto; padding-bottom: env(safe-area-inset-bottom); }
+.amount-input-feedback {
+  color: var(--muted);
+  display: block;
+  font-size: clamp(10px, 2.9vw, 13px);
+  line-height: 1.5;
+}

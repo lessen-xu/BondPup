@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DomainError } from "@/contracts/errors";
-import { computeMonthlyContribution } from "../monthly";
+import { computeMonthlyContribution, computeMonthsForContribution } from "../monthly";
 
 describe("computeMonthlyContribution 月供公式(单位:分)", () => {
   it("基准:9600 元 / 12 月 → 800 元", () => {
@@ -36,5 +36,15 @@ describe("computeMonthlyContribution 月供公式(单位:分)", () => {
     } catch (e) {
       expect((e as DomainError).code).toBe("validation_error");
     }
+  });
+});
+
+describe("computeMonthsForContribution 按月供倒推月数", () => {
+  it("50 万按每月 1.28 万 → 40 个月", () => {
+    expect(computeMonthsForContribution({ goal: { amount: 50_000_000, saved: 0 }, monthlyContribution: 1_280_000 })).toBe(40);
+  });
+
+  it("月供为 0 时先不猜时间", () => {
+    expect(computeMonthsForContribution({ goal: { amount: 50_000_000, saved: 0 }, monthlyContribution: 0 })).toBeNull();
   });
 });

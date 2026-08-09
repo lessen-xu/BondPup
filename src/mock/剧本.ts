@@ -4,6 +4,20 @@ export const NOTE_MODEL_REPLY = {
   continueLabel: "嗯",
 } as const;
 
+export const ONBOARDING_MONEY = {
+  income: "这个月你的收入大概是多少？",
+  subtitle: "工资、生活费、或者其他进账，加起来就行",
+  placeholder: "比如 6500",
+  jarsTotal: "四个罐子加起来，正好是这个月的收入",
+  concernRef: "你说过「{concern1}」「{concern2}」——安心罐这些就是留给它们的。",
+  concernRefSingle: "你说过「{concern1}」——安心罐这些就是留给它的。",
+  concernRefMore: "你说过「{concern1}」「{concern2}」……还有一条。安心罐这些就是留给它们的。",
+  largeGoal: "哇，{amount}元〜是个不小的目标呢。",
+  largeGoalCheck: "这个数没写错吧？",
+  largeGoalConfirm: "就是这个数",
+  largeGoalChange: "我再想想",
+} as const;
+
 export const moneyNoteScript = {
   back: "返回上一步", backHome: "返回首页", loading: "我想一下〜", intro: "你说,我听着。",
   storyPlaceholder: "想说说哪一笔钱?", storySubmit: "告诉我", amountQuestion: "我听见了。大概是多少钱呢?",
@@ -72,7 +86,7 @@ export const REVIEW_RESPONSES = {
   },
   followUp: {
     "还没怎么用": "说不定哪天就用上了，这种事也常有。",
-    "在等个时机": "有些决定就是需要多一点时间。",
+    "在等个时机": "有些决定，多一点时间也没关系。",
   },
 } as const;
 

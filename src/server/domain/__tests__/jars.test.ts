@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DomainError } from "@/contracts/errors";
-import { balanceComfortJar, compareJarAllocation, computeJars } from "../jars";
+import { balanceComfortJar, compareJarAllocation, computeComfortCandidate, computeJars } from "../jars";
 import { computeLivingJar } from "../living";
 
 describe("computeJars 四罐恒等式", () => {
@@ -36,6 +36,10 @@ describe("computeJars 四罐恒等式", () => {
     expect(r.living).toBe(220000);
     expect(r.dream).toBe(80000);
     expect(r.living + r.comfort + r.dream + r.future - r.shortfall).toBe(200000);
+  });
+
+  it("候选安心罐可显示负余项,但不写入状态", () => {
+    expect(computeComfortCandidate({ disposable: 1_500_000, livingPlanned: 220_000, dreamMonthly: 4_166_667 })).toBe(-2_886_667);
   });
 
   it("非法输入(负数/非整数)→ validation_error", () => {

@@ -60,6 +60,15 @@ export function balanceComfortJar(input: JarAllocationInput): JarAllocationBalan
   return { comfort, ...compareJarAllocation({ ...parsed, comfort }) };
 }
 
+/** 候选方案里的安心罐余项;允许为负,只用于预览,不能直接写入状态。 */
+export function computeComfortCandidate(input: ComputeJarsInput): number {
+  const parsed = ComputeJarsInput.safeParse(input);
+  if (!parsed.success) {
+    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);
+  }
+  return parsed.data.disposable - parsed.data.livingPlanned - parsed.data.dreamMonthly - parsed.data.futurePlanned;
+}
+
 /**
  * 四罐恒等式:living + comfort + dream + future === disposable(+shortfall 时差额可解释)。
  * 安心罐是被动余项(余数进安心罐,不进未来罐——不预设「存钱=好」)。

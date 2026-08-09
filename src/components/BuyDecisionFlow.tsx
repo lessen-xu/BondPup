@@ -6,6 +6,7 @@ import type { StoryAction } from "@/contracts";
 import { createDecisionStory } from "@/server/domain/story";
 import { confirmedPrinciples } from "@/server/domain/principle";
 import { loadMoneyState, useMoneyState } from "@/lib/state/money-store";
+import { MONEY_INPUT_COPY } from "@/lib/money/amount-text";
 import { previewDecision, type DecisionSource } from "@/lib/plan/preview-decision";
 import { formatYuan, parseAmountCents } from "@/mock/decision";
 import { DAILY_DECISION, DECISION_BALANCE, DECISION_REFERENCE, ERRORS } from "@/mock/剧本";
@@ -60,6 +61,7 @@ export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) 
   }, []);
 
   const displayPrice = amount === null ? "" : formatYuan(amount);
+  const parsedPriceInput = priceInput.trim() ? parseAmountCents(priceInput) : null;
   const comfortJar = state?.jars.find((jar) => jar.kind === "comfort") ?? null;
   const staleBalance = now !== null && comfortJar !== null
     && now - Date.parse(comfortJar.updatedAt) > 7 * 24 * 60 * 60 * 1000;
@@ -87,7 +89,7 @@ export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) 
   function submitPrice() {
     const parsed = parseAmountCents(priceInput);
     if (parsed === null || parsed <= 0) {
-      setError(`${ERRORS.validation.line} ${ERRORS.validation.sub}`);
+      setError(null);
       return;
     }
     setAmount(parsed);
@@ -174,7 +176,7 @@ export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) 
         <section className="dog-layer" aria-label={alias}><Dog page="对话" state={dogState ?? undefined} alias={alias} message={null} talkMode /></section>
         <section className="decision-dialog" aria-live="polite">
           {step === "item" && <div className="decision-step buy-item-step"><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.intro, alias)}</p><input autoFocus className="decision-input" value={itemInput} onChange={(event) => setItemInput(event.target.value)} placeholder={DAILY_DECISION.itemPlaceholder} aria-label={DAILY_DECISION.itemPlaceholder} /><p className="talk-status">{DAILY_DECISION.itemHint}</p><button className="decision-text-action" type="button" onClick={submitItem}>{DAILY_DECISION.itemNext}<HandDrawnUnderline /></button></div>}
-          {step === "price" && <div className="decision-step"><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.priceQuestion, alias)}</p><input autoFocus className="decision-input" value={priceInput} onChange={(event) => { setPriceInput(event.target.value); setError(null); }} placeholder={DAILY_DECISION.pricePlaceholder} aria-label={DAILY_DECISION.pricePlaceholder} inputMode="decimal" />{error && <p className="talk-status">{error}</p>}<button className="decision-text-action" type="button" onClick={submitPrice}>{DAILY_DECISION.itemNext}<HandDrawnUnderline /></button><button className="decision-text-action" type="button" onClick={() => setPriceInput("")}>{DAILY_DECISION.unsure}<HandDrawnUnderline /></button></div>}
+          {step === "price" && <div className="decision-step"><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.priceQuestion, alias)}</p><input autoFocus className="decision-input" type="text" value={priceInput} onChange={(event) => { setPriceInput(event.target.value); setError(null); }} placeholder={DAILY_DECISION.pricePlaceholder} aria-label={DAILY_DECISION.pricePlaceholder} inputMode="decimal" />{priceInput.trim() && parsedPriceInput === null && <small className="amount-input-feedback">{MONEY_INPUT_COPY.unreadable}</small>}{priceInput.trim() && parsedPriceInput !== null && <small className="amount-input-feedback">{MONEY_INPUT_COPY.understood(formatYuan(parsedPriceInput))}</small>}{error && <p className="talk-status">{error}</p>}<button className="decision-text-action" type="button" onClick={submitPrice}>{DAILY_DECISION.itemNext}<HandDrawnUnderline /></button><button className="decision-text-action" type="button" onClick={() => setPriceInput("")}>{DAILY_DECISION.unsure}<HandDrawnUnderline /></button></div>}
           {step === "checking" && <div className="decision-step"><p className="decision-dog-bubble money-note-thinking-bubble" aria-hidden="true"> </p></div>}
           {step === "arrange" && previewIssue && <div className="decision-step"><p className="decision-dog-bubble">{ERRORS.timeout.line}</p><p className="decision-dog-bubble">{ERRORS.timeout.sub}</p><button className="decision-text-action" type="button" onClick={() => setStep("price")}>{ERRORS.timeout.retry}<HandDrawnUnderline /></button></div>}
           {step === "arrange" && preview && amount !== null && <div className="decision-step"><p className="decision-dog-bubble">{comfortText}</p>{referencedPrinciples.length > 0 && <div className="principle-fold"><button type="button" onClick={() => setPrincipleReferenceOpen((open) => !open)}>{DECISION_REFERENCE.label.replace("{count}", String(referencedPrinciples.length))} {principleReferenceOpen ? "^" : "▾"}</button>{principleReferenceOpen && referencedPrinciples.map((principle) => <p key={principle.id}>{principle.statement}</p>)}</div>}<p className="decision-dog-bubble">{DAILY_DECISION.arrange}</p><div className="decision-plain-summary"><p>{DAILY_DECISION.summaryItem.replace("{item}", item).replace("{price}", displayPrice)}</p>{preview.shortfall === 0 && <p>{DAILY_DECISION.summaryComfort.replace("{remain}", formatYuan(preview.remaining))}</p>}</div>{preview.shortfall > 0 && <><p className="decision-dog-bubble">{replaceAlias(DAILY_DECISION.shortfall, alias).replace("{shortfall}", formatYuan(preview.shortfall))}</p><div className="decision-options decision-source-options">{preview.sources.map((source) => <button key={source.jarKind} className="decision-option" type="button" onClick={() => { setSelectedSource(source.jarKind); setError(null); setStep("source-confirm"); }}>{source.label}</button>)}</div></>}{!staleBalance && (preview.shortfall === 0 || sourceConfirmed) && <><p className="decision-dog-bubble">{DAILY_DECISION.arrangeQuestion}</p><div className="decision-options decision-buy-actions">{ACTIONS.map((action) => <button key={action.key} className="decision-buy-action" type="button" onClick={() => chooseAction(action.key)}>{action.label}<HandDrawnUnderline /></button>)}</div></>}</div>}
