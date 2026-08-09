@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { runAgentTask } from "@/server/agent";
 import { runMockAgentTask } from "@/server/agent/mock";
-import { validatePrincipleWithIds, validateReplyText } from "@/server/safety/validate";
+import { buildTaskPrompt } from "@/server/agent/prompts";
+import { validateDecisionReply, validatePrincipleWithIds, validateReplyText } from "@/server/safety/validate";
 
 /**
  * API→组件契约测试:锁定 /api/agent 响应里页面依赖的安全字段。
@@ -90,6 +91,41 @@ describe("generate_principle 统一编排(网页与 MCP 同一条路径)", () =>
         attempt: 0,
       })
     ).rejects.toThrow();
+  });
+});
+
+describe("厚上下文:金额只以文本进 prompt,模型永远见不到裸分值", () => {
+  it("decision 场景:payload 含格式化金额与她的上下文,不含原始分值", () => {
+    const { payload, instruction } = buildTaskPrompt({
+      task: "companion_reply",
+      scene: "decision",
+      userText: "想买个投影仪",
+      stateSummary: { comfortAvailable: 350000, shortfall: 50000 },
+      principles: ["我放一晚再决定,好像更踏实"],
+      concerns: ["周末能出去走走"],
+      recentStories: [{ intent: "想买那双白色的鞋", action: "defer", happened: true, feelingNote: "穿得不多", amount: 39900 }],
+      item: { name: "投影仪", amount: 400000 },
+    });
+    expect(payload).toContain("3500 元");
+    expect(payload).toContain("买了差 500 元");
+    expect(payload).toContain("399 元");
+    expect(payload).toContain("4000 元");
+    expect(payload).not.toMatch(/350000|50000|39900|400000/);
+    expect(payload).toContain("周末能出去走走");
+    expect(instruction).toContain("交还");
+  });
+
+  it("Mock 决策回应天然通过三选项语义闸(降级路径安全)", async () => {
+    const out = await runAgentTask({
+      task: "companion_reply",
+      scene: "decision",
+      userText: "犹豫要不要买",
+      stateSummary: { comfortAvailable: 350000 },
+    });
+    expect(out.task).toBe("companion_reply");
+    if (out.task !== "companion_reply") return;
+    expect(validateDecisionReply(out.result.text)).toEqual([]);
+    expect(out.source).toBe("rule");
   });
 });
 

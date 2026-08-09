@@ -500,6 +500,26 @@ export function registerBondPupTools(server: McpServer): void {
         toKind: JarKind.optional().describe("move_leftover 必填:挪进哪个罐"),
         expectedStateVersion: z.number().int().min(1),
         idempotencyKey: z.string().min(1).max(100),
+      }).superRefine((v, ctx) => {
+        // 按 action 校验必填:在 schema 入口就把「缺什么」说清楚,
+        // 自动调用器首调失败也能从错误信息直接自纠(根级 discriminatedUnion 会让
+        // inputSchema 根不是 object,有评测器兼容风险,故用 superRefine)
+        const REQUIRED: Record<string, (keyof typeof v)[]> = {
+          confirm_debit: ["proposal"],
+          undo: ["undoToken"],
+          note_only: ["intent"],
+          log_decision: ["intent", "decisionAction"],
+          complete_review: ["storyId", "happened"],
+          adopt_principle: ["candidate", "decision"],
+          delete_principle: ["principleId"],
+          confirm_cycle: ["disposable", "livingPlanned"],
+          move_leftover: ["toKind", "amount"],
+        };
+        for (const field of REQUIRED[v.action] ?? []) {
+          if (v[field] === undefined) {
+            ctx.addIssue({ code: "custom", path: [field], message: `action=${v.action} 必须提供 ${String(field)}` });
+          }
+        }
       }),
       outputSchema: ConfirmOut,
     },
