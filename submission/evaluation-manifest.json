@@ -43,7 +43,12 @@
       "npx tsc --noEmit",
       "npm run build"
     ],
-    "ci": "GitHub Actions job \"verify\" on every PR; red never merged"
+    "ci": "https://github.com/lessen-xu/BondPup/actions/workflows/ci.yml (job \"verify\" on every PR; red never merged)",
+    "browser": {
+      "command": "npm run verify:browser",
+      "covers": "危机首击热线/演示原则闭环/未完成入口",
+      "note": "requires system Edge/Chrome; not in CI"
+    }
   },
   "model": {
     "providers": [
@@ -87,5 +92,22 @@
     "网页面的 CYCLE_REVIEW 与结余碎钻尚未接入(MCP 面可用)",
     "真实目标用户试用尚未完成,文档未作任何用户结论声称",
     "已确认原则的修改/删除后端与 MCP 已就绪,网页 UI 接入中"
-  ]
+  ],
+  "performance": {
+    "measuredAt": "2026-08-09",
+    "environment": "production (bondpup.vercel.app)",
+    "metrics": {
+      "mcp tools/list P95": "1.764s",
+      "mcp 5-call closed loop P95": "3.562s",
+      "/api/agent greet P95": "1.913s",
+      "safety gate hit": "~0.02s",
+      "first visit payload": "0.85MB",
+      "demo page payload": "2.63MB"
+    }
+  },
+  "release": {
+    "tag": "(将在提交前打 tag 后填写)",
+    "commit": "(tag 对应 commit)",
+    "zipSha256": "(ZIP 生成后填写)"
+  }
 }

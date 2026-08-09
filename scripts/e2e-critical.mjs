@@ -192,19 +192,30 @@ console.log("\n--- 3. 未完成入口不暴露给评委 ---");
   const home = (await page.locator("body").innerText()).replace(/\s+/g, " ");
   assert(!/还在做|敬请期待|开发中/.test(home), "首页不出现「还在做」类占位");
 
-  // 先看哪些页面确实是占位,再断言首页没有通往它们的入口
+  // 只认明确的占位文案(纯插画页如 /companion 的睡觉小狗是完整内容,不因文字少而误判)
   const placeholders = [];
   for (const [path, entry] of [["/leftover", "小金库"], ["/outfit", "装扮"], ["/companion", "陪伴"]]) {
     await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded", timeout: 60000 });
     await page.waitForTimeout(1200);
     const t = (await page.locator("body").innerText()).replace(/\s+/g, " ").trim();
-    const body = t.replace(/返回首页/g, "").trim();
-    if (/还在做|敬请期待|开发中/.test(t) || body.length < 8) placeholders.push([path, entry, body.slice(0, 40)]);
+    if (/还在做|敬请期待|开发中/.test(t)) placeholders.push([path, entry, t.slice(0, 40)]);
   }
+  // 暴露 = 首页存在【可点击】的入口;禁用按钮不算暴露
+  await page.goto(`${BASE}/?demo=1`, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.waitForTimeout(2000);
+  await clickFirst(page, ["知道了", "好呀"]);
   for (const [path, entry, sample] of placeholders) {
-    const exposed = new RegExp(norm(entry)).test(norm(home));
-    assert(!exposed, `首页没有通往未完成页面 ${path} 的入口(「${entry}」)`);
-    if (exposed) console.log(`   ${path} 当前内容:「${sample || "(空白)"}」`);
+    let clickable = false;
+    for (const el of await page.getByRole("button").all()) {
+      const text = norm(await el.innerText().catch(() => ""));
+      if (text.includes(norm(entry)) && (await el.isEnabled().catch(() => false))) clickable = true;
+    }
+    for (const el of await page.getByRole("link").all()) {
+      const text = norm(await el.innerText().catch(() => ""));
+      if (text.includes(norm(entry))) clickable = true;
+    }
+    assert(!clickable, `首页没有可点击的未完成页面入口 ${path}(「${entry}」)`);
+    if (clickable) console.log(`   ${path} 当前内容:「${sample}」`);
   }
   if (placeholders.length === 0) console.log("   三个页面都有内容,无需隐藏入口");
   await ctx.close();

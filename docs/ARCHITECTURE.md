@@ -12,7 +12,7 @@ src/app/             页面与 API 路由(/、/api/agent、/mcp、/health)
 src/lib/             前端侧共享:计划计算、演示数据、agent 客户端
 ```
 
-依赖方向自上而下单向:页面 → lib/domain → contracts;agent/mcp → domain → contracts。contracts 不依赖任何层。
+依赖方向以 contracts 为底座单向向上:所有层依赖 contracts,contracts 不依赖任何层。`server/domain` 与 `lib/plan` 互有引用(周期确认复用分配计算)、初始状态工厂暂放 `lib/mock`——这两处是已知的目录债,不影响「纯函数、无环境依赖」的本质,评测周期内不做目录迁移。
 
 ## 三条不变式
 
