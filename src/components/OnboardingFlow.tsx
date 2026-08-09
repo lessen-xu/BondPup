@@ -15,6 +15,7 @@ import { ERRORS } from "@/mock/剧本";
 import { script, withAlias } from "@/mock/script";
 import { Dog } from "./Dog";
 import { LoadingState } from "./LoadingState";
+import { ScrollCue } from "./ScrollCue";
 
 const DRAFT_KEY = "onboarding-draft";
 const DEFAULT_ALIAS = "慢慢";
@@ -410,7 +411,6 @@ export function OnboardingFlow() {
       ...current,
       nearChoice: choice,
       customText: choice === "custom" ? current.customText : undefined,
-      screen: choice === "custom" ? current.screen : 2,
     }));
   }
 
@@ -443,24 +443,13 @@ export function OnboardingFlow() {
     }
   }
 
-  function renderFooter(hint?: string, onNext = goNext) {
+  function renderFooter(hint?: string, onNext = goNext, nextDisabled = false) {
     return (
       <footer className="flow-footer">
         {hint && <p className="flow-hint">{hint}</p>}
         <div className="flow-controls">
           <button className="flow-back-action" type="button" onClick={goBack} aria-label={script.flow.back}>{script.flow.back}</button>
-          {draft.screen < SCREEN_COUNT - 1 && <button className="flow-primary-action" type="button" onClick={onNext}>{script.flow.next}</button>}
-        </div>
-      </footer>
-    );
-  }
-
-  function renderBackFooter(hint?: string) {
-    return (
-      <footer className="flow-footer">
-        {hint && <p className="flow-hint">{hint}</p>}
-        <div className="flow-controls flow-back-only">
-          <button className="flow-back-action" type="button" onClick={goBack} aria-label={script.flow.back}>{script.flow.back}</button>
+          {draft.screen < SCREEN_COUNT - 1 && <button className="flow-primary-action" type="button" disabled={nextDisabled} onClick={onNext}>{script.flow.next}</button>}
         </div>
       </footer>
     );
@@ -475,7 +464,7 @@ export function OnboardingFlow() {
 
         {draft.screen === 0 && draft.introStep === "nickname" && <div className="flow-intro-screen flow-nickname-screen"><section className="flow-intro-dog intro-nickname-dog" aria-label={alias}><Dog page="首页" state="idle" alias={alias} message={null} /></section><p className="intro-nickname-prompt">{script.nickname.prompt}</p><input className="flow-input intro-alias-input" value={draft.alias} onChange={(event) => patchDraft({ alias: event.target.value })} placeholder={script.nickname.placeholder} aria-label={script.nickname.prompt} /><p className="intro-nickname-closing">{script.nickname.closing}</p><button className="flow-primary-action intro-primary intro-nickname-confirm" type="button" onClick={goNext}>{script.nickname.confirm}</button></div>}
 
-        {draft.screen === 1 && <div className="flow-screen flow-recent-screen"><div className="flow-content"><p className="flow-question">{script.steps.recent.question}</p><div className="flow-options">{script.steps.recent.options.map((option, index) => <button key={option} type="button" className={draft.nearChoice === nearChoices[index] ? "is-selected" : ""} onClick={() => chooseNear(nearChoices[index])}><span className="flow-option-letter" aria-hidden="true">{option.slice(0, 1)}</span><span className="flow-option-copy">{option.slice(2)}</span></button>)}</div>{draft.nearChoice === "custom" && <input className="flow-input" value={draft.customText ?? ""} onChange={(event) => patchDraft({ customText: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter" && draft.customText?.trim()) goNext(); }} placeholder={script.steps.recent.freeInputHint} aria-label={script.steps.recent.freeInputHint} />}<p className="flow-hint flow-recent-hint">{script.steps.recent.stepHint}</p></div>{draft.nearChoice === "custom" ? renderFooter() : renderBackFooter()}</div>}
+        {draft.screen === 1 && <div className="flow-screen flow-recent-screen"><div className="flow-content"><p className="flow-question">{script.steps.recent.question}</p><div className="flow-options">{script.steps.recent.options.map((option, index) => <button key={option} type="button" className={draft.nearChoice === nearChoices[index] ? "is-selected" : ""} onClick={() => chooseNear(nearChoices[index])}><span className="flow-option-letter" aria-hidden="true">{option.slice(0, 1)}</span><span className="flow-option-copy">{option.slice(2)}</span></button>)}</div>{draft.nearChoice === "custom" && <input className="flow-input" value={draft.customText ?? ""} onChange={(event) => patchDraft({ customText: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter" && draft.customText?.trim()) goNext(); }} placeholder={script.steps.recent.freeInputHint} aria-label={script.steps.recent.freeInputHint} />}<p className="flow-hint flow-recent-hint">{script.steps.recent.stepHint}</p></div>{renderFooter(undefined, goNext, !draft.nearChoice || (draft.nearChoice === "custom" && !draft.customText?.trim()))}</div>}
 
         {draft.screen === 2 && <div className="flow-screen"><div className="flow-content"><p className="flow-question">{script.steps.far.question}</p><div className="flow-options">{script.steps.far.options.map((option, index) => <button key={option} type="button" className={draft.farChoice === index ? "is-selected" : ""} onClick={() => chooseFar(index)}>{option}</button>)}</div></div>{renderFooter(script.steps.far.stepHint)}</div>}
 
@@ -497,6 +486,7 @@ export function OnboardingFlow() {
 
         {draft.screen === 11 && <div className="flow-screen flow-confirm-screen"><div className="flow-content"><p className="flow-question">{script.steps.jars.bottom}</p><div className="flow-plan-summary">{flowJars.map((jar) => <p key={jar.kind}><span>{jar.kind === "dream" ? draft.dreamLabel : jar.label}</span><strong>{formatCents(jarAmount(jar.kind))} 元</strong></p>)}</div>{preview && <p className="flow-message">{preview.note}</p>}{submitError && <p className="decision-dog-bubble flow-submit-error">{submitError}</p>}</div><footer className="flow-footer"><p className="flow-hint">{withAlias(script.steps.jars.afterHint, alias)}</p><div className="flow-confirm-actions"><button className="flow-primary-action" type="button" onClick={confirmPlan}>{withAlias(script.steps.jars.confirm, alias)}</button><button className="flow-back-action" type="button" onClick={goBack}>{script.steps.jars.back}</button></div></footer></div>}
       </section>
+      <ScrollCue activeKey={draft.screen} />
     </main>
   );
 }

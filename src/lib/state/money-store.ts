@@ -10,6 +10,7 @@ import { mockMoneyState } from "@/lib/mock/money-state";
  * 不存真实姓名/证件/银行账户/完整倾诉原文。
  */
 const STORAGE_KEY = "bondpup.moneyState.v1";
+const ONBOARDING_DRAFT_KEY = "onboarding-draft";
 
 let cached: MoneyState | null | undefined;
 const listeners = new Set<() => void>();
@@ -49,6 +50,7 @@ export function saveMoneyState(state: MoneyState): void {
 
 export function clearMoneyState(): void {
   window.localStorage.removeItem(STORAGE_KEY);
+  window.sessionStorage.removeItem(ONBOARDING_DRAFT_KEY);
   cached = null;
   notify();
 }

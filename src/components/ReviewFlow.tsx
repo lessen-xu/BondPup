@@ -3,12 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { JarKind, MoneyPrinciple, MoneyState, StoryAction } from "@/contracts";
-import { MoneyState as MoneyStateSchema } from "@/contracts";
 import { completeReview } from "@/server/domain/story";
 import { buildCandidate, resolvePrinciple } from "@/server/domain/principle";
-import { validatePrincipleCandidate } from "@/server/safety/validate";
 import { requestAgent } from "@/lib/agent/client";
-import { commitJarDebit, undoJarDebit } from "@/server/domain/debit";
 import { loadMoneyState, useMoneyState } from "@/lib/state/money-store";
 import { setDogThinking } from "@/lib/state/dog-state";
 import { formatYuan } from "@/mock/decision";
@@ -19,7 +16,7 @@ import {
   REVIEW_NAV,
   REVIEW_OPTIONS,
   REVIEW_RESPONSES,
-  REVIEW_ASK_MONEY,
+  REVIEW_ASK_JAR,
   REVIEW_STEP1,
   REVIEW_STEP3,
   REVIEW_STEP4,
@@ -31,8 +28,7 @@ import { HandDrawnUnderline } from "./HandDrawnUnderline";
 import { LoadingState } from "./LoadingState";
 
 type ReviewMode = "now" | "tomorrow" | "skip";
-type ReviewStep = "detail" | "response" | "money" | "whichJar" | "confirmDebit" | "note" | "principle" | "done" | "deferred";
-type UndoToken = ReturnType<typeof commitJarDebit>["undoToken"];
+type ReviewStep = "detail" | "response" | "whichJar" | "confirmDebit" | "note" | "principle" | "done";
 
 function isStateConflict(cause: unknown): boolean {
   return Boolean(cause && typeof cause === "object" && "code" in cause && cause.code === "state_conflict");
@@ -52,6 +48,14 @@ const JAR_NAMES: Record<JarKind, string> = {
   future: "未来罐",
 };
 
+const HAPPENED_OUTCOMES = new Set([
+  "用过几次",
+  "还没怎么用",
+  "说不上来",
+  "后来买了",
+  "后来还是买了",
+]);
+
 type CandidateOutput = { statement: string; evidenceIds: string[] };
 type ProposedPrinciple = { state: MoneyState; principle: MoneyPrinciple };
 
@@ -59,13 +63,9 @@ function replaceAlias(text: string, alias: string): string {
   return text.replaceAll("{alias}", alias);
 }
 
-function hasConcreteClue(statement: string): boolean {
-  return /一晚|今天|明天|这个月|鞋|外套|投影|买|花|用|生活|场景/.test(statement);
-}
-
-function isUsableCandidate(candidate: CandidateOutput, state: MoneyState): boolean {
-  if (/[0-9０-９¥￥%％]/.test(candidate.statement) || !hasConcreteClue(candidate.statement)) return false;
-  return validatePrincipleCandidate(candidate, state.stories).length === 0;
+function limitReplyToTwoSentences(text: string): string {
+  const parts = text.match(/[^。！？!?]*[。！？!?]?/g)?.filter((part) => part.trim()) ?? [];
+  return parts.slice(0, 2).join("").trim() || "嗯,我记下了。这句我留着。";
 }
 
 async function proposePrinciple(state: MoneyState): Promise<ProposedPrinciple | null> {
@@ -92,7 +92,7 @@ async function proposePrinciple(state: MoneyState): Promise<ProposedPrinciple | 
   if (!response.ok || !response.payload || typeof response.payload !== "object") return null;
   const payload = response.payload as { result?: CandidateOutput };
   const candidate = payload.result;
-  if (!candidate || !isUsableCandidate(candidate, state)) return null;
+  if (!candidate || typeof candidate.statement !== "string" || !Array.isArray(candidate.evidenceIds)) return null;
   try {
     const result = buildCandidate(state, {
       statement: candidate.statement,
@@ -106,18 +106,6 @@ async function proposePrinciple(state: MoneyState): Promise<ProposedPrinciple | 
   }
 }
 
-function postponeReview(state: MoneyState, storyId: string): MoneyState {
-  const story = state.stories.find((item) => item.id === storyId);
-  if (!story) return state;
-  const base = story.reviewAt ? Date.parse(story.reviewAt) : new Date().getTime();
-  const reviewAt = new Date(base + 3 * 86400000).toISOString();
-  return MoneyStateSchema.parse({
-    ...state,
-    stateVersion: state.stateVersion + 1,
-    stories: state.stories.map((item) => item.id === storyId ? { ...item, reviewAt } : item),
-  });
-}
-
 export function ReviewFlow() {
   const router = useRouter();
   const params = useSearchParams();
@@ -127,11 +115,10 @@ export function ReviewFlow() {
   const alias = state?.profile.dogName?.trim() || "慢慢";
   const [step, setStep] = useState<ReviewStep>("detail");
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [spent, setSpent] = useState<"spent" | "notBought" | "notYet" | null>(null);
   const [selectedJar, setSelectedJar] = useState<JarKind | null>(null);
-  const [undoToken, setUndoToken] = useState<UndoToken | null>(null);
   const [noteLead, setNoteLead] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [reviewReply, setReviewReply] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dogState, setDogState] = useState<"ears" | null>(null);
   const [candidate, setCandidate] = useState<MoneyPrinciple | null>(null);
@@ -159,6 +146,10 @@ export function ReviewFlow() {
   const summary = summaryTemplate.replace("{item}", item).replace("{price}", price).replace("{action}", action);
   const question = mode ? REVIEW_CARD.body[mode].replace("{item}", item) : REVIEW_CARD.body.skip.replace("{item}", item);
   const options = mode ? REVIEW_OPTIONS[mode] : REVIEW_OPTIONS.skip;
+  const happened = selectedOption !== null && HAPPENED_OUTCOMES.has(selectedOption);
+  const noteQuestion = mode && selectedOption
+    ? (REVIEW_STEP3.questions[mode] as Record<string, string>)[selectedOption] ?? REVIEW_STEP3.fallback
+    : REVIEW_STEP3.fallback;
 
   function selectOption(option: string) {
     setSelectedOption(option);
@@ -166,37 +157,13 @@ export function ReviewFlow() {
   }
 
   function continueAfterResponse() {
-    if (currentRecord.action === "buy_now") setStep("money");
-    else setStep("note");
-  }
-
-  function selectMoneyChoice(choice: "spent" | "notBought" | "notYet") {
-    setSpent(choice);
-    if (choice === "spent") setStep("whichJar");
-    else if (choice === "notYet") {
-      try {
-        const nextState = postponeReview(currentState, currentRecord.id);
-        commit(nextState);
-        setStep("deferred");
-      } catch (cause) {
-        if (isStateConflict(cause)) {
-          const latest = loadMoneyState();
-          if (latest) commit(latest);
-          setError(`${ERRORS.conflict.line} ${ERRORS.conflict.sub}`);
-        } else {
-          setError(`${ERRORS.validation.line} ${ERRORS.validation.sub}`);
-        }
-      }
-    } else {
-      setNoteLead(REVIEW_ASK_MONEY.notBoughtResponse);
-      setStep("note");
-    }
+    setStep(happened ? "whichJar" : "note");
   }
 
   function selectJar(kind: JarKind | "forgotten") {
     if (kind === "forgotten") {
       setSelectedJar(null);
-      setNoteLead(REVIEW_ASK_MONEY.whichJar.forgottenResponse);
+      setNoteLead(REVIEW_ASK_JAR.forgottenResponse);
       setStep("note");
       return;
     }
@@ -206,58 +173,38 @@ export function ReviewFlow() {
 
   function confirmDebit() {
     if (!selectedJar || currentRecord.amount === undefined) return;
-    try {
-      const result = commitJarDebit(currentState, {
-        jarKind: selectedJar,
-        amount: currentRecord.amount,
-        storyId: currentRecord.id,
-        expectedStateVersion: currentState.stateVersion,
-        idempotencyKey: globalThis.crypto.randomUUID(),
-      });
-      commit(result.state);
-      setUndoToken(result.undoToken);
-      setNoteLead(REVIEW_CONFIRM_DEDUCT.done.replace("{jar}", JAR_NAMES[selectedJar]));
-      setError(null);
-      setStep("note");
-    } catch (cause) {
-      if (isStateConflict(cause)) {
-        const latest = loadMoneyState();
-        if (latest) commit(latest);
-        setError(`${ERRORS.conflict.line} ${ERRORS.conflict.sub}`);
-      } else {
-        setError(`${ERRORS.validation.line} ${ERRORS.validation.sub}`);
-      }
-    }
-  }
-
-  function undoDebit() {
-    if (!undoToken) return;
-    try {
-      const result = undoJarDebit(currentState, undoToken, {
-        expectedStateVersion: currentState.stateVersion,
-        idempotencyKey: globalThis.crypto.randomUUID(),
-      });
-      commit(result.state);
-      setUndoToken(null);
-      setSelectedJar(null);
-      setStep("whichJar");
-    } catch (cause) {
-      if (isStateConflict(cause)) {
-        const latest = loadMoneyState();
-        if (latest) commit(latest);
-        setError(`${ERRORS.conflict.line} ${ERRORS.conflict.sub}`);
-      } else {
-        setError(`${ERRORS.validation.line} ${ERRORS.validation.sub}`);
-      }
-    }
+    setNoteLead(REVIEW_CONFIRM_DEDUCT.done.replace("{jar}", JAR_NAMES[selectedJar]));
+    setError(null);
+    setStep("note");
   }
 
   async function finishReview(includeNote: boolean) {
     try {
+      if (includeNote && note.trim()) {
+        setReviewReply(null);
+        setDogThinking(true);
+        const reply = await requestAgent({
+          task: "companion_reply",
+          scene: "review_note",
+          userText: note.trim(),
+          context: {
+            item,
+            action,
+            outcome: selectedOption ?? "",
+          },
+        }, 2500);
+        setDogThinking(false);
+        const text = reply.ok && reply.payload && typeof reply.payload === "object" && "result" in reply.payload
+          ? (reply.payload.result as { text?: unknown }).text
+          : null;
+        setReviewReply(limitReplyToTwoSentences(typeof text === "string" ? text : "嗯,我记下了。这句我留着。"));
+        await new Promise((resolve) => window.setTimeout(resolve, 800));
+      }
       const result = completeReview(currentState, {
         storyId: currentRecord.id,
-        happened: spent === "spent" || (currentRecord.action === "buy_now" && spent === null),
-        ...(spent === "spent" && currentRecord.amount !== undefined ? { actualAmount: currentRecord.amount } : {}),
+        happened,
+        ...(happened && currentRecord.amount !== undefined ? { actualAmount: currentRecord.amount } : {}),
+        ...(happened && selectedJar && currentRecord.amount !== undefined ? { debitJar: selectedJar } : {}),
         ...(includeNote && note.trim() ? { feelingNote: note.trim().slice(0, 200) } : {}),
         expectedStateVersion: currentState.stateVersion,
         idempotencyKey: globalThis.crypto.randomUUID(),
@@ -324,12 +271,10 @@ export function ReviewFlow() {
         <section className="decision-dialog review-flow-dialog" aria-live="polite">
           {step === "detail" && <div className="decision-step"><p className="decision-user-bubble">{summary}</p><p className="decision-dog-bubble">{question}</p><div className="decision-options review-options">{options.map((option) => <button key={option} className="decision-option" type="button" onClick={() => selectOption(option)}>{option}</button>)}</div></div>}
           {step === "response" && <div className="decision-step"><p className="decision-dog-bubble">{responseText}</p>{followUpText && <p className="decision-dog-bubble">{followUpText}</p>}<button className="decision-text-action" type="button" onClick={continueAfterResponse}>{REVIEW_NAV.next}<HandDrawnUnderline /></button></div>}
-          {step === "money" && <div className="decision-step"><p className="decision-dog-bubble">{REVIEW_ASK_MONEY.question}</p><div className="decision-options review-options"><button className="decision-option" type="button" onClick={() => selectMoneyChoice("spent")}>{REVIEW_ASK_MONEY.options.spent}</button><button className="decision-option" type="button" onClick={() => selectMoneyChoice("notBought")}>{REVIEW_ASK_MONEY.options.notBought}</button><button className="decision-option" type="button" onClick={() => selectMoneyChoice("notYet")}>{REVIEW_ASK_MONEY.options.notYet}</button></div></div>}
-          {step === "whichJar" && <div className="decision-step"><p className="decision-dog-bubble">{REVIEW_ASK_MONEY.whichJar.question}</p><div className="decision-options review-options">{REVIEW_ASK_MONEY.whichJar.options.map((option) => <button key={option} className="decision-option" type="button" onClick={() => selectJar(option === "不记得了" ? "forgotten" : (Object.entries(JAR_NAMES).find(([, label]) => label === option)?.[0] as JarKind))}>{option}</button>)}</div></div>}
+          {step === "whichJar" && <div className="decision-step"><p className="decision-dog-bubble">{REVIEW_ASK_JAR.question}</p><div className="decision-options review-options">{REVIEW_ASK_JAR.options.map((option) => <button key={option} className="decision-option" type="button" onClick={() => selectJar(option === "不记得了" ? "forgotten" : (Object.entries(JAR_NAMES).find(([, label]) => label === option)?.[0] as JarKind))}>{option}</button>)}</div></div>}
           {step === "confirmDebit" && selectedJar && <div className="decision-step"><p className="decision-dog-bubble">{REVIEW_CONFIRM_DEDUCT.question.replace("{jar}", JAR_NAMES[selectedJar]).replace("{amount}", price)}</p>{error && <p className="talk-status">{error}</p>}<div className="decision-options"><button className="decision-option" type="button" onClick={confirmDebit}>{REVIEW_CONFIRM_DEDUCT.confirm}</button><button className="decision-option" type="button" onClick={() => setStep("whichJar")}>{REVIEW_CONFIRM_DEDUCT.cancel}</button></div></div>}
-          {step === "note" && <div className="decision-step">{noteLead && <p className="decision-dog-bubble">{noteLead}</p>}<p className="decision-dog-bubble">{REVIEW_STEP3.placeholder}</p><input className="decision-input" value={note} onChange={(event) => setNote(event.target.value)} aria-label={REVIEW_STEP3.placeholder} />{undoToken && <button className="decision-text-action" type="button" onClick={undoDebit}>{REVIEW_CONFIRM_DEDUCT.undo}<HandDrawnUnderline /></button>}{error && <p className="talk-status">{error}</p>}<div className="decision-options"><button className="decision-option" type="button" onClick={() => finishReview(true)}>{REVIEW_STEP3.save}</button><button className="decision-option" type="button" onClick={() => finishReview(false)}>{REVIEW_STEP3.skip}</button></div></div>}
+          {step === "note" && <div className="decision-step">{noteLead && <p className="decision-dog-bubble">{noteLead}</p>}{reviewReply ? <p className="decision-dog-bubble">{reviewReply}</p> : <><p className="decision-dog-bubble">{noteQuestion}</p><input className="decision-input" value={note} onChange={(event) => setNote(event.target.value)} placeholder={REVIEW_STEP3.placeholder} aria-label={noteQuestion} /></>}{error && <p className="talk-status">{error}</p>}{!reviewReply && <div className="decision-options"><button className="decision-option" type="button" onClick={() => finishReview(true)}>{REVIEW_STEP3.save}</button><button className="decision-option" type="button" onClick={() => finishReview(false)}>{REVIEW_STEP3.skip}</button></div>}</div>}
           {step === "principle" && candidate && <div className="decision-step principle-candidate-step"><article className="principle-card principle-candidate-card"><p>{replaceAlias(PRINCIPLE_CANDIDATE.lead, alias)}</p><strong>{candidate.statement}</strong><button className="principle-evidence-toggle" type="button" onClick={() => setCandidateEvidenceOpen((open) => !open)}>{PRINCIPLE_CANDIDATE.evidence} {candidateEvidenceOpen ? "^" : "▾"}</button>{candidateEvidenceOpen && <div className="principle-evidence-list">{candidate.evidenceIds.map((id) => { const story = currentState.stories.find((item) => item.id === id); return <p key={id}>{story ? `${story.intent}${story.outcome?.feelingNote ? ` · ${story.outcome.feelingNote}` : ""}` : id}</p>; })}</div>}</article>{candidateEditing && <input className="decision-input principle-edit-input" value={candidateEditText} onChange={(event) => setCandidateEditText(event.target.value)} aria-label={candidate.statement} />}{candidateEditing ? <div className="decision-options principle-candidate-actions"><button className="decision-option" type="button" onClick={() => resolveCandidate("edit")}>{PRINCIPLE_CANDIDATE.saveEdit}</button><button className="decision-option" type="button" onClick={() => resolveCandidate("defer")}>{PRINCIPLE_CANDIDATE.actions.defer}</button></div> : <div className="decision-options principle-candidate-actions"><button className="decision-option" type="button" onClick={() => resolveCandidate("like_me")}>{PRINCIPLE_CANDIDATE.actions.like}</button><button className="decision-option" type="button" onClick={() => resolveCandidate("edit")}>{PRINCIPLE_CANDIDATE.actions.edit}</button><button className="decision-option" type="button" onClick={() => resolveCandidate("defer")}>{PRINCIPLE_CANDIDATE.actions.defer}</button></div>}</div>}
-          {step === "deferred" && <div className="decision-step"><p className="decision-dog-bubble">{REVIEW_ASK_MONEY.notYetResponse}</p><p className="decision-dog-bubble">{REVIEW_ASK_MONEY.notYetFollowUp}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>{REVIEW_NAV.backHome}<HandDrawnUnderline /></button></div>}
           {step === "done" && <div className="decision-step"><p className="decision-dog-bubble">{REVIEW_STEP4.closing}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>{REVIEW_NAV.backHome}<HandDrawnUnderline /></button></div>}
         </section>
       </section>

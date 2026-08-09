@@ -85,8 +85,7 @@ export function Stage({ state, demoIntro = false, onDismissDemoIntro }: StagePro
           <span>{alias}的小金库</span>
         </button>
         <button className="companion-home-entry" type="button" onClick={(event) => { event.stopPropagation(); router.push("/companion"); }}>陪伴</button>
-
-        <Leftover amount={state.leftover.amount} onOpen={() => router.push("/leftover")} />
+        {state.leftover.amount > 0 && <Leftover amount={state.leftover.amount} onOpen={() => router.push("/leftover")} />}
 
         {state.demo && <span className="demo-badge">{DEMO.badge}</span>}
         {state.demo && demoIntro && <aside className="demo-intro" aria-live="polite"><p>{DEMO.enterLine}</p><p>{DEMO.enterSub}</p><button type="button" onClick={(event) => { event.stopPropagation(); onDismissDemoIntro?.(); }}>知道了</button></aside>}
@@ -98,7 +97,7 @@ export function Stage({ state, demoIntro = false, onDismissDemoIntro }: StagePro
             <button type="button" onClick={(event) => { event.stopPropagation(); router.push("/settings"); }}>{script.home.settings}</button>
           </span>
           <span className="utility-link">
-            <button type="button" onClick={(event) => { event.stopPropagation(); router.push("/outfit"); }}>{script.home.outfit}</button>
+            <button type="button" disabled aria-disabled="true">{script.home.outfit}</button>
           </span>
         </nav>
 

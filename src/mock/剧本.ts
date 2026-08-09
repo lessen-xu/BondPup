@@ -50,22 +50,25 @@ export const REVIEW_CARD = {
 } as const;
 
 export const REVIEW_OPTIONS = {
-  now: ["用过几次", "还没怎么用", "说不上来"],
-  tomorrow: ["还会想", "放下了", "还在等"],
-  skip: ["挺轻松", "有点遗憾", "没什么感觉"],
+  now: ["用过几次", "还没怎么用", "说不上来", "最后没买"],
+  tomorrow: ["还会想", "放下了", "还在等", "后来买了"],
+  skip: ["挺轻松", "有点遗憾", "没什么感觉", "后来还是买了"],
 } as const;
 
 export const REVIEW_RESPONSES = {
   main: {
     "用过几次": "嗯，它真的进到你生活里了。",
-    "还没怎么用": "嗯，我记下了。这种事挺常有的。",
+    "还没怎么用": "嗯，买回来放着的东西，谁都有几件。",
     "说不上来": "嗯嗯，说不清也没关系。",
+    "最后没买": "嗯，那就先这样。",
     "还会想": "那它还在你心里呀。",
     "放下了": "嗯，那就先放着吧。",
     "还在等": "好，那再等等。",
+    "后来买了": "嗯，那它还是来了。",
     "挺轻松": "嗯，那就好。",
     "有点遗憾": "嗯，有点遗憾也很正常～",
     "没什么感觉": "嗯嗯，我知道了。",
+    "后来还是买了": "嗯，我记下了。",
   },
   followUp: {
     "还没怎么用": "说不定哪天就用上了，这种事也常有。",
@@ -73,31 +76,45 @@ export const REVIEW_RESPONSES = {
   },
 } as const;
 
-export const REVIEW_ASK_MONEY = {
-  question: "那笔钱花出去了吗？",
-  options: { spent: "花了", notBought: "最后没买", notYet: "还没" },
-  whichJar: {
-    question: "打算用哪个罐子里的钱？",
-    options: ["生活罐", "安心罐", "梦想罐", "不记得了"],
-    jarResponse: "好，从{jar}里拿的，我记上了。",
-    forgottenResponse: "好，那数字先不动。我帮你记着这件事。",
-  },
-  notBoughtResponse: "嗯，那就当它没发生过。",
-  notYetResponse: "好，那再等几天看看。",
-  notYetFollowUp: "有时候放一放，答案自己会浮出来。",
+export const REVIEW_ASK_JAR = {
+  question: "打算用哪个罐子里的钱？",
+  options: ["生活罐", "安心罐", "梦想罐", "不记得了"],
+  jarResponse: "好，从{jar}里出的，我记上了。",
+  forgottenResponse: "好，那数字先不动。我帮你记着这件事。",
 } as const;
 
 export const REVIEW_CONFIRM_DEDUCT = {
-  question: "从{jar}里拿{amount}元，是这个意思吗？",
-  confirm: "是",
+  question: "那就从{jar}里出这 {amount} 元？",
+  confirm: "嗯，就这样",
   cancel: "再想想",
-  done: "好，从{jar}里拿的，我记上了。",
+  done: "好，从{jar}里出的，我记上了。",
   undo: "改回去",
 } as const;
 
 export const REVIEW_STEP3 = {
-  placeholder: "想说点什么吗？不想说也没关系",
-  skip: "跳过",
+  questions: {
+    now: {
+      "用过几次": "什么时候会想起用它？",
+      "还没怎么用": "当时是什么让你想买它的？",
+      "说不上来": "现在再看这笔钱，你会怎么说？",
+      "最后没买": "最后是什么让你停下的？",
+    },
+    tomorrow: {
+      "还会想": "它哪一点还吸引你？",
+      "放下了": "是什么让你放下的？",
+      "还在等": "你在等什么？",
+      "后来买了": "后来是什么让你决定买的？",
+    },
+    skip: {
+      "挺轻松": "没买之后有什么变化吗？",
+      "有点遗憾": "遗憾的是什么？",
+      "没什么感觉": "现在再看，你会怎么说？",
+      "后来还是买了": "后来是什么让你改主意的？",
+    },
+  },
+  fallback: "这次有什么想记下来的吗？",
+  placeholder: "一两句话就行，想到什么写什么",
+  skip: "这次不用",
   save: "记下来",
 } as const;
 
@@ -261,7 +278,9 @@ export const DAILY_DECISION = {
   start: "先分罐子",
   browse: "不了,就随便看看",
   comfortEnough: "安心罐里现在有 {balance} 元。买了它的话,还会剩下 {remain} 元。",
+  comfortShortfall: "安心罐里现在有 {balance} 元。",
   shortfall: "按安心罐算会差 {shortfall} 元。剩下这部分你想放在哪里?",
+  sourceConfirmQuestion: "就从「{source}」出这 {shortfall} 元，可以吗?",
   arrange: "我帮你捋一下〜",
   summaryItem: "想买:{item}  {price}元",
   summaryComfort: "从安心罐出:还会剩 {remain}元",

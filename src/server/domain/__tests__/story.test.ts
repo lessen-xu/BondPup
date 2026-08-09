@@ -119,6 +119,29 @@ describe("completeReview 补记账(决定→回看→余额一致)", () => {
     });
   }
 
+  it("放到明天后买了 → 回看用所选罐补记账", () => {
+    const initial = base();
+    const { state } = createDecisionStory(initial, {
+      intent: "一双鞋",
+      action: "defer",
+      amount: 30000,
+      reviewInDays: 1,
+      expectedStateVersion: initial.stateVersion,
+      idempotencyKey: "defer-1",
+    });
+    const result = completeReview(state, {
+      storyId: "story-defer-1",
+      happened: true,
+      actualAmount: 30000,
+      debitJar: "comfort",
+      expectedStateVersion: state.stateVersion,
+      idempotencyKey: "defer-review-1",
+    });
+    expect(result.story.outcome?.happened).toBe(true);
+    expect(result.story.confirmedJar).toBe("comfort");
+    expect(result.state.jars.find((jar) => jar.kind === "comfort")?.actual).toBe(30000);
+  });
+
   it("log_decision 的故事回看确认实际买了 → 罐子入账、confirmedJar 落地", () => {
     const { state } = decided();
     const r = completeReview(state, {

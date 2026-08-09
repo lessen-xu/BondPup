@@ -466,7 +466,7 @@ button { color: inherit; font: inherit; }
   background-position: center;
   background-size: 100% 100%;
   border: 0;
-  bottom: 23%;
+  bottom: 20%;
   color: var(--ink);
   cursor: pointer;
   display: flex;
@@ -496,6 +496,11 @@ button { color: inherit; font: inherit; }
   max-width: 430px;
   min-height: 84dvh;
   position: relative;
+}
+
+.simple-page.simple-page-shell {
+  max-width: 520px;
+  padding-inline: 4%;
 }
 
 .simple-back {
@@ -545,7 +550,7 @@ button { color: inherit; font: inherit; }
 .outfit-options button { flex: 1; font-size: clamp(11px, 3vw, 14px); padding: 5% 2%; }
 
 .stage-shell.flow-layout-shell { align-items: flex-start; height: auto; min-height: 100dvh; overflow-x: hidden; overflow-y: auto; }
-.buy-decision-shell { height: 100dvh; min-height: 100dvh; overflow: hidden; }
+.buy-decision-shell { height: 100dvh; min-height: 100dvh; overflow-x: hidden; overflow-y: auto; }
 .stage.talk-page {
   aspect-ratio: auto;
   background-color: var(--paper);
@@ -574,8 +579,9 @@ button { color: inherit; font: inherit; }
 .talk-entry-options { align-items: center; flex-direction: column; gap: 20px; width: 100%; }
 .talk-entry-options .text-entry { align-items: center; background: transparent url('/assets/选项按钮.png') center / 100% 100% no-repeat; color: var(--ink); display: inline-flex; flex: 0 0 auto; font-size: clamp(13px, 3.8vw, 16px); justify-content: center; line-height: 1.5; min-height: 48px; padding: 3% 8%; width: min(86%, 340px); }
 .talk-entry-options .entry-underline { display: none; }
+.talk-page .entry-underline { display: none; }
 .talk-actions button, .talk-record button { background: transparent; border: 0; cursor: pointer; font-size: clamp(12px, 3.4vw, 15px); min-height: 44px; padding: 3% 2%; }
-.talk-actions button { text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.talk-actions button { text-decoration: none; }
 .talk-record { align-items: flex-end; gap: 6%; margin-top: 3%; }
 .talk-record input { background: transparent; background-image: url('/assets/输入框横线.png'); background-position: bottom center; background-repeat: no-repeat; background-size: 100% auto; border: 0; color: var(--ink); flex: 1 1 auto; font: inherit; min-width: 0; outline: 0; padding: 2% 0 5%; width: auto; }
 .talk-record button { flex: 0 0 auto; white-space: nowrap; }
@@ -593,20 +599,21 @@ button { color: inherit; font: inherit; }
   background-repeat: no-repeat;
   background-size: cover;
 }
-.money-note-page .dog-layer { margin: 9% auto 0 3%; width: 46%; }
+.money-note-page .dog-layer { margin: 6% auto 0 3%; width: 46%; }
 .money-note-page .decision-dialog { margin: -30% auto 0; }
-.money-note-page .decision-dog-bubble { left: 4%; max-width: 50%; position: relative; top: -28px; }
+.money-note-page .decision-dog-bubble { left: 4%; max-width: 50%; position: relative; top: -40px; }
 .money-note-page .decision-user-bubble { max-width: 62%; }
 .money-note-page .decision-input { font-size: clamp(13px, 3.8vw, 16px); width: 94%; }
 .decision-back { display: block; position: relative; z-index: 8; }
 .talk-page .back-arrow-button { margin-left: -2%; }
 .decision-dialog { margin: -23% auto 0; position: relative; width: 100%; z-index: 5; }
 .review-flow-dialog { margin: 1% auto 0; }
-.buy-decision-page .decision-dialog { margin: -36% auto 0; }
-.buy-decision-page .decision-dialog { max-height: 64dvh; overflow-y: auto; padding: 14px 2% 3%; scrollbar-width: none; }
-.buy-decision-page .decision-dialog::-webkit-scrollbar { display: none; }
-.buy-decision-page .decision-dog-bubble { max-width: 78%; position: relative; transform: translate(6px, -10px); }
-.buy-decision-page .buy-item-step .decision-input { margin-top: 32px; }
+.review-flow-dog { margin: -4% auto 0 4%; width: 34%; }
+.review-flow-page { transform: translateY(-4dvh); }
+.buy-decision-page .decision-dialog { margin: -28% auto 0; }
+.buy-decision-page .decision-dialog { max-height: none; overflow: visible; padding: 58px 2% 3%; }
+.buy-decision-page .decision-dog-bubble { max-width: 78%; position: relative; transform: translateY(-174px); }
+.buy-decision-page .buy-item-step .decision-input { margin-top: 44px; }
 .decision-dialog-below-dog { margin-top: 2%; }
 .decision-step { align-items: center; display: flex; flex-direction: column; gap: clamp(8px, 3vw, 16px); }
 .decision-dog-bubble, .decision-user-bubble {
@@ -667,6 +674,7 @@ button { color: inherit; font: inherit; }
   transition: transform 150ms ease-out;
 }
 .decision-option:active, .decision-actions button:active { transform: scale(.97); }
+.decision-option.is-selected { box-shadow: inset 0 0 0 2px var(--line); }
 .decision-actions { flex-direction: column; gap: 3%; }
 .decision-actions button { min-height: 52px; width: 100%; }
 .decision-text-action, .principle-fold > button { align-items: center; appearance: none; background: transparent; border: 0; color: var(--ink); cursor: pointer; display: inline-flex; flex-direction: column; font: inherit; font-size: clamp(12px, 3.4vw, 15px); min-height: 44px; padding: 2% 5%; }
@@ -752,6 +760,7 @@ button { color: inherit; font: inherit; }
 .review-summary small { color: var(--muted); display: block; font-size: .76em; line-height: 1.55; }
 .review-options { flex-direction: column; gap: 14px; }
 .review-options .decision-option { width: 100%; }
+.review-note-expand { background: transparent; border: 0; color: var(--muted); cursor: pointer; font: inherit; font-size: clamp(11px, 3.1vw, 13px); min-height: 36px; padding: 2% 4%; }
 .review-note { color: var(--muted); font-size: clamp(11px, 3.1vw, 14px); line-height: 1.65; margin: 0; max-width: 88%; text-align: center; }
 
 .flow-shell {
@@ -820,7 +829,11 @@ button { color: inherit; font: inherit; }
 .intro-nickname-confirm { top: 84%; }
 
 .flow-screen { display: flex; flex: 0 0 56dvh; flex-direction: column; height: 56dvh; min-height: 0; overflow: hidden; }
-.flow-content { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 2%; scrollbar-width: none; }
+.flow-content { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: max(12px, 2%); scrollbar-width: none; }
+.scroll-cue { background: rgba(156, 139, 120, .25); border-radius: 999px; pointer-events: none; position: fixed; width: 3px; z-index: 30; opacity: 0; transition: opacity 180ms ease-out; }
+.scroll-cue.is-visible { opacity: 1; }
+.scroll-fade { background: linear-gradient(to bottom, transparent, var(--paper)); bottom: auto; height: 32px; pointer-events: none; position: fixed; z-index: 29; }
+.scroll-fade.is-hidden { opacity: 0; }
 .flow-jars-screen .flow-content { padding-bottom: 0; }
 .flow-principle-screen .flow-content { justify-content: center; padding-bottom: 0; }
 .flow-principle-screen .flow-principle-intro { color: var(--ink); margin: 0 auto 5%; max-width: 86%; text-align: center; }
