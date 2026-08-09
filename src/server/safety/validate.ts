@@ -41,10 +41,11 @@ export function validateReplyText(
  */
 export function validateDecisionReply(text: string): ValidationFailure[] {
   const failures = validateReplyText(text, { maxSentences: 5 });
+  // 容忍常见变体(现在就买/明晚/这次不买):闸门管的是「三个选项都交到她手里」,不是字面背诵
   const missing: string[] = [];
-  if (!text.includes("现在买")) missing.push("现在买");
-  if (!/放到明天|明天再/.test(text)) missing.push("放到明天");
-  if (!text.includes("先不买")) missing.push("这次先不买");
+  if (!/现在(就)?买|今天(就)?买/.test(text)) missing.push("现在买");
+  if (!/放到明天|明天再|明晚|放一晚|明天(再)?(看|说|定|决定)/.test(text)) missing.push("放到明天");
+  if (!/先不买|这次不买|这回不买/.test(text)) missing.push("这次先不买");
   if (missing.length > 0) {
     failures.push({ rule: "three_actions", message: `缺少选项:${missing.join("、")}` });
   }
