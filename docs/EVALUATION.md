@@ -4,7 +4,7 @@
 
 - 产品(带示例数据):<https://bondpup.vercel.app/?demo=1> —— 三分钟评测路径见 [README](../README.md#三分钟评测路径)
 - MCP 端点:`https://bondpup.vercel.app/mcp`(5 工具,无密钥可完整走通,契约见 [MCP.md](MCP.md))
-- 一键端到端断言(24 次真实调用、25 条断言):
+- 一键端到端断言(24 次真实调用、24 条断言):
   ```bash
   node scripts/smoke-mcp.mjs https://bondpup.vercel.app
   ```
@@ -23,7 +23,7 @@
 
 ## 质量闸门
 
-- 91 个单元测试(契约/域计算/安全层/API 契约),`tsc --noEmit`,`next build`,全部进 CI,红灯不合并
+- 98 个单元测试(契约/域计算/安全层/API 契约),`tsc --noEmit`,`next build`,全部进 CI,红灯不合并
 - MCP smoke 覆盖:恒等式、四罐齐全、乐观锁冲突、幂等重放、proposal 验签/过期/篡改、413 体积上限、structuredContent 与 text 同源
 
 ## 真实模型上线当天的输出闸战绩

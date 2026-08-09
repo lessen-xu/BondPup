@@ -1,0 +1,73 @@
+{
+  "name": "BondPup 小狗慢慢",
+  "tagline": "陪第一份工资的年轻人和钱相处的 Agent",
+  "repository": "https://github.com/lessen-xu/BondPup",
+  "license": "MIT (code); artwork rights reserved, see LICENSE",
+  "entrypoints": {
+    "web": "https://bondpup.vercel.app",
+    "demo": "https://bondpup.vercel.app/?demo=1",
+    "mcp": "https://bondpup.vercel.app/mcp",
+    "health": "https://bondpup.vercel.app/health"
+  },
+  "mcp": {
+    "transport": "streamable-http",
+    "auth": "none",
+    "protocolVersions": ["2026-07-28", "2025-era"],
+    "toolCount": 5,
+    "tools": [
+      "create_money_session",
+      "plan_jars",
+      "record_money_moment",
+      "confirm_action",
+      "get_money_overview"
+    ],
+    "outputSchema": true,
+    "structuredContent": true,
+    "runsWithoutModelKey": true,
+    "notes": "2026-07-28 requires Mcp-Method header matching body method; tools/call also requires Mcp-Name."
+  },
+  "verification": {
+    "endToEnd": {
+      "command": "node scripts/smoke-mcp.mjs https://bondpup.vercel.app",
+      "calls": 24,
+      "assertions": 24,
+      "covers": "分配→扣罐→撤销→回看→候选原则→确认→引用,含乐观锁/幂等/验签/413/四罐齐全"
+    },
+    "unitTests": 98,
+    "commands": ["npm ci", "npm test", "npx tsc --noEmit", "npm run build"],
+    "ci": "GitHub Actions job \"verify\" on every PR; red never merged"
+  },
+  "model": {
+    "providers": ["anthropic (claude-sonnet-5)", "openai-compatible (deepseek-v4-flash)", "deterministic mock"],
+    "selection": "env-var based; failure or timeout degrades to deterministic mock",
+    "singleAttemptBudgetMs": 8000,
+    "clientTimeoutMs": 10000,
+    "responseFields": ["provider", "source (ai|rule)", "safetyFlags", "safetyEvent", "degraded"]
+  },
+  "safety": {
+    "inputGate": "keyword routing for self_harm / debt_loan / investment / generic_emotion; risky input never reaches the model",
+    "crisisResponse": "fixed copy with 24h helpline 12356, verified at the API layer by contract tests",
+    "outputGate": "26-word forbidden list + max 3 sentences; one retry then safe fallback",
+    "principleGate": "first person, <=25 codepoints, evidence must reference reviewed stories; retry once then deterministic candidate",
+    "auditEvents": "risk type and rule only, never user text"
+  },
+  "privacy": {
+    "storage": "browser localStorage only; server persists nothing",
+    "accounts": false,
+    "thirdPartyAnalytics": false,
+    "export": "one-click JSON export; one-click wipe",
+    "browserOutboundConnections": "none (CSP connect-src 'self')"
+  },
+  "docs": {
+    "architecture": "docs/ARCHITECTURE.md",
+    "evaluation": "docs/EVALUATION.md",
+    "mcp": "docs/MCP.md",
+    "privacy": "docs/PRIVACY.md",
+    "userValidation": "docs/USER_VALIDATION.md"
+  },
+  "knownGaps": [
+    "网页面的 CYCLE_REVIEW 与结余碎钻尚未接入(MCP 面可用)",
+    "已确认原则暂只支持查看,修改/删除待接入",
+    "真实目标用户试用尚未完成,文档未作任何用户结论声称"
+  ]
+}

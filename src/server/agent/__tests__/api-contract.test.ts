@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { runAgentTask } from "@/server/agent";
 import { runMockAgentTask } from "@/server/agent/mock";
-import { validateReplyText } from "@/server/safety/validate";
+import { validatePrincipleWithIds, validateReplyText } from "@/server/safety/validate";
 
 /**
  * API→组件契约测试:锁定 /api/agent 响应里页面依赖的安全字段。
@@ -49,6 +49,39 @@ describe("/api/agent 安全字段契约(防漂移)", () => {
     if (out.task === "decompose_wish") {
       expect(out.result.concerns.length).toBeGreaterThanOrEqual(3);
     }
+  });
+});
+
+describe("generate_principle 统一编排(网页与 MCP 同一条路径)", () => {
+  const stories = [
+    { id: "s1", intent: "按摩仪", action: "defer" as const, happened: false },
+    { id: "s2", intent: "短途旅行", action: "skip_this_time" as const, happened: false },
+    { id: "s3", intent: "白色的鞋", action: "defer" as const, happened: true },
+  ];
+
+  it("API 返回的候选必定通过 safety 校验(第一人称/≤25 字/无禁词/证据可追溯)", async () => {
+    const out = await runAgentTask({
+      task: "generate_principle",
+      stories,
+      existingStatements: [],
+      attempt: 0,
+    });
+    expect(out.task).toBe("generate_principle");
+    if (out.task !== "generate_principle") return;
+    const allowed = new Set(stories.map((s) => s.id));
+    expect(validatePrincipleWithIds(out.result, allowed)).toEqual([]);
+    expect(out.source).toBe("rule"); // 无密钥环境:确定性候选
+  });
+
+  it("证据不足(只有 1 条故事)→ 不硬凑,抛 validation_error", async () => {
+    await expect(
+      runAgentTask({
+        task: "generate_principle",
+        stories: [stories[0]],
+        existingStatements: [],
+        attempt: 0,
+      })
+    ).rejects.toThrow();
   });
 });
 

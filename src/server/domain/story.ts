@@ -108,6 +108,10 @@ export function completeReview(state: MoneyState, req: CompleteReviewRequest): C
     if (!req.happened) {
       throw new DomainError("validation_error", "没有实际发生的决定不需要记账");
     }
+    if (req.debitJar === "future") {
+      // 与 commitJarDebit 同一条冻结规则:未来罐只进不出,补记账这条路也不能绕过去
+      throw new DomainError("validation_error", "未来罐不参与日常扣账,长期积累只进不出");
+    }
     if (existing.confirmedJar !== undefined) {
       throw new DomainError("state_conflict", "这笔当时已经记过账了,不能重复记");
     }

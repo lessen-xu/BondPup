@@ -1,5 +1,10 @@
 import type { AgentReply, MoneyState } from "@/contracts";
-import { validatePrincipleCandidate, validateReplyText } from "@/server/safety/validate";
+import { DomainError } from "@/contracts/errors";
+import {
+  validatePrincipleCandidate,
+  validatePrincipleWithIds,
+  validateReplyText,
+} from "@/server/safety/validate";
 import { detectSafetyRisk, safetyReplyFor } from "@/server/safety/risk";
 import { principleContext, principleEligible } from "@/server/domain/principle";
 import type { AgentTaskInput, AgentTaskOutput, GeneratePrincipleOutput } from "./types";
@@ -105,6 +110,9 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutpu
     }
   }
   const sourceOf = (p: AgentProvider): AgentSource => (p === "mock" ? "rule" : "ai");
+  if (input.task === "generate_principle") {
+    return runPrincipleTask(input, sourceOf);
+  }
   const { out, provider, degraded } = await runProviderTask(input);
   // 输出闸:禁用词/句数不合格 → 重试一次 → 仍不合格用安全兜底,绝不放行违规文本
   if (out.task === "companion_reply" && validateReplyText(out.result.text).length > 0) {
@@ -121,6 +129,32 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutpu
     return { task: "companion_reply", result: SAFE_FALLBACK, provider, source: "rule" };
   }
   return { ...out, provider, source: sourceOf(provider), ...(degraded ? { degraded } : {}) };
+}
+
+/**
+ * 原则任务的统一编排(网页与 MCP 同一条路径):
+ * 真模型生成 → safety 校验 → 不合规重试一次 → 仍不合规用确定性 Mock 候选(必定合规)。
+ * 网页曾因 API 直接返回未校验的模型结果、前端再自己判一遍而闭环断裂——校验只此一处。
+ * 兜底候选是代码产物,source 标 rule;资格判断(≥3 条已回看)在调用方。
+ */
+async function runPrincipleTask(
+  input: Extract<AgentTaskInput, { task: "generate_principle" }>,
+  sourceOf: (p: AgentProvider) => AgentSource
+): Promise<AgentRunOutput> {
+  const allowedIds = new Set(input.stories.map((s) => s.id));
+  const check = (c: GeneratePrincipleOutput) => validatePrincipleWithIds(c, allowedIds).length === 0;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { out, provider, degraded } = await runProviderTask({ ...input, attempt });
+    if (out.task === "generate_principle" && check(out.result)) {
+      return { ...out, provider, source: sourceOf(provider), ...(degraded ? { degraded } : {}) };
+    }
+  }
+  const fallback = runMockAgentTask({ ...input, attempt: 0 });
+  if (fallback.task === "generate_principle" && check(fallback.result)) {
+    return { ...fallback, provider: "mock", source: "rule" };
+  }
+  // 连确定性候选都不合规(证据 id 不合法等):宁可不给,也不给一条像贴标签的原则
+  throw new DomainError("validation_error", "这次先不提炼原则,证据还不够");
 }
 
 type PrincipleGenerator = (
