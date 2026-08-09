@@ -20,7 +20,7 @@ export const DecomposeWishInput = z.object({
 
 export const CompanionReplyInput = z.object({
   task: z.literal("companion_reply"),
-  scene: z.enum(["greet", "decision", "note"]),
+  scene: z.enum(["greet", "decision", "note", "review_note"]),
   userText: z.string().max(500).optional(),
   /** 只传最小摘要,不传完整倾诉原文 */
   stateSummary: z
@@ -30,6 +30,11 @@ export const CompanionReplyInput = z.object({
       updatedAt: z.string().optional(),
     })
     .optional(),
+  context: z.object({
+    item: z.string().max(120),
+    action: z.string().max(80),
+    outcome: z.string().max(200),
+  }).optional(),
 });
 
 export const GeneratePrincipleInput = z.object({

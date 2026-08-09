@@ -62,6 +62,11 @@ function mockReply(input: Extract<AgentTaskInput, { task: "companion_reply" }>):
         text: "临时改变安排,心里有点不踏实很正常。想记下来的话告诉我金额,只想说说也可以。",
         requiresConfirmation: false,
       };
+    case "review_note":
+      return {
+        text: "我听见了。你说的这句,我会留着。",
+        requiresConfirmation: false,
+      };
   }
 }
 
