@@ -86,6 +86,7 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
   const [modelLoading, setModelLoading] = useState(false);
   const [issue, setIssue] = useState<AgentIssue | null>(null);
   const [safety, setSafety] = useState<"crisis" | "debt" | "invest" | "offTopic" | null>(null);
+  const [safetyText, setSafetyText] = useState<string | null>(null);
   const [offTopicResponse, setOffTopicResponse] = useState<string | null>(null);
   const [savedCopy, setSavedCopy] = useState<string>(DAILY_NOTE.received);
   const [transitionIndex, setTransitionIndex] = useState(0);
@@ -114,6 +115,7 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
     globalThis.crypto.getRandomValues(random);
     setTransitionIndex(random[0] % DAILY_NOTE.transitions.length);
     setSafety(null);
+    setSafetyText(null);
     setStep("listen");
   }
 
@@ -122,6 +124,13 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
     const root = payload as Record<string, unknown>;
     const result = root.result && typeof root.result === "object" ? root.result as Record<string, unknown> : null;
     return typeof result?.text === "string" ? firstTwoSentences(result.text) : NOTE_MODEL_REPLY.fallback;
+  }
+
+  function readRawModelReply(payload: unknown): string | null {
+    if (!payload || typeof payload !== "object") return null;
+    const root = payload as Record<string, unknown>;
+    const result = root.result && typeof root.result === "object" ? root.result as Record<string, unknown> : null;
+    return typeof result?.text === "string" ? result.text : null;
   }
 
   async function requestModelReply() {
@@ -138,6 +147,7 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
     let nextSafety: ReturnType<typeof safetyKind> = null;
     if (result.ok) {
       nextSafety = safetyKind(result.payload);
+      const rawText = readRawModelReply(result.payload);
       const safetyEvent = readSafetyEvent(result.payload);
       if (state && safetyEvent && (nextSafety === "crisis" || nextSafety === "debt" || nextSafety === "invest")) {
         try {
@@ -151,6 +161,7 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
         }
       }
       setSafety(nextSafety);
+      if (nextSafety && rawText) setSafetyText(rawText);
       if (nextSafety === "crisis") {
         setStory("");
         setStoryInput("");
@@ -158,7 +169,7 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
         setModelLoading(false);
         return;
       }
-      setModelReply(readModelReply(result.payload));
+      setModelReply(nextSafety && rawText ? rawText : readModelReply(result.payload));
     } else {
       setIssue(result.issue);
       setModelReply(NOTE_MODEL_REPLY.fallback);
@@ -214,7 +225,7 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
 
   if (!ready) return <LoadingState />;
   if (safety === "crisis") {
-    return <main className="stage-shell flow-layout-shell safety-exit-shell"><section className="stage talk-page safety-exit-page" aria-label="安全退出"><section className="safety-exit-dog" aria-label={alias}><Dog page="对话" state="idle" alias={alias} message={null} /></section><section className="safety-exit-copy" aria-live="assertive"><p>{SAFETY.crisis.line}</p><p>{SAFETY.crisis.body}</p><p>{SAFETY.crisis.closing}</p></section><div className="safety-exit-actions"><button type="button" onClick={() => { setSafety(null); setStep("story"); }}>{SAFETY.crisis.ack}</button><button type="button" onClick={() => router.push("/")}>{SAFETY.crisis.home}</button></div></section></main>;
+    return <main className="stage-shell flow-layout-shell safety-exit-shell"><section className="stage talk-page safety-exit-page" aria-label="安全退出"><section className="safety-exit-dog" aria-label={alias}><Dog page="对话" state="idle" alias={alias} message={null} /></section><section className="safety-exit-copy" aria-live="assertive"><p>{safetyText ?? SAFETY.crisis.line}</p></section></section></main>;
   }
 
   return (
@@ -227,7 +238,7 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
           {step === "story" && <div className="decision-step"><p className="decision-dog-bubble">{DAILY_NOTE.intro}</p><input autoFocus className="decision-input" value={storyInput} onChange={(event) => setStoryInput(event.target.value)} placeholder={DAILY_NOTE.placeholder} aria-label={DAILY_NOTE.placeholder} /><p className="talk-status">{DAILY_NOTE.hint.replace("{alias}", alias)}</p><button className="decision-text-action" type="button" onClick={submitStory}>{DAILY_NOTE.submit}<HandDrawnUnderline /></button></div>}
           {step === "listen" && <div className="decision-step"><p className="decision-user-bubble">{story}</p><p className="decision-dog-bubble">{DAILY_NOTE.responses[category].replace("{alias}", alias)}</p><p className="decision-dog-bubble">{DAILY_NOTE.transitions[transitionIndex]}</p><button className="decision-option" type="button" onClick={requestModelReply}>{DAILY_NOTE.done}</button></div>}
           {step === "model" && <div className="decision-step"><p className="decision-user-bubble">{story}</p>{modelLoading ? <p className="decision-dog-bubble money-note-thinking-bubble" aria-hidden="true">{NOTE_MODEL_REPLY.thinkingHint}</p> : <>{issue ? <><p className="decision-dog-bubble">{issue === "offline" ? ERRORS.offline.line : ERRORS.timeout.line}</p><p className="decision-dog-bubble">{issue === "offline" ? ERRORS.offline.sub : ERRORS.timeout.sub}</p></> : null}<p className="decision-dog-bubble money-note-model-bubble">{modelReply}</p><button className="flow-primary-action money-note-continue" type="button" onClick={continueAfterModelReply}>{NOTE_MODEL_REPLY.continueLabel}</button></>}</div>}
-          {step === "safety-offtopic" && <div className="decision-step"><p className="decision-dog-bubble">{SAFETY.offTopic.line}</p><p className="decision-dog-bubble">{SAFETY.offTopic.body}</p><div className="decision-options"><button className="decision-option" type="button" onClick={() => chooseOffTopic("yes")}>{SAFETY.offTopic.options.yes}</button><button className="decision-option" type="button" onClick={() => chooseOffTopic("no")}>{SAFETY.offTopic.options.no}</button></div></div>}
+          {step === "safety-offtopic" && <div className="decision-step"><p className="decision-dog-bubble">{safetyText ?? SAFETY.offTopic.line}</p><div className="decision-options"><button className="decision-option" type="button" onClick={() => chooseOffTopic("yes")}>{SAFETY.offTopic.options.yes}</button><button className="decision-option" type="button" onClick={() => chooseOffTopic("no")}>{SAFETY.offTopic.options.no}</button></div></div>}
           {step === "safety-stopped" && <div className="decision-step"><p className="decision-dog-bubble">{offTopicResponse ?? SAFETY.offTopic.noResponse}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>返回首页<HandDrawnUnderline /></button></div>}
           {step === "choices" && <div className="decision-step">{offTopicResponse && <p className="decision-dog-bubble">{offTopicResponse}</p>}<p className="decision-dog-bubble">{DAILY_NOTE.choicesPrompt}</p><div className="decision-options decision-source-options"><button className="decision-option" type="button" disabled={submitting} onClick={remember}>{DAILY_NOTE.remember}</button><button className="decision-option" type="button" onClick={() => { setSavedCopy(DAILY_NOTE.received); setStep("done"); }}>{DAILY_NOTE.talkOnly}</button></div></div>}
           {step === "done" && <div className="decision-step"><p className="decision-dog-bubble">{savedCopy}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>返回首页<HandDrawnUnderline /></button></div>}

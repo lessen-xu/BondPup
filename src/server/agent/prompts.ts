@@ -40,10 +40,13 @@ export function buildTaskPrompt(input: AgentTaskInput): { instruction: string; p
             ? "用户在犹豫要不要买。先接住情绪;若 comfortAvailableText 有值,用『我这里记的安心罐还有 comfortAvailableText』的口吻提一句,金额原样引用,不要自己计算。最后一句必须完整给出三个并列选择:现在买、放到明天、这次先不买——三个都要出现,不偏向任何一个,绝不问值不值。直接输出回应文本,不要 JSON。"
             : input.scene === "note"
               ? "用户想说一笔钱。先接住情绪,再说可以告诉你金额记下来,也可以只说说不改余额。直接输出回应文本。"
+              : input.scene === "review_note"
+                ? "用户在回看一段已经发生过的金钱故事,刚写下自己的感受。只接住这句话,不评价、不追问、不给建议、不总结教训。最多两句。直接输出回应文本。"
               : "用户点了你。说一句自然的开场,表示你在,可以聊钱也可以不聊。直接输出回应文本。",
         payload: JSON.stringify({
           userText: input.userText ?? null,
           stateSummary: summary,
+          context: input.context ?? null,
         }),
       };
     }
