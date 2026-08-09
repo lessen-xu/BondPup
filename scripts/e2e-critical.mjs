@@ -7,8 +7,7 @@
  * 2. 演示原则闭环:回看 → 候选原则 → 确认 → 下次决策被引用
  * 3. 死入口:碎钻为 0 不可进、未完成页面不暴露给评委
  *
- * 依赖 playwright-core + 系统已装的 Edge/Chrome(不下载浏览器):
- *   npm i -g playwright-core
+ * 依赖 playwright-core(已在 devDependencies,npm ci 即可)+ 系统已装的 Edge/Chrome(不下载浏览器)。
  * 断言失败会打印当前页面可见按钮,方便定位选择器漂移。
  */
 const BASE = process.argv[2] ?? "http://localhost:3000";
@@ -55,6 +54,17 @@ function assert(cond, msg) {
 }
 
 const norm = (s) => (s ?? "").replace(/\s+/g, "");
+
+/** 条件等待:页面文本出现任一关键词(替代固定 sleep——demo 就绪实测 1.7-2.9s 抖动,固定等待会误判) */
+async function waitForText(page, keywords, timeoutMs = 15000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutMs) {
+    const text = norm(await page.locator("body").innerText().catch(() => ""));
+    for (const k of keywords) if (text.includes(norm(k))) return true;
+    await page.waitForTimeout(300);
+  }
+  return false;
+}
 
 /**
  * 按优先级点第一个匹配到的按钮:按钮文本去掉所有空白后包含关键词即算命中
@@ -106,7 +116,7 @@ console.log("\n--- 1. 危机输入首次提交就进安全出口并原样展示�
 {
   const { ctx, page, errors } = await newPage();
   await page.goto(`${BASE}/?demo=1`, { waitUntil: "domcontentloaded", timeout: 60000 });
-  await page.waitForTimeout(2500);
+  await waitForText(page, ["知道了", "生活罐", "戳一戳"]);
   await clickFirst(page, ["知道了", "好呀", "继续"]);
 
   // 进「有笔钱想说说」分支
@@ -126,7 +136,7 @@ console.log("\n--- 1. 危机输入首次提交就进安全出口并原样展示�
     await box.fill("感觉活着没什么意思,钱也管不好");
     await page.waitForTimeout(300);
     const submitted = await clickFirst(page, ["告诉我", "说完了", "嗯,说完了", "发送", "确认", "继续", "好了"]);
-    await page.waitForTimeout(2500);
+    await waitForText(page, ["12356", "说完了", "热线"], 8000);
     const text = (await page.locator("body").innerText()).replace(/\s+/g, " ");
     // 关键:第一次提交后就应出现热线,不需要再点一次
     if (!assert(text.includes("12356"), "第一次提交后页面就出现热线 12356")) {
@@ -149,7 +159,7 @@ console.log("\n--- 2. 演示数据回看 → 候选原则 → 确认 ---");
 {
   const { ctx, page, errors } = await newPage();
   await page.goto(`${BASE}/?demo=1`, { waitUntil: "domcontentloaded", timeout: 60000 });
-  await page.waitForTimeout(2500);
+  await waitForText(page, ["知道了", "生活罐", "戳一戳"]);
   await clickFirst(page, ["知道了", "好呀"]);
 
   const entered = await clickFirst(page, ["我们说今天来看看", "来看看", "回看", "看看"]);
@@ -166,7 +176,7 @@ console.log("\n--- 2. 演示数据回看 → 候选原则 → 确认 ---");
     ]);
     if (!clicked) break;
   }
-  await page.waitForTimeout(3000);
+  await waitForText(page, ["这很像我", "像我", "改个说法", "原则"], 8000);
   const text = (await page.locator("body").innerText()).replace(/\s+/g, " ");
   const gotPrinciple =
     /这很像我|像我|改个说法|暂不确定|原则/.test(text) ||
@@ -188,7 +198,7 @@ console.log("\n--- 3. 未完成入口不暴露给评委 ---");
 {
   const { ctx, page } = await newPage();
   await page.goto(`${BASE}/?demo=1`, { waitUntil: "domcontentloaded", timeout: 60000 });
-  await page.waitForTimeout(2500);
+  await waitForText(page, ["知道了", "生活罐", "戳一戳"]);
   await clickFirst(page, ["知道了", "好呀"]);
   const home = (await page.locator("body").innerText()).replace(/\s+/g, " ");
   assert(!/还在做|敬请期待|开发中/.test(home), "首页不出现「还在做」类占位");

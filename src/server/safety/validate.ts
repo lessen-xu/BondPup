@@ -7,7 +7,7 @@ import { FORBIDDEN_WORDS } from "./forbidden-words";
  */
 
 export interface ValidationFailure {
-  rule: "forbidden_words" | "max_sentences" | "max_length" | "first_person" | "evidence";
+  rule: "forbidden_words" | "max_sentences" | "max_length" | "first_person" | "evidence" | "three_actions" | "vague";
   message: string;
 }
 
@@ -15,8 +15,12 @@ export function findForbiddenWords(text: string): string[] {
   return FORBIDDEN_WORDS.filter((w) => text.includes(w));
 }
 
-/** 对话回应:无禁用词、最多三句 */
-export function validateReplyText(text: string): ValidationFailure[] {
+/** 对话回应:无禁用词、句数不超预算(默认 3;decision 场景摆情况+三选项+交还决定权,预算 5) */
+export function validateReplyText(
+  text: string,
+  opts?: { maxSentences?: number }
+): ValidationFailure[] {
+  const maxSentences = opts?.maxSentences ?? 3;
   const failures: ValidationFailure[] = [];
   const hits = findForbiddenWords(text);
   if (hits.length > 0) {
@@ -24,8 +28,25 @@ export function validateReplyText(text: string): ValidationFailure[] {
   }
   // ！？ 是全角!?,用转义写死——肉眼分不清全半角,之前就在这里看走眼过
   const sentences = text.split(/[。!?！？]/).filter((s) => s.trim().length > 0);
-  if (sentences.length > 3) {
-    failures.push({ rule: "max_sentences", message: `超过三句(${sentences.length} 句)` });
+  if (sentences.length > maxSentences) {
+    failures.push({ rule: "max_sentences", message: `超过 ${maxSentences} 句(${sentences.length} 句)` });
+  }
+  return failures;
+}
+
+/**
+ * 决策回应的语义闸(冻结规则:三个中性动作,一个都不能少):
+ * 必须同时出现「现在买」「放到明天/明天再」「先不买」。
+ * 真模型曾只回一句情绪就通过了旧闸——语气合规不等于把三个选项交到她手里。
+ */
+export function validateDecisionReply(text: string): ValidationFailure[] {
+  const failures = validateReplyText(text, { maxSentences: 5 });
+  const missing: string[] = [];
+  if (!text.includes("现在买")) missing.push("现在买");
+  if (!/放到明天|明天再/.test(text)) missing.push("放到明天");
+  if (!text.includes("先不买")) missing.push("这次先不买");
+  if (missing.length > 0) {
+    failures.push({ rule: "three_actions", message: `缺少选项:${missing.join("、")}` });
   }
   return failures;
 }

@@ -1,6 +1,7 @@
 import type { AgentReply, MoneyState } from "@/contracts";
 import { DomainError } from "@/contracts/errors";
 import {
+  validateDecisionReply,
   validatePrincipleCandidate,
   validatePrincipleWithIds,
   validateReplyText,
@@ -113,11 +114,17 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutpu
   if (input.task === "generate_principle") {
     return runPrincipleTask(input, sourceOf);
   }
+  // 输出闸按场景取校验:decision 走语义闸(三选项缺一不可,句数预算 5),
+  // review_note 预算 2,其余 3。不合格 → 重试一次 → 仍不合格用确定性兜底,绝不放行。
+  const gate = (text: string) => {
+    if (input.task !== "companion_reply") return [];
+    if (input.scene === "decision") return validateDecisionReply(text);
+    return validateReplyText(text, { maxSentences: input.scene === "review_note" ? 2 : 3 });
+  };
   const { out, provider, degraded } = await runProviderTask(input);
-  // 输出闸:禁用词/句数不合格 → 重试一次 → 仍不合格用安全兜底,绝不放行违规文本
-  if (out.task === "companion_reply" && validateReplyText(out.result.text).length > 0) {
+  if (out.task === "companion_reply" && gate(out.result.text).length > 0) {
     const retry = await runProviderTask(input);
-    if (retry.out.task === "companion_reply" && validateReplyText(retry.out.result.text).length === 0) {
+    if (retry.out.task === "companion_reply" && gate(retry.out.result.text).length === 0) {
       return {
         ...retry.out,
         provider: retry.provider,
@@ -125,7 +132,14 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutpu
         ...(retry.degraded ? { degraded: retry.degraded } : {}),
       };
     }
-    // 兜底文案是写死的规则产物,即使 provider 是真模型也标 rule
+    // 兜底是规则产物,即使 provider 是真模型也标 rule。
+    // decision 场景兜底用确定性 Mock 回应(三选项天然齐全),其余用安全兜底文案。
+    if (input.task === "companion_reply" && input.scene === "decision") {
+      const mock = runMockAgentTask(input);
+      if (mock.task === "companion_reply") {
+        return { ...mock, provider, source: "rule" };
+      }
+    }
     return { task: "companion_reply", result: SAFE_FALLBACK, provider, source: "rule" };
   }
   return { ...out, provider, source: sourceOf(provider), ...(degraded ? { degraded } : {}) };
@@ -138,6 +152,37 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutpu
  * 例外:deterministicFallback=true(演示模式由前端显式传)时用确定性 Mock 候选兜底,
  * 评委路径不断;兜底是代码产物,source 标 rule。校验只此一处,前端不再自设闸门。
  */
+/**
+ * 空泛度检查(只用于真模型输出;Mock 模板人工审过且承担 demo 兜底,免检):
+ * 「你还是想买你真正想买的」这类对任何人都成立的话,对她没用——
+ * statement 必须带具体线索:出现证据故事里的实义词、或数字/金额、或时间词。
+ */
+const VAGUE_STOPWORDS = new Set([
+  "还是", "觉得", "感觉", "自己", "东西", "时候", "有点", "一个", "这个", "那个",
+  "什么", "真正", "想买", "想要", "喜欢", "需要", "值得", "决定", "已经", "后来",
+  "因为", "所以", "可能", "如果", "好像", "也许", "不太", "没有", "就是", "但是",
+]);
+
+export function isVague(
+  statement: string,
+  stories: { intent: string; feelingNote?: string }[]
+): boolean {
+  if (/\d|[一两二三四五六七八九十百千万]+\s*元/.test(statement)) return false;
+  if (/[天晚周月年久次]/.test(statement)) return false;
+  // 证据故事的实义词(≥2 字连续片段,剔除虚词/抽象词)出现在 statement 里才算具体——
+  // 「你还是想买你真正想买的」靠「还是/想买」是蒙混不过去的
+  for (const s of stories) {
+    const text = `${s.intent}${s.feelingNote ?? ""}`;
+    for (let i = 0; i + 2 <= text.length; i++) {
+      const piece = text.slice(i, i + 2);
+      if (!/^[一-鿿]{2}$/.test(piece)) continue;
+      if (VAGUE_STOPWORDS.has(piece)) continue;
+      if (statement.includes(piece)) return false;
+    }
+  }
+  return true;
+}
+
 async function runPrincipleTask(
   input: Extract<AgentTaskInput, { task: "generate_principle" }>,
   sourceOf: (p: AgentProvider) => AgentSource
@@ -147,6 +192,9 @@ async function runPrincipleTask(
   for (let attempt = 0; attempt < 2; attempt++) {
     const { out, provider, degraded } = await runProviderTask({ ...input, attempt });
     if (out.task === "generate_principle" && check(out.result)) {
+      if (provider !== "mock" && isVague(out.result.statement, input.stories)) {
+        continue; // 正确的废话:宁可重试/不提,也不给一条对谁都成立的原则
+      }
       return { ...out, provider, source: sourceOf(provider), ...(degraded ? { degraded } : {}) };
     }
   }
