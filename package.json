@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "verify": "npm run lint && tsc --noEmit && npm test && next build"
+    "verify": "npm run lint && tsc --noEmit && npm run scan:copy && npm test && next build",
+    "scan:copy": "node scripts/scan-copy.mjs",
+    "verify:browser": "node scripts/e2e-critical.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
@@ -28,6 +30,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "playwright-core": "^1.62.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"

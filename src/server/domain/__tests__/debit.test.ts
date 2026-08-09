@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { OPS_WINDOW } from "@/contracts";
 import { DomainError } from "@/contracts/errors";
 import { applyJarPlan } from "@/lib/plan/apply-jar-plan";
 import { createInitialMoneyState } from "@/lib/mock/money-state";
@@ -165,5 +166,48 @@ describe("undoJarDebit 撤销", () => {
         expect((e as DomainError).code).toBe("validation_error");
       }
     }
+  });
+});
+
+describe("幂等键窗口(曾经只留 20,第 21 次操作后重放旧 key 会二次扣款)", () => {
+  it("大量操作后早期 key 仍在窗口内,重放保持幂等", () => {
+    let state = planState();
+    const firstKey = "window-op-0";
+    state = commitJarDebit(state, {
+      jarKind: "comfort",
+      amount: 100,
+      expectedStateVersion: state.stateVersion,
+      idempotencyKey: firstKey,
+    }).state;
+    for (let i = 1; i <= 30; i++) {
+      state = commitJarDebit(state, {
+        jarKind: "comfort",
+        amount: 100,
+        expectedStateVersion: state.stateVersion,
+        idempotencyKey: `window-op-${i}`,
+      }).state;
+    }
+    const actualBefore = state.jars.find((j) => j.kind === "comfort")!.actual;
+    const replay = commitJarDebit(state, {
+      jarKind: "comfort",
+      amount: 100,
+      expectedStateVersion: 999,
+      idempotencyKey: firstKey,
+    });
+    expect(replay.idempotent).toBe(true);
+    expect(replay.state.jars.find((j) => j.kind === "comfort")!.actual).toBe(actualBefore);
+  });
+
+  it("窗口上限生效:appliedOps 不超过 OPS_WINDOW", () => {
+    let state = planState();
+    for (let i = 0; i < OPS_WINDOW + 10; i++) {
+      state = commitJarDebit(state, {
+        jarKind: "comfort",
+        amount: 1,
+        expectedStateVersion: state.stateVersion,
+        idempotencyKey: `cap-${i}`,
+      }).state;
+    }
+    expect(state.appliedOps.length).toBeLessThanOrEqual(OPS_WINDOW);
   });
 });

@@ -53,8 +53,15 @@ export function buildTaskPrompt(input: AgentTaskInput): { instruction: string; p
     case "generate_principle":
       return {
         instruction:
-          "基于这几条已回看的选择故事,提炼一条候选金钱原则:第一人称、描述倾向而非规则、带暂时语气(好像/也许)、不超过 20 个字(含标点,超长会被丢弃)、不与 existingStatements 重复。evidenceIds 从故事 id 里选 2-3 条。只输出 JSON:{\"statement\":\"...\",\"evidenceIds\":[\"...\"]}",
-        payload: JSON.stringify({ stories: input.stories, existingStatements: input.existingStatements }),
+          "基于这几条已回看的选择故事,提炼一条候选金钱原则:第一人称、描述倾向而非规则、带暂时语气(好像/也许)、不超过 20 个字(含标点,超长会被丢弃)、不与 existingStatements 重复。evidenceIds 从故事 id 里选 2-3 条。" +
+          "concerns 是她开始时说过的在意的事:只用来理解她是什么样的人,不要把它复述或改写成原则,更不能当作证据。" +
+          "重点:如果 concerns 和 stories 对不上,那个落差本身就是最有价值的原则——比如她说想攒钱但三次都买了,原则可以是「我好像更需要允许自己花,而不是攒」。写她实际是怎么做的,不是她以为自己该怎么做。" +
+          "只输出 JSON:{\"statement\":\"...\",\"evidenceIds\":[\"...\"]}",
+        payload: JSON.stringify({
+          stories: input.stories,
+          existingStatements: input.existingStatements,
+          concerns: input.concerns,
+        }),
       };
   }
 }

@@ -46,3 +46,14 @@ export const WriteOpMeta = z.object({
   idempotencyKey: z.string().min(1),
 });
 export type WriteOpMeta = z.infer<typeof WriteOpMeta>;
+
+/**
+ * 幂等键保留窗口。窗口外的旧 key 重放会被当作新操作——窗口越小重放越不安全
+ * (曾经只留 20,第 21 次操作后重放旧 key 会二次扣款)。200 约 6KB,远低于请求体上限。
+ */
+export const OPS_WINDOW = 200;
+
+/** 追加幂等键并裁剪到窗口:所有写操作统一走这里,不再各自 slice */
+export function appendOp(ops: string[], key: string): string[] {
+  return [...ops.slice(-(OPS_WINDOW - 1)), key];
+}

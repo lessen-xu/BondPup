@@ -49,20 +49,32 @@ export function validatePrincipleStatement(statement: string): ValidationFailure
   return failures;
 }
 
+/**
+ * 候选原则的通用校验:语句规则 + 证据 2-3 条且都在允许的 id 集合内。
+ * 持有完整 MoneyState 的调用方用 validatePrincipleCandidate;
+ * 只有故事摘要的调用方(/api/agent)直接传摘要里的 id 集合——两条路径同一套规则。
+ */
+export function validatePrincipleWithIds(
+  candidate: { statement: string; evidenceIds: string[] },
+  allowedIds: Set<string>
+): ValidationFailure[] {
+  const failures: ValidationFailure[] = [...validatePrincipleStatement(candidate.statement)];
+  if (candidate.evidenceIds.length < 2 || candidate.evidenceIds.length > 3) {
+    failures.push({ rule: "evidence", message: "证据必须是 2-3 条故事" });
+    return failures;
+  }
+  const missing = candidate.evidenceIds.filter((id) => !allowedIds.has(id));
+  if (missing.length > 0) {
+    failures.push({ rule: "evidence", message: `证据必须指向已回看的故事(无效:${missing.join("、")})` });
+  }
+  return failures;
+}
+
 /** 候选原则:语句规则 + 证据 2-3 条且必须是已回看的故事 */
 export function validatePrincipleCandidate(
   candidate: { statement: string; evidenceIds: string[] },
   stories: DecisionStory[]
 ): ValidationFailure[] {
-  const failures: ValidationFailure[] = [...validatePrincipleStatement(candidate.statement)];
-  if (candidate.evidenceIds.length < 2 || candidate.evidenceIds.length > 3) {
-    failures.push({ rule: "evidence", message: "证据必须是 2-3 条故事" });
-  } else {
-    const reviewed = new Set(stories.filter((st) => st.status === "reviewed").map((st) => st.id));
-    const missing = candidate.evidenceIds.filter((id) => !reviewed.has(id));
-    if (missing.length > 0) {
-      failures.push({ rule: "evidence", message: `证据必须指向已回看的故事(无效:${missing.join("、")})` });
-    }
-  }
-  return failures;
+  const reviewed = new Set(stories.filter((st) => st.status === "reviewed").map((st) => st.id));
+  return validatePrincipleWithIds(candidate, reviewed);
 }

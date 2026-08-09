@@ -53,6 +53,16 @@ export const GeneratePrincipleInput = z.object({
     .min(3),
   /** 已确认原则(防重复;冲突时并列不覆盖,由用户选) */
   existingStatements: z.array(z.string()).default([]),
+  /**
+   * 起点问卷「在意的事」(profile.expressionPrefs):只作理解这个人的背景,
+   * 不能被引用成原则、不能作 evidence——校验层只认 stories 里的 id
+   */
+  concerns: z.array(z.string().max(100)).max(6).default([]),
+  /**
+   * 两轮生成都不合规时是否用确定性候选兜底。默认 false = v7.4「宁缺毋滥」:
+   * 再失败就不提。演示模式由前端显式传 true(评委路径不断)。
+   */
+  deterministicFallback: z.boolean().default(false),
   /** 重试轮次(校验失败重试一次时 +1,让生成结果变化) */
   attempt: z.number().int().min(0).default(0),
 });

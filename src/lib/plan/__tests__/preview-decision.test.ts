@@ -28,6 +28,17 @@ describe("previewDecision", () => {
     expect(p.sources[0].amount).toBe(220000);
   });
 
+  it("未来罐永不作为差额来源(只进不出,即使有余量)", () => {
+    const s = applyJarPlan({
+      disposable: 650000,
+      livingPlanned: 220000,
+      futurePlanned: 50000,
+    }).state;
+    const p = previewDecision(s, { amount: 500000 });
+    expect(p.shortfall).toBeGreaterThan(0);
+    expect(p.sources.map((x) => x.jarKind)).not.toContain("future");
+  });
+
   it("梦想罐在来源里 → goalImpact 给两个方向且无禁用词", () => {
     const p = previewDecision(planned(), { amount: 400000 });
     expect(p.goalImpact).toContain("去看海");

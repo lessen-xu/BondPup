@@ -48,7 +48,8 @@ export function previewDecision(state: MoneyState, input: { amount: number }): D
   let goalImpact: string | undefined;
   if (shortfall > 0) {
     sources = state.jars
-      .filter((j) => j.kind !== "comfort")
+      // 安心罐是被扣的主体不列;未来罐只进不出,永不作为差额来源(冻结规则)
+      .filter((j) => j.kind !== "comfort" && j.kind !== "future")
       .map((j) => ({ jarKind: j.kind, label: j.label, amount: Math.max(0, j.planned - j.actual) }))
       .filter((s) => s.amount > 0);
     const dream = state.jars.find((j) => j.kind === "dream");

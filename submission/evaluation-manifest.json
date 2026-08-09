@@ -1,0 +1,113 @@
+{
+  "name": "BondPup 小狗慢慢",
+  "tagline": "陪第一份工资的年轻人和钱相处的 Agent",
+  "repository": "https://github.com/lessen-xu/BondPup",
+  "license": "MIT (code); artwork rights reserved, see LICENSE",
+  "entrypoints": {
+    "web": "https://bondpup.vercel.app",
+    "demo": "https://bondpup.vercel.app/?demo=1",
+    "mcp": "https://bondpup.vercel.app/mcp",
+    "health": "https://bondpup.vercel.app/health"
+  },
+  "mcp": {
+    "transport": "streamable-http",
+    "auth": "none",
+    "protocolVersions": [
+      "2026-07-28",
+      "2025-era"
+    ],
+    "toolCount": 5,
+    "tools": [
+      "create_money_session",
+      "plan_jars",
+      "record_money_moment",
+      "confirm_action",
+      "get_money_overview"
+    ],
+    "outputSchema": true,
+    "structuredContent": true,
+    "runsWithoutModelKey": true,
+    "notes": "2026-07-28 requires Mcp-Method header matching body method; tools/call also requires Mcp-Name. confirm_action now includes delete_principle."
+  },
+  "verification": {
+    "endToEnd": {
+      "command": "node scripts/smoke-mcp.mjs https://bondpup.vercel.app",
+      "calls": 27,
+      "assertions": 26,
+      "covers": "分配→扣罐→撤销→回看→候选原则→确认→引用→删除,含乐观锁/幂等/proposal 与撤销令牌验签/413/四罐齐全"
+    },
+    "unitTests": 117,
+    "commands": [
+      "npm ci",
+      "npm test",
+      "npx tsc --noEmit",
+      "npm run build"
+    ],
+    "ci": "https://github.com/lessen-xu/BondPup/actions/workflows/ci.yml (job \"verify\" on every PR; red never merged)",
+    "browser": {
+      "command": "npm run verify:browser",
+      "covers": "危机首击热线/演示原则闭环/未完成入口",
+      "note": "requires system Edge/Chrome; not in CI"
+    }
+  },
+  "model": {
+    "providers": [
+      "anthropic (claude-sonnet-5)",
+      "openai-compatible (deepseek-v4-flash)",
+      "deterministic mock"
+    ],
+    "selection": "env-var based; failure or timeout degrades to deterministic mock",
+    "singleAttemptBudgetMs": 8000,
+    "clientTimeoutMs": 10000,
+    "responseFields": [
+      "provider",
+      "source (ai|rule)",
+      "safetyFlags",
+      "safetyEvent",
+      "degraded"
+    ]
+  },
+  "safety": {
+    "inputGate": "keyword routing for self_harm / debt_loan / investment / generic_emotion; risky input never reaches the model",
+    "crisisResponse": "fixed copy with 24h helpline 12356, verified at the API layer by contract tests",
+    "outputGate": "20-word forbidden list + max 3 sentences; one retry then safe fallback; static UI copy scanned in CI",
+    "principleGate": "first person, <=25 codepoints, evidence must reference reviewed stories; retry once then silently withhold (v7.4); demo mode may opt into a deterministic candidate",
+    "auditEvents": "risk type and rule only, never user text"
+  },
+  "privacy": {
+    "storage": "browser localStorage only; server persists nothing",
+    "accounts": false,
+    "thirdPartyAnalytics": false,
+    "export": "one-click JSON export; one-click wipe",
+    "browserOutboundConnections": "none (CSP connect-src 'self')"
+  },
+  "docs": {
+    "architecture": "docs/ARCHITECTURE.md",
+    "evaluation": "docs/EVALUATION.md",
+    "mcp": "docs/MCP.md",
+    "privacy": "docs/PRIVACY.md",
+    "userValidation": "docs/USER_VALIDATION.md"
+  },
+  "knownGaps": [
+    "网页面的 CYCLE_REVIEW 与结余碎钻尚未接入(MCP 面可用)",
+    "真实目标用户试用尚未完成,文档未作任何用户结论声称",
+    "已确认原则的修改/删除后端与 MCP 已就绪,网页 UI 接入中"
+  ],
+  "performance": {
+    "measuredAt": "2026-08-09",
+    "environment": "production (bondpup.vercel.app)",
+    "metrics": {
+      "mcp tools/list P95": "1.764s",
+      "mcp 5-call closed loop P95": "3.562s",
+      "/api/agent greet P95": "1.913s",
+      "safety gate hit": "~0.02s",
+      "first visit payload": "0.85MB",
+      "demo page payload": "2.63MB"
+    }
+  },
+  "release": {
+    "tag": "(将在提交前打 tag 后填写)",
+    "commit": "(tag 对应 commit)",
+    "zipSha256": "(ZIP 生成后填写)"
+  }
+}

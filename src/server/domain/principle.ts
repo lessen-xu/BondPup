@@ -1,4 +1,4 @@
-import { DecisionStory, MoneyPrinciple, MoneyState } from "@/contracts";
+import { appendOp, DecisionStory, MoneyPrinciple, MoneyState } from "@/contracts";
 import { DomainError } from "@/contracts/errors";
 import { reviewedCount } from "@/server/domain/story";
 import { validatePrincipleStatement } from "@/server/safety/validate";
@@ -65,7 +65,7 @@ export function buildCandidate(state: MoneyState, req: BuildCandidateRequest): P
     ...state,
     stateVersion: state.stateVersion + 1,
     principles: [...state.principles, principle],
-    appliedOps: [...state.appliedOps.slice(-19), req.idempotencyKey],
+    appliedOps: appendOp(state.appliedOps, req.idempotencyKey),
   });
   return { state: newState, principle };
 }
@@ -115,9 +115,44 @@ export function resolvePrinciple(state: MoneyState, req: ResolvePrincipleRequest
     ...state,
     stateVersion: state.stateVersion + 1,
     principles: state.principles.map((p) => (p.id === principle.id ? principle : p)),
-    appliedOps: [...state.appliedOps.slice(-19), req.idempotencyKey],
+    appliedOps: appendOp(state.appliedOps, req.idempotencyKey),
   });
   return { state: newState, principle };
+}
+
+export interface RemovePrincipleRequest {
+  id: string;
+  expectedStateVersion: number;
+  idempotencyKey: string;
+}
+
+/**
+ * 删除一条原则(任何 status 都可删——候选和暂不确定的同样属于用户)。
+ * 「这条不像我,我可以删掉」是"原则归用户所有"最直接的证明;删除后不再被引用。
+ */
+export function removePrinciple(
+  state: MoneyState,
+  req: RemovePrincipleRequest
+): { state: MoneyState; idempotent?: boolean } {
+  if (state.appliedOps.includes(req.idempotencyKey)) {
+    return { state, idempotent: true };
+  }
+  if (req.expectedStateVersion !== state.stateVersion) {
+    throw new DomainError(
+      "state_conflict",
+      `stateVersion 不匹配:期望 ${req.expectedStateVersion},当前 ${state.stateVersion}`
+    );
+  }
+  if (!state.principles.some((p) => p.id === req.id)) {
+    throw new DomainError("not_found", "没有找到这条原则");
+  }
+  const newState = MoneyState.parse({
+    ...state,
+    stateVersion: state.stateVersion + 1,
+    principles: state.principles.filter((p) => p.id !== req.id),
+    appliedOps: appendOp(state.appliedOps, req.idempotencyKey),
+  });
+  return { state: newState };
 }
 
 /** 回应引用用的已确认原则(折叠显示、可展开、可改、可删——UI 责任) */
