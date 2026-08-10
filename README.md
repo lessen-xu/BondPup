@@ -1,24 +1,20 @@
 # 小狗慢慢 · BondPup
 
-第一份工资陪伴 Agent
+第一份工资之后，很多人不知道该怎么在想花、想存与真实生活之间做决定。
 
-## 入口
-- 体验链接:https://bondpup.vercel.app
-- 演示入口(评审推荐):https://bondpup.vercel.app/?demo=1
-- MCP Endpoint:`https://bondpup.vercel.app/mcp`
-- 健康检查:https://bondpup.vercel.app/health
+**体验链接：** [https://bondpup.vercel.app](https://bondpup.vercel.app)
 
-## 一句话 Agent 核心
-模型负责理解语言和生成回应,程序负责计算金额、校验和保存,动作永远由用户选择。
-任何改变状态的操作都需要用户确认。
+**MCP 链接：** [https://bondpup.vercel.app/mcp](https://bondpup.vercel.app/mcp)
 
-## 快速验证
+**Agent 核心能力：** 记住她的四罐、决定与后来发生的事，在下一次选择时引用这些经历，同时把金额计算和最终动作留给确定性程序与用户确认。
+
+## Quick Verify
 
 ```bash
-npm ci
-npm run verify
+npm ci && npm run verify
 ```
 
+<<<<<<< Updated upstream
 一条命令串起 lint → typecheck → 文案扫描 → 145 项单测 → 生产构建 → 本地 MCP 冒烟(32 次调用/30 条断言,自动起服→跑断言→收尾)。无需任何环境变量:没有模型密钥时走确定性 Mock,签名密钥用每进程随机兜底,全链路照常闭环。
 
 ## 三分钟评测路径
@@ -28,6 +24,14 @@ npm run verify
 4. 回首页 → 点小狗 → 帮我看看要不要买 → 输入金额
    → 在小狗回应下方看到「参考了 1 条你确认过的原则」
 5. 点「参考了 1 条你确认过的原则」可展开全文
+=======
+## 3 分钟评测路径
+
+1. 打开 [https://bondpup.vercel.app/?demo=1](https://bondpup.vercel.app/?demo=1)，从示例起点进入显示四个罐子的首页。
+2. 点「帮我看看要不要买」，输入「一件外套」，金额填「400」。
+3. 看到「现在买 / 放到明天 / 这次先不买」三个动作，任选一个。
+4. 确认后返回首页，打开「慢慢的小金库」，可看到原则卡。
+>>>>>>> Stashed changes
 
 ## MCP
 - 端点:`https://bondpup.vercel.app/mcp`(Streamable HTTP;兼容 2026-07-28 与 2025-era 两代协议;无需鉴权与模型密钥)
