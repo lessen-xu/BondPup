@@ -39,6 +39,13 @@ body {
 }
 
 @font-face {
+  font-family: 'ManmanHand';
+  src: url('/fonts/manman-hand.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'ManmanSymbols';
   src: url('/fonts/manman-symbols.woff2?v=4') format('woff2');
   font-weight: 400;
@@ -53,7 +60,7 @@ body {
 }
 
 :root {
-  --font-hand: 'LongCang', system-ui, sans-serif;
+  --font-hand: 'LongCang', 'ManmanHand', system-ui, sans-serif;
   --paper: #fbfaf7;
   --ink: #4a3b2e;
   --muted: #9c8b78;
