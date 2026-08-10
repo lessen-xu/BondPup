@@ -187,8 +187,28 @@ export function BuyDecisionFlow({ initialItem = "" }: { initialItem?: string }) 
       userText: text,
       stateSummary: {
         comfortAvailable: preview.comfortAvailable,
+        shortfall: preview.shortfall,
+        ...(state ? { jars: state.jars.slice(0, 4).map((jar) => ({
+          kind: jar.kind,
+          label: jar.label,
+          planned: jar.planned,
+          actual: jar.actual,
+        })) } : {}),
         hasCycle: Boolean(state?.cycle),
         ...(state?.cycle?.updatedAt ? { updatedAt: state.cycle.updatedAt } : {}),
+      },
+      principles: referencedPrinciples.slice(-5).map((principle) => principle.statement),
+      concerns: state?.profile.expressionPrefs?.slice(0, 6) ?? [],
+      recentStories: (state?.stories ?? []).slice(-3).map((story) => ({
+        intent: story.intent,
+        action: story.action,
+        ...(story.amount !== undefined ? { amount: story.amount } : {}),
+        ...(story.outcome ? { happened: story.outcome.happened } : {}),
+        ...(story.outcome?.feelingNote ? { feelingNote: story.outcome.feelingNote } : {}),
+      })),
+      item: {
+        name: item,
+        ...(amount !== null ? { amount } : {}),
       },
       noteContext: {
         jars: [],
