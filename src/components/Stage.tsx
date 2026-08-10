@@ -103,7 +103,7 @@ export function Stage({ state, demoIntro = false, onDismissDemoIntro }: StagePro
 
         <nav className="talk-entries" aria-label="对话入口" onClick={(event) => event.stopPropagation()}>
           <TextEntry className="talk-entry talk-entry-buy" onClick={() => router.push("/talk?mode=buy")}>{script.home.buyEntry.replace("要不要买", "\n要不要买")}</TextEntry>
-          <TextEntry className="talk-entry talk-entry-money" onClick={() => router.push("/talk?topic=money")}>{script.home.moneyEntry.replace("想说说", "\n想说说")}</TextEntry>
+          <TextEntry className="talk-entry talk-entry-money" onClick={() => router.push("/talk?topic=money")}>{script.home.moneyEntry.replace("一笔钱", "\n一笔钱")}</TextEntry>
         </nav>
 
         {dueReview && dueReviewQuestion && (

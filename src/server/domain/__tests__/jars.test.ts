@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DomainError } from "@/contracts/errors";
-import { balanceComfortJar, compareJarAllocation, computeComfortCandidate, computeJars } from "../jars";
+import { balanceComfortJar, compareJarAllocation, computeComfortCandidate, computeIncreasedJarAmount, computeJars, isComfortBalanceLow, resolveShortfallFromLiving } from "../jars";
 import { computeLivingJar } from "../living";
 
 describe("computeJars 四罐恒等式", () => {
@@ -40,6 +40,27 @@ describe("computeJars 四罐恒等式", () => {
 
   it("候选安心罐可显示负余项,但不写入状态", () => {
     expect(computeComfortCandidate({ disposable: 1_500_000, livingPlanned: 220_000, dreamMonthly: 4_166_667 })).toBe(-2_886_667);
+  });
+
+  it("安心罐归零后,用户选择生活罐才由生活罐吸收缺口", () => {
+    const result = resolveShortfallFromLiving({
+      disposable: 650_000,
+      livingPlanned: 220_000,
+      dreamMonthly: 450_000,
+      futurePlanned: 0,
+    });
+    expect(result.livingPlanned).toBe(200_000);
+    expect(result.plan).toEqual({ living: 200_000, comfort: 0, dream: 450_000, future: 0, shortfall: 0 });
+  });
+
+  it("安心罐只剩 0-20 元时返回轻提示信号", () => {
+    expect(isComfortBalanceLow(2_000)).toBe(true);
+    expect(isComfortBalanceLow(2_001)).toBe(false);
+    expect(isComfortBalanceLow(0)).toBe(false);
+  });
+
+  it("梦想罐和未来罐的新增金额由确定性函数换算成总额", () => {
+    expect(computeIncreasedJarAmount({ current: 80_000, addition: 2_500 })).toBe(82_500);
   });
 
   it("非法输入(负数/非整数)→ validation_error", () => {

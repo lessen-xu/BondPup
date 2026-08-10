@@ -20,12 +20,23 @@ describe("previewDecision", () => {
     expect(p.goalImpact).toBeUndefined();
   });
 
-  it("不够买:差额正确,来源不含安心罐、罐子固有顺序、0 可用不列", () => {
+  it("差额正确,来源按梦想罐、生活罐顺序且不含安心罐", () => {
     const p = previewDecision(planned(), { amount: 400000 });
     expect(p.remaining).toBe(0);
     expect(p.shortfall).toBe(50000);
-    expect(p.sources.map((s) => s.jarKind)).toEqual(["living", "dream"]);
-    expect(p.sources[0].amount).toBe(220000);
+    expect(p.sources.map((s) => s.jarKind)).toEqual(["dream", "living"]);
+    expect(p.sources[1].amount).toBe(220000);
+    expect(p.canCoverWithCurrentJars).toBe(true);
+  });
+
+  it("生活罐可用金额为 0 时仍保留来源,明确显示最多能出 0 元", () => {
+    const state = planned();
+    const spentLiving = {
+      ...state,
+      jars: state.jars.map((jar) => jar.kind === "living" ? { ...jar, actual: jar.planned } : jar),
+    };
+    const p = previewDecision(spentLiving, { amount: 400_000 });
+    expect(p.sources.find((source) => source.jarKind === "living")).toMatchObject({ amount: 0 });
   });
 
   it("未来罐永不作为差额来源(只进不出,即使有余量)", () => {
@@ -52,11 +63,23 @@ describe("previewDecision", () => {
     const p = previewDecision(empty, { amount: 10000 });
     expect(p.comfortAvailable).toBe(0);
     expect(p.shortfall).toBe(10000);
+    expect(p.canCoverWithCurrentJars).toBe(false);
     try {
       previewDecision(planned(), { amount: 0 });
       expect.unreachable();
     } catch (e) {
       expect((e as DomainError).code).toBe("validation_error");
     }
+  });
+
+  it("未来罐有钱也不进入差额来源,其余三罐合计不足时返回待确认出口", () => {
+    const state = planned();
+    const withFuture = {
+      ...state,
+      jars: state.jars.map((jar) => jar.kind === "future" ? { ...jar, planned: 9999999 } : jar),
+    };
+    const p = previewDecision(withFuture, { amount: 700000 });
+    expect(p.sources.map((source) => source.jarKind)).toEqual(["dream", "living"]);
+    expect(p.canCoverWithCurrentJars).toBe(false);
   });
 });

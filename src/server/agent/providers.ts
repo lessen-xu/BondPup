@@ -51,7 +51,7 @@ function parseTaskOutput(input: AgentTaskInput, text: string): AgentTaskOutput {
         task: "companion_reply",
         result: {
           text: t,
-          ...(input.scene === "greet" ? { bubbles: ["帮我看看要不要买", "有笔钱想说说"] } : {}),
+          ...(input.scene === "greet" ? { bubbles: ["帮我看看要不要买", "记一笔钱"] } : {}),
           requiresConfirmation: false,
         },
       };

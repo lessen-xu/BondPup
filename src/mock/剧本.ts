@@ -1,7 +1,9 @@
 export const NOTE_MODEL_REPLY = {
   fallback: "嗯,我都听着了。",
   thinkingHint: "",
-  continueLabel: "嗯",
+  followUpPlaceholder: "还想说什么就直接打字",
+  followUpSubmit: "说给我听",
+  continueLabel: "嗯,说完了",
 } as const;
 
 export const ONBOARDING_MONEY = {
@@ -91,7 +93,7 @@ export const REVIEW_RESPONSES = {
 } as const;
 
 export const REVIEW_ASK_JAR = {
-  question: "打算用哪个罐子里的钱？",
+  question: "那这笔钱当时是从哪个罐子出的？",
   options: ["生活罐", "安心罐", "梦想罐", "不记得了"],
   jarResponse: "好，从{jar}里出的，我记上了。",
   forgottenResponse: "好，那数字先不动。我帮你记着这件事。",
@@ -108,7 +110,7 @@ export const REVIEW_CONFIRM_DEDUCT = {
 export const REVIEW_STEP3 = {
   questions: {
     now: {
-      "用过几次": "什么时候会想起用它？",
+      "用过几次": "那你什么时候会想起用它？",
       "还没怎么用": "当时是什么让你想买它的？",
       "说不上来": "现在再看这笔钱，你会怎么说？",
       "最后没买": "最后是什么让你停下的？",
@@ -116,12 +118,12 @@ export const REVIEW_STEP3 = {
     tomorrow: {
       "还惦记着": "它哪一点还吸引你？",
       "放下了": "是什么让你放下的？",
-      "在等个时机": "你在等什么？",
+      "在等个时机": "那你在等什么？",
       "后来买了": "后来是什么让你决定买的？",
     },
     skip: {
-      "挺轻松": "没买之后有什么变化吗？",
-      "有点遗憾": "遗憾的是什么？",
+      "挺轻松": "那没买之后有什么变化吗？",
+      "有点遗憾": "那遗憾的是什么？",
       "没什么感觉": "现在再看，你会怎么说？",
       "后来还是买了": "后来是什么让你改主意的？",
     },
@@ -152,6 +154,7 @@ export const CARDS_PAGE = {
 export const PRINCIPLE_CANDIDATE = {
   lead: "{alias} 悄悄记下了一件事",
   evidence: "依据",
+  skipped: "这次先不提炼了，等我们再多几次经历。",
   actions: {
     like: "这很像我",
     edit: "改成我的说法",
@@ -295,6 +298,9 @@ export const DAILY_DECISION = {
   comfortShortfall: "安心罐里现在有 {balance} 元。",
   shortfall: "按安心罐算会差 {shortfall} 元。剩下这部分你想放在哪里?",
   sourceConfirmQuestion: "就从「{source}」出这 {shortfall} 元，可以吗?",
+  pendingAction: "先记着，不动罐子",
+  pendingReply: "{alias}:那先记着，等钱够了我们再看。",
+  pendingConfirm: "先这样记着",
   arrange: "我帮你捋一下〜",
   summaryItem: "想买:{item}  {price}元",
   summaryComfort: "从安心罐出:还会剩 {remain}元",
@@ -312,7 +318,7 @@ export const DAILY_DECISION = {
 } as const;
 
 export const DAILY_NOTE = {
-  entry: "有笔钱想说说",
+  entry: "记一笔钱",
   intro: "嗯,我听着呢。这笔钱是什么情况呀?",
   placeholder: "比如「收到了一笔奖金」「退了一笔钱」「花了一笔有点后悔的钱」……",
   hint: "什么都可以说〜{alias}不会评价你,只会听着。",
@@ -326,9 +332,21 @@ export const DAILY_NOTE = {
     unclear: "嗯嗯,我听着呢。{alias}说。",
   },
   transitions: ["嗯,我大概懂你的感觉了。", "这笔钱让你有点……", "就是想说一说,对不对?"],
-  choicesPrompt: "嗯。你可以选——",
-  remember: "我帮你记下来",
-  talkOnly: "不用记,就是跟你说说",
+  choicesPrompt: "那这笔钱,要不要动一下罐子里的数字?",
+  remember: "改一下数字",
+  talkOnly: "不用改,就是想说说",
+  amountQuestion: "那这笔钱大概多少?",
+  amountPlaceholder: "比如 5000 或者 5万",
+  directionQuestion: "这笔钱是进账,还是花出去了?",
+  directions: { credit: "进账", debit: "花出去" },
+  jarQuestion: "想把这笔钱放进哪个罐子?",
+  debitJarQuestion: "这笔钱从哪个罐子出?",
+  creditConfirm: "那就把这 {amount} 元放进{jar}?",
+  debitConfirm: "那就从{jar}里出这 {amount} 元?",
+  confirm: "嗯,就这样",
+  modify: "我再想想",
+  creditDone: "好,这笔进账我放进{jar}了。",
+  debitDone: "好,这笔钱我从{jar}记下了。",
   remembered: "好,我帮你记好了。",
   received: "好,我收到了。以后想说的时候随时来。",
   adjust: "好呀〜你想怎么调整?告诉我,我来帮你改。",

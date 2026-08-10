@@ -2,7 +2,7 @@ import { z } from "zod";
 import { Cents, JarKind } from "./money";
 
 /** 三个中性动作 + 只说说不改余额 */
-export const StoryAction = z.enum(["buy_now", "defer", "skip_this_time", "note_only"]);
+export const StoryAction = z.enum(["buy_now", "defer", "skip_this_time", "note_only", "pending_confirmation"]);
 export type StoryAction = z.infer<typeof StoryAction>;
 
 export const StoryOutcome = z.object({
@@ -26,7 +26,7 @@ export const DecisionStory = z.object({
   reviewAt: z.iso.datetime().optional(),
   outcome: StoryOutcome.optional(),
   emotionSummary: z.string().max(120).optional(),
-  status: z.enum(["open", "reviewed"]),
+  status: z.enum(["open", "pending", "reviewed"]),
   createdAt: z.iso.datetime(),
 });
 export type DecisionStory = z.infer<typeof DecisionStory>;

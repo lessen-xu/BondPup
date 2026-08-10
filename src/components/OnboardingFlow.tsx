@@ -9,7 +9,7 @@ import type { JarKind } from "@/contracts";
 import { applyJarPlan, type ApplyJarPlanResult } from "@/lib/plan/apply-jar-plan";
 import { createInitialMoneyState } from "@/lib/mock/money-state";
 import { useMoneyState } from "@/lib/state/money-store";
-import { balanceComfortJar, compareJarAllocation, computeComfortCandidate, computeJars } from "@/server/domain/jars";
+import { computeComfortCandidate, computeIncreasedJarAmount, computeJars, isComfortBalanceLow, resolveShortfallFromLiving } from "@/server/domain/jars";
 import { computeLivingJar, type LivingItems } from "@/server/domain/living";
 import { computeMonthsForContribution } from "@/server/domain/monthly";
 import { ERRORS } from "@/mock/剧本";
@@ -26,6 +26,7 @@ const SCREEN_COUNT = 12;
 type NearChoice = "save" | "comfortable" | "goal" | "custom";
 type LivingItemKey = keyof LivingItems;
 type EditableJarKind = Exclude<JarKind, "comfort">;
+type AdditiveJarKind = Extract<EditableJarKind, "dream" | "future">;
 
 type GoalDraft = {
   name: string;
@@ -167,11 +168,9 @@ export function OnboardingFlow() {
   const [showCalculator, setShowCalculator] = useState(false);
   const [editingCost, setEditingCost] = useState(0);
   const [editingJar, setEditingJar] = useState<EditableJarKind | null>(null);
+  const [additiveEdit, setAdditiveEdit] = useState<{ kind: AdditiveJarKind; baseAmount: number; addition: number } | null>(null);
   const [editingDreamLabel, setEditingDreamLabel] = useState(false);
   const [futureChoice, setFutureChoice] = useState<"none" | "save" | null>(null);
-  const [displayedComfort, setDisplayedComfort] = useState<number | null>(null);
-  const [jarsEdited, setJarsEdited] = useState(false);
-  const [balanceMessage, setBalanceMessage] = useState<string | null>(null);
   const [preview, setPreview] = useState<ApplyJarPlanResult | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -259,16 +258,13 @@ export function OnboardingFlow() {
     dreamMonthly: preview.plan.dream,
     futurePlanned: preview.plan.future,
   }) : 0, [draft.disposable, preview]);
-  const visibleComfort = comfortCandidate < 0
-    ? comfortCandidate
-    : jarsEdited ? displayedComfort ?? 0 : preview?.plan.comfort ?? 0;
-  const jarBalance = useMemo(() => preview && visibleComfort >= 0 ? compareJarAllocation({
-    disposable: draft.disposable,
-    living: preview.plan.living,
-    comfort: visibleComfort,
-    dream: preview.plan.dream,
-    future: preview.plan.future,
-  }) : null, [draft.disposable, preview, visibleComfort]);
+  const visibleComfort = preview?.plan.comfort ?? 0;
+  const showComfortLow = Boolean(
+    editingJar
+    && editingJar !== "living"
+    && preview
+    && isComfortBalanceLow(preview.plan.comfort)
+  );
   const reverseNeedsAdjustment = Boolean(goal && preview && computeComfortCandidate({
     disposable: draft.disposable,
     livingPlanned,
@@ -373,12 +369,25 @@ export function OnboardingFlow() {
   }
 
   function updateJar(kind: EditableJarKind, cents: number) {
-    if (!jarsEdited) setDisplayedComfort(preview?.plan.comfort ?? 0);
-    setJarsEdited(true);
-    setBalanceMessage(null);
     if (kind === "living") patchDraft({ livingPlanned: cents, useLivingItems: false });
-    if (kind === "dream") patchDraft({ dreamMonthlyOverride: cents });
-    if (kind === "future") patchDraft({ futurePlanned: cents });
+    if (kind === "dream" || kind === "future") {
+      const baseAmount = additiveEdit?.kind === kind ? additiveEdit.baseAmount : jarAmount(kind);
+      const total = computeIncreasedJarAmount({ current: baseAmount, addition: cents });
+      setAdditiveEdit({ kind, baseAmount, addition: cents });
+      if (kind === "dream") patchDraft({ dreamMonthlyOverride: total });
+      if (kind === "future") patchDraft({ futurePlanned: total });
+    }
+  }
+
+  function startEditingJar(kind: EditableJarKind) {
+    setEditingJar(kind);
+    setAdditiveEdit(kind === "dream" || kind === "future"
+      ? { kind, baseAmount: jarAmount(kind), addition: 0 }
+      : null);
+  }
+
+  function jarInputAmount(kind: EditableJarKind): number {
+    return additiveEdit?.kind === kind ? additiveEdit.addition : jarAmount(kind);
   }
 
   function updateGoalAmount(amount: number) {
@@ -413,35 +422,30 @@ export function OnboardingFlow() {
   }
 
   function continueFromJars() {
-    if (!preview) return;
+    if (!preview || preview.plan.shortfall > 0) return;
     goNext();
   }
 
-  function balanceJars() {
-    if (!preview || !jarBalance) return;
-    const result = balanceComfortJar({
+  function chooseLivingAsSource() {
+    if (!preview) return;
+    const result = resolveShortfallFromLiving({
       disposable: draft.disposable,
-      living: preview.plan.living,
-      comfort: visibleComfort,
-      dream: preview.plan.dream,
-      future: preview.plan.future,
+      livingPlanned: preview.plan.living,
+      dreamMonthly: preview.plan.dream,
+      futurePlanned: preview.plan.future,
     });
-    setDisplayedComfort(result.comfort);
-    setJarsEdited(true);
-    setBalanceMessage(jarBalance.missing > 0 ? `剩下的 ${formatCents(jarBalance.missing)} 元进了安心罐——这是这个月可以不愧疚地用在当下的部分。` : null);
+    patchDraft({ livingPlanned: result.livingPlanned, useLivingItems: false });
   }
 
   function chooseFuture(choice: "none" | "save") {
     setFutureChoice(choice);
     if (choice === "none") {
       patchDraft({ futurePlanned: 0 });
-      setDisplayedComfort(null);
-      setJarsEdited(false);
-      setBalanceMessage(null);
       setEditingJar(null);
+      setAdditiveEdit(null);
       return;
     }
-    setEditingJar("future");
+    startEditingJar("future");
   }
 
   function removeWish(index: number) {
@@ -538,7 +542,7 @@ export function OnboardingFlow() {
 
         {draft.screen === 8 && draft.hasGoal === true && <div className="flow-screen"><div className="flow-content flow-reverse-copy">{showReverseAdjustment && goal && preview ? <><p className="flow-question">{script.steps.reverse.stretchedMessage.replace(script.flow.placeholder, formatWholeYuan(preview.plan.dreamMonthly))}</p>{reverseNeedsAdjustment && <p>{script.steps.reverse.stretchedDetail}</p>}<div className="flow-inline-actions"><button className={`flow-option-action ${reverseChoice === "time" ? "is-selected" : ""}`} type="button" onClick={() => { setReverseChoice("time"); patchDraft({ dreamMonthlyOverride: null }); }}>{script.steps.reverse.extendTime}</button><button className={`flow-option-action ${reverseChoice === "monthly" ? "is-selected" : ""}`} type="button" onClick={() => setReverseChoice("monthly")}>{script.steps.reverse.lowerMonthly}</button></div>{reverseChoice === "time" && <label className="flow-jar-edit">{script.steps.reverse.monthsLabel}<input className="flow-input" type="text" inputMode="numeric" value={draft.goal.monthsRemaining ?? ""} onChange={(event) => { const value = event.target.value.trim(); updateGoal({ monthsRemaining: /^\d+$/.test(value) && Number(value) > 0 ? Number(value) : null }); }} />{draft.goal.monthsRemaining && <small className="amount-input-feedback">{script.steps.reverse.recalculatedMonthly.replace(script.flow.placeholder, formatWholeYuan(preview.plan.dreamMonthly))}</small>}</label>}{reverseChoice === "monthly" && <label className="flow-jar-edit">{script.steps.reverse.monthlyLabel}<MoneyAmountInput value={draft.dreamMonthlyOverride ?? 0} onChange={(dreamMonthlyOverride) => patchDraft({ dreamMonthlyOverride })} />{recalculatedMonths && <small className="amount-input-feedback">{script.steps.reverse.recalculatedMonths.replace(script.flow.placeholder, String(recalculatedMonths))}</small>}</label>}<p className="flow-hint">{script.steps.reverse.flexibleHint}</p></> : <><p className="flow-question">{goal ? script.steps.reverse.message.replace(script.flow.placeholder, formatWholeYuan(preview?.plan.dreamMonthly ?? 0)) : script.steps.reverse.noTime}</p>{goal && <p>{script.steps.reverse.dogMore}</p>}</>}{previewError && <p className="flow-message">{previewError}</p>}</div>{renderFooter(script.steps.reverse.stepHint)}</div>}
 
-        {draft.screen === 9 && <div className="flow-screen flow-jars-screen"><div className="flow-content"><p className="flow-question">{script.steps.jars.question}</p><div className="flow-jar-grid">{flowJars.map((jar) => <button key={jar.kind} type="button" className={`flow-jar-choice ${jar.kind === "future" && jarAmount("future") === 0 ? "flow-future-jar" : ""}`} onClick={() => jar.kind !== "comfort" && setEditingJar(jar.kind)}><span className="flow-jar-art">{jar.kind === "future" && jarAmount("future") === 0 ? <img className="flow-future-image" src="/assets/jar-future-empty-ui.png" alt="" /> : <img className="flow-jar-image" src={jar.image} alt="" />}</span><span className="flow-jar-label"><span className="jar-name-text">{jar.kind === "dream" ? draft.dreamLabel : jar.label}</span></span><strong>{formatCents(jarAmount(jar.kind))} 元</strong></button>)}</div>{concernReference && <p className="flow-message">{concernReference}</p>}{comfortCandidate < 0 ? <div className="flow-balance-status"><span>{script.steps.jars.negativeComfort}</span><button type="button" onClick={() => setScreen(draft.hasGoal ? 8 : 6)}>{script.steps.jars.adjustPrevious}</button></div> : null}{jarBalance?.missing ? <div className="flow-balance-status"><span>还差 {formatCents(jarBalance.missing)} 元</span><button type="button" onClick={balanceJars}>放进安心罐</button></div> : null}{jarBalance?.excess ? <div className="flow-balance-status"><span>多出 {formatCents(jarBalance.excess)} 元</span>{visibleComfort > 0 && <button type="button" onClick={balanceJars}>从安心罐扣</button>}</div> : null}{editingJar && !editingDreamLabel && <label className="flow-jar-edit">{editingJar === "dream" ? draft.dreamLabel : flowJars.find((jar) => jar.kind === editingJar)?.label}<MoneyAmountInput autoFocus value={jarAmount(editingJar)} onChange={(cents) => updateJar(editingJar, cents)} />{editingJar === "dream" && <button type="button" onClick={() => setEditingDreamLabel(true)}>改名字</button>}</label>}{editingDreamLabel && <label className="flow-jar-edit">梦想罐名字<input autoFocus className="flow-input" value={draft.dreamLabel} onChange={(event) => { patchDraft({ dreamLabel: event.target.value }); }} onBlur={() => setEditingDreamLabel(false)} onKeyDown={(event) => { if (event.key === "Enter") setEditingDreamLabel(false); }} /></label>}<section className="future-question" aria-label="未来罐选择"><p>{script.steps.jars.futureQuestion}</p><p className="flow-message">{script.steps.jars.futureDetail}</p><div className="flow-inline-actions future-options">{script.steps.jars.futureOptions.map((option, index) => { const choice = index === 0 ? "none" : "save"; const selected = futureChoice === choice; return <button key={option} className={`flow-option-action ${selected ? "is-selected" : ""}`} type="button" aria-pressed={selected} onClick={() => chooseFuture(choice)}>{option}</button>; })}</div>{futureChoice === "save" && <div className="future-input-line"><span>{script.steps.jars.futureSummary.replace(script.flow.placeholder, formatCents(jarAmount("future"))).replace(script.flow.placeholder, formatCents(jarAmount("comfort")))}</span></div>}</section>{balanceMessage && <p className="flow-message">{balanceMessage}</p>}{previewError && <p className="flow-message">{previewError}</p>}</div>{renderFooter(script.steps.jars.stepHint, continueFromJars)}</div>}
+        {draft.screen === 9 && <div className="flow-screen flow-jars-screen"><div className="flow-content"><p className="flow-question">{script.steps.jars.question}</p><div className="flow-jar-grid">{flowJars.map((jar) => <button key={jar.kind} type="button" className={`flow-jar-choice ${jar.kind === "future" && jarAmount("future") === 0 ? "flow-future-jar" : ""}`} onClick={() => jar.kind !== "comfort" && startEditingJar(jar.kind)}><span className="flow-jar-art">{jar.kind === "future" && jarAmount("future") === 0 ? <img className="flow-future-image" src="/assets/jar-future-empty-ui.png" alt="" /> : <img className="flow-jar-image" src={jar.image} alt="" />}</span><span className="flow-jar-label"><span className="jar-name-text">{jar.kind === "dream" ? draft.dreamLabel : jar.label}</span></span><strong>{formatCents(jarAmount(jar.kind))} 元</strong></button>)}</div>{concernReference && <p className="flow-message">{concernReference}</p>}{comfortCandidate < 0 && editingJar !== "living" ? <div className="flow-balance-status flow-source-choice"><span>{script.steps.jars.sourceQuestion}</span><span className="decision-source-choice"><button className="flow-option-action" type="button" onClick={chooseLivingAsSource}>{script.steps.jars.livingSource}</button><small>{script.steps.jars.livingSourceCost}</small></span></div> : null}{comfortCandidate < 0 && editingJar === "living" ? <p className="flow-message">{script.steps.jars.livingTooHigh}</p> : null}{editingJar && !editingDreamLabel && <label className="flow-jar-edit">{editingJar === "dream" ? draft.dreamLabel : flowJars.find((jar) => jar.kind === editingJar)?.label}<MoneyAmountInput autoFocus value={jarInputAmount(editingJar)} onChange={(cents) => updateJar(editingJar, cents)} /><span className="jar-live-summary">{script.steps.jars.linkedSummary.replace("{jar}", flowJars.find((jar) => jar.kind === editingJar)?.label ?? "").replace(script.flow.placeholder, formatCents(jarAmount(editingJar))).replace(script.flow.placeholder, formatCents(visibleComfort))}</span>{showComfortLow && <span className="future-low">{script.steps.jars.comfortLow.replace(script.flow.placeholder, formatCents(visibleComfort))}<button type="button" onClick={() => updateJar(editingJar, 0)}>{script.steps.jars.reduceSaving}</button></span>}{editingJar === "dream" && <button type="button" onClick={() => setEditingDreamLabel(true)}>改名字</button>}</label>}{editingDreamLabel && <label className="flow-jar-edit">梦想罐名字<input autoFocus className="flow-input" value={draft.dreamLabel} onChange={(event) => { patchDraft({ dreamLabel: event.target.value }); }} onBlur={() => setEditingDreamLabel(false)} onKeyDown={(event) => { if (event.key === "Enter") setEditingDreamLabel(false); }} /></label>}<section className="future-question" aria-label="未来罐选择"><p>{script.steps.jars.futureQuestion}</p><p className="flow-message">{script.steps.jars.futureDetail}</p><div className="flow-inline-actions future-options">{script.steps.jars.futureOptions.map((option, index) => { const choice = index === 0 ? "none" : "save"; const selected = futureChoice === choice; return <button key={option} className={`flow-option-action ${selected ? "is-selected" : ""}`} type="button" aria-pressed={selected} onClick={() => chooseFuture(choice)}>{option}</button>; })}</div></section>{previewError && <p className="flow-message">{previewError}</p>}</div>{renderFooter(script.steps.jars.stepHint, continueFromJars, Boolean(preview?.plan.shortfall))}</div>}
 
         {draft.screen === 10 && <div className="flow-screen flow-principle-screen"><div className="flow-content"><p className="flow-principle-intro">{script.principleIntro}</p><article className="principle-card flow-principle-card"><span>{script.firstRecord.body}</span></article></div>{renderFooter()}</div>}
 
