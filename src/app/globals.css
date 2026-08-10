@@ -613,7 +613,7 @@ button { color: inherit; font: inherit; }
 .money-note-page .decision-dialog { margin: -30% auto 0; }
 .money-note-page .decision-dog-bubble { left: 4%; max-width: 50%; position: relative; top: -40px; }
 .money-note-page .decision-user-bubble { max-width: 62%; }
-.money-note-page .decision-input { font-size: clamp(13px, 3.8vw, 16px); width: 94%; }
+.money-note-page .decision-input { font-size: clamp(13px, 3.8vw, 16px); margin-top: 15%; width: 94%; }
 .decision-back { display: block; position: relative; z-index: 8; }
 .talk-page .back-arrow-button { margin-left: -2%; }
 .decision-dialog { margin: -23% auto 0; position: relative; width: 100%; z-index: 5; }
@@ -715,6 +715,7 @@ button { color: inherit; font: inherit; }
 .principle-edit-input { width: min(86%, 320px); }
 .decision-source-options { flex-direction: column; }
 .decision-source-options .decision-option { width: 100%; }
+.money-note-lower-options { gap: clamp(20px, 6vw, 34px); margin-top: 10%; }
 .money-direction-options { gap: clamp(20px, 5.5vw, 32px); margin-top: clamp(28px, 8vw, 48px); }
 .decision-source-choice { align-items: center; display: flex; flex-direction: column; width: 100%; }
 .decision-source-choice small { color: var(--muted); font-size: clamp(10px, 2.8vw, 12px); margin-top: -2%; }
