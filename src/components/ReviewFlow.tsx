@@ -58,6 +58,10 @@ const HAPPENED_OUTCOMES = new Set([
 
 type CandidateOutput = { statement: string; evidenceIds: string[] };
 type ProposedPrinciple = { state: MoneyState; principle: MoneyPrinciple };
+type PrincipleProposal =
+  | { kind: "candidate"; value: ProposedPrinciple }
+  | { kind: "skipped" }
+  | { kind: "none" };
 
 function replaceAlias(text: string, alias: string): string {
   return text.replaceAll("{alias}", alias);
@@ -68,13 +72,13 @@ function limitReplyToTwoSentences(text: string): string {
   return parts.slice(0, 2).join("").trim() || "嗯,我记下了。这句我留着。";
 }
 
-async function proposePrinciple(state: MoneyState): Promise<ProposedPrinciple | null> {
+async function proposePrinciple(state: MoneyState): Promise<PrincipleProposal> {
   const reviewed = state.stories.filter((story) => story.status === "reviewed");
-  if (reviewed.length < 3) return null;
+  if (reviewed.length < 3) return { kind: "none" };
   const evidence = reviewed.slice(-3);
   const evidenceIds = evidence.map((story) => story.id);
   const evidenceKey = [...evidenceIds].sort().join("|");
-  if (state.principles.some((principle) => [...principle.evidenceIds].sort().join("|") === evidenceKey)) return null;
+  if (state.principles.some((principle) => [...principle.evidenceIds].sort().join("|") === evidenceKey)) return { kind: "none" };
   const response = await requestAgent({
     task: "generate_principle",
     stories: evidence.map((story) => ({
@@ -92,10 +96,15 @@ async function proposePrinciple(state: MoneyState): Promise<ProposedPrinciple | 
     deterministicFallback: state.demo,
     attempt: 0,
   });
-  if (!response.ok || !response.payload || typeof response.payload !== "object") return null;
+  if (!response.ok) {
+    return !state.demo && response.issue === "validation"
+      ? { kind: "skipped" }
+      : { kind: "none" };
+  }
+  if (!response.payload || typeof response.payload !== "object") return { kind: "none" };
   const payload = response.payload as { result?: CandidateOutput };
   const candidate = payload.result;
-  if (!candidate || typeof candidate.statement !== "string" || !Array.isArray(candidate.evidenceIds)) return null;
+  if (!candidate || typeof candidate.statement !== "string" || !Array.isArray(candidate.evidenceIds)) return { kind: "none" };
   try {
     const result = buildCandidate(state, {
       statement: candidate.statement,
@@ -103,9 +112,9 @@ async function proposePrinciple(state: MoneyState): Promise<ProposedPrinciple | 
       expectedStateVersion: state.stateVersion,
       idempotencyKey: globalThis.crypto.randomUUID(),
     });
-    return { state: result.state, principle: result.principle };
+    return { kind: "candidate", value: { state: result.state, principle: result.principle } };
   } catch {
-    return null;
+    return { kind: "none" };
   }
 }
 
@@ -128,6 +137,7 @@ export function ReviewFlow() {
   const [candidateEvidenceOpen, setCandidateEvidenceOpen] = useState(false);
   const [candidateEditing, setCandidateEditing] = useState(false);
   const [candidateEditText, setCandidateEditText] = useState("");
+  const [principleSkipped, setPrincipleSkipped] = useState(false);
 
   useEffect(() => () => {
     setDogThinking(false);
@@ -216,14 +226,15 @@ export function ReviewFlow() {
       setDogState("ears");
       window.setTimeout(() => setDogState(null), 1200);
       const nextCandidate = await proposePrinciple(result.state);
-      if (nextCandidate) {
-        commit(nextCandidate.state);
-        setCandidate(nextCandidate.principle);
-        setCandidateEditText(nextCandidate.principle.statement);
+      if (nextCandidate.kind === "candidate") {
+        commit(nextCandidate.value.state);
+        setCandidate(nextCandidate.value.principle);
+        setCandidateEditText(nextCandidate.value.principle.statement);
         setCandidateEvidenceOpen(false);
         setCandidateEditing(false);
         setStep("principle");
       } else {
+        setPrincipleSkipped(nextCandidate.kind === "skipped");
         setStep("done");
       }
     } catch (cause) {
@@ -278,7 +289,7 @@ export function ReviewFlow() {
           {step === "confirmDebit" && selectedJar && <div className="decision-step"><p className="decision-dog-bubble">{REVIEW_CONFIRM_DEDUCT.question.replace("{jar}", JAR_NAMES[selectedJar]).replace("{amount}", price)}</p>{error && <p className="talk-status">{error}</p>}<div className="decision-options"><button className="decision-option" type="button" onClick={confirmDebit}>{REVIEW_CONFIRM_DEDUCT.confirm}</button><button className="decision-option" type="button" onClick={() => setStep("whichJar")}>{REVIEW_CONFIRM_DEDUCT.cancel}</button></div></div>}
           {step === "note" && <div className="decision-step">{noteLead && <p className="decision-dog-bubble">{noteLead}</p>}{reviewReply ? <p className="decision-dog-bubble">{reviewReply}</p> : <><p className="decision-dog-bubble">{noteQuestion}</p><input className="decision-input" value={note} onChange={(event) => setNote(event.target.value)} placeholder={REVIEW_STEP3.placeholder} aria-label={noteQuestion} /></>}{error && <p className="talk-status">{error}</p>}{!reviewReply && <div className="decision-options"><button className="decision-option" type="button" onClick={() => finishReview(true)}>{REVIEW_STEP3.save}</button><button className="decision-option" type="button" onClick={() => finishReview(false)}>{REVIEW_STEP3.skip}</button></div>}</div>}
           {step === "principle" && candidate && <div className="decision-step principle-candidate-step"><article className="principle-card principle-candidate-card"><p>{replaceAlias(PRINCIPLE_CANDIDATE.lead, alias)}</p><strong>{candidate.statement}</strong><button className="principle-evidence-toggle" type="button" onClick={() => setCandidateEvidenceOpen((open) => !open)}>{PRINCIPLE_CANDIDATE.evidence} {candidateEvidenceOpen ? "^" : "▾"}</button>{candidateEvidenceOpen && <div className="principle-evidence-list">{candidate.evidenceIds.map((id) => { const story = currentState.stories.find((item) => item.id === id); return <p key={id}>{story ? `${story.intent}${story.outcome?.feelingNote ? ` · ${story.outcome.feelingNote}` : ""}` : id}</p>; })}</div>}</article>{candidateEditing && <input className="decision-input principle-edit-input" value={candidateEditText} onChange={(event) => setCandidateEditText(event.target.value)} aria-label={candidate.statement} />}{candidateEditing ? <div className="decision-options principle-candidate-actions"><button className="decision-option" type="button" onClick={() => resolveCandidate("edit")}>{PRINCIPLE_CANDIDATE.saveEdit}</button><button className="decision-option" type="button" onClick={() => resolveCandidate("defer")}>{PRINCIPLE_CANDIDATE.actions.defer}</button></div> : <div className="decision-options principle-candidate-actions"><button className="decision-option" type="button" onClick={() => resolveCandidate("like_me")}>{PRINCIPLE_CANDIDATE.actions.like}</button><button className="decision-option" type="button" onClick={() => resolveCandidate("edit")}>{PRINCIPLE_CANDIDATE.actions.edit}</button><button className="decision-option" type="button" onClick={() => resolveCandidate("defer")}>{PRINCIPLE_CANDIDATE.actions.defer}</button></div>}</div>}
-          {step === "done" && <div className="decision-step"><p className="decision-dog-bubble">{REVIEW_STEP4.closing}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>{REVIEW_NAV.backHome}<HandDrawnUnderline /></button></div>}
+          {step === "done" && <div className="decision-step"><p className="decision-dog-bubble">{principleSkipped ? PRINCIPLE_CANDIDATE.skipped : REVIEW_STEP4.closing}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>{REVIEW_NAV.backHome}<HandDrawnUnderline /></button></div>}
         </section>
       </section>
     </main>

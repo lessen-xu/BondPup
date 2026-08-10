@@ -152,6 +152,7 @@ export const CARDS_PAGE = {
 export const PRINCIPLE_CANDIDATE = {
   lead: "{alias} 悄悄记下了一件事",
   evidence: "依据",
+  skipped: "这次先不提炼了，等我们再多几次经历。",
   actions: {
     like: "这很像我",
     edit: "改成我的说法",
