@@ -68,19 +68,47 @@ export function buildTaskPrompt(input: AgentTaskInput): { instruction: string; p
             }
           : {}),
       };
+      const noteContext = input.noteContext
+        ? {
+            jars: input.noteContext.jars.map((jar) => ({
+              kind: jar.kind,
+              label: jar.label,
+              amountText: fmtYuan(jar.amount),
+            })),
+            principles: input.noteContext.principles,
+            concerns: input.noteContext.concerns,
+            stories: input.noteContext.stories.map((story) => ({
+              intent: story.intent,
+              action: story.action,
+              ...(story.amount !== undefined ? { amountText: fmtYuan(story.amount) } : {}),
+              confirmedJar: story.confirmedJar ?? null,
+              outcome: story.outcome
+                ? {
+                    happened: story.outcome.happened,
+                    ...(story.outcome.actualAmount !== undefined
+                      ? { actualAmountText: fmtYuan(story.outcome.actualAmount) }
+                      : {}),
+                    feelingNote: story.outcome.feelingNote ?? null,
+                  }
+                : null,
+            })),
+            conversation: input.noteContext.conversation,
+          }
+        : null;
+      const isDecisionFollowUp = input.scene === "decision" && Boolean(input.noteContext?.conversation.length);
       return {
         instruction:
           input.scene === "decision"
-            ? "用户在犹豫要不要买 item。把她的情况摆出来,而不是给结论:" +
-              "①先接住情绪,但不评价她的犹豫或决定本身(不说「犹豫是对的」「这个决定挺好」这类话——评价对错也是评判);" +
-              "②说事实——安心罐还剩多少(comfortAvailableText 原样引用),如果有 shortfallText 也原样说;" +
-              "③recentStories 里如果有和这次真相关的(同类东西/同类犹豫),用一句话提它后来怎么样了(happened/feelingNote);principles 和 concerns 里如果有真相关的,用她自己的话问一句(如「你说过想……这个算在里面吗?」)。不相关就都不提。" +
-              "④最后一句必须把「现在买」「放到明天」「这次先不买」三个词组原样写出来,并列、不偏向任何一个,绝不问值不值;" +
-              "然后交还决定权,比如「我能想到的就这些了,买不买你定」。最多五句话。直接输出回应文本,不要 JSON。"
+            ? isDecisionFollowUp
+              ? "用户正在决定要不要买,页面已经持续显示三个中性动作。结合当前话语和 conversation 自然接住;若引用 comfortAvailableText,金额原样引用,不要自己计算。不要重复三个动作,不要推进选择,不偏向任何一个,绝不问值不值。最多三句,一次最多问一个问题。直接输出回应文本,不要 JSON。"
+              : "用户在犹豫要不要买 item。把她的情况摆出来,而不是给结论:" +
+                "①先接住情绪,但不评价她的犹豫或决定本身(不说「犹豫是对的」「这个决定挺好」这类话——评价对错也是评判);" +
+                "②说事实——安心罐还剩多少(comfortAvailableText 原样引用),如果有 shortfallText 也原样说;" +
+                "③recentStories、principles 和 concerns 只在真相关时引用,不相关就都不提;" +
+                "④最后一句必须把「现在买」「放到明天」「这次先不买」三个词组原样写出来,并列、不偏向任何一个,绝不问值不值;" +
+                "然后交还决定权。最多五句话。直接输出回应文本,不要 JSON。"
             : input.scene === "note"
-              ? "用户想说一笔钱。第一句必须回应她话里的感受词(愧疚/后悔/开心……),说出那个词或直接回应它;" +
-                "recentStories 只在和这次真的相关时才提,不相关就完全不提——不要为了显得记得而硬扯。" +
-                "然后说可以告诉你金额记下来,也可以只说说不改余额。最多三句。直接输出回应文本。"
+              ? "用户正在聊一笔钱。结合当前话语和提供的上下文自然接住;可以引用用户自己说过的话、做过的决定,也可以指出这次与过去某次的相似或不同。不要评价、不给建议、不总结教训,不说『你应该』。最多三句,一次最多问一个问题。不要主动推进记账流程。直接输出回应文本。"
               : input.scene === "review_note"
                 ? "用户在回看一段已经发生过的金钱故事,刚写下自己的感受。只接住这句话,不评价、不追问、不给建议、不总结教训。最多两句。直接输出回应文本。"
               : "用户点了你。说一句自然的开场,表示你在,可以聊钱也可以不聊。直接输出回应文本。",
@@ -89,6 +117,7 @@ export function buildTaskPrompt(input: AgentTaskInput): { instruction: string; p
           stateSummary: summary,
           her: herContext,
           context: input.context ?? null,
+          noteContext,
         }),
       };
     }

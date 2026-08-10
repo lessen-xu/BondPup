@@ -22,8 +22,10 @@ export interface DecisionPreview {
   remaining: number;
   /** 差多少(够则为 0) */
   shortfall: number;
-  /** shortfall > 0 时的差额来源选项(不含安心罐;为 0 的罐子不列) */
+  /** shortfall > 0 时的差额来源选项;生活罐即使为 0 也保留,避免选项无故消失。 */
   sources: DecisionSource[];
+  /** 安心 + 生活 + 梦想是否能覆盖整笔金额;未来罐永不参与。 */
+  canCoverWithCurrentJars: boolean;
   /** 来源里有梦想罐时:对目标时间的可解释影响(给两个方向,不催) */
   goalImpact?: string;
 }
@@ -47,11 +49,11 @@ export function previewDecision(state: MoneyState, input: { amount: number }): D
   let sources: DecisionSource[] = [];
   let goalImpact: string | undefined;
   if (shortfall > 0) {
-    sources = state.jars
-      // 安心罐是被扣的主体不列;未来罐只进不出,永不作为差额来源(冻结规则)
-      .filter((j) => j.kind !== "comfort" && j.kind !== "future")
-      .map((j) => ({ jarKind: j.kind, label: j.label, amount: Math.max(0, j.planned - j.actual) }))
-      .filter((s) => s.amount > 0);
+    sources = (["dream", "living"] as const)
+      .map((kind) => state.jars.find((jar) => jar.kind === kind))
+      .filter((jar): jar is NonNullable<typeof jar> => jar !== undefined)
+      .map((jar) => ({ jarKind: jar.kind, label: jar.label, amount: Math.max(0, jar.planned - jar.actual) }))
+      .filter((s) => s.jarKind === "living" || s.amount > 0);
     const dream = state.jars.find((j) => j.kind === "dream");
     if (dream?.goal && sources.some((s) => s.jarKind === "dream")) {
       const fromDream = Math.min(shortfall, Math.max(0, dream.planned - dream.actual));
@@ -63,5 +65,7 @@ export function previewDecision(state: MoneyState, input: { amount: number }): D
           : `从「${dream.goal.name}」出这 ${fmtYuan(fromDream)},这个月给它少放一些。之后哪个月多放一点就能补回来。`;
     }
   }
-  return { comfortAvailable, remaining, shortfall, sources, goalImpact };
+  const canCoverWithCurrentJars = shortfall === 0
+    || sources.reduce((total, source) => total + source.amount, 0) >= shortfall;
+  return { comfortAvailable, remaining, shortfall, sources, canCoverWithCurrentJars, goalImpact };
 }

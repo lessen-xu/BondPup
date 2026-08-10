@@ -120,10 +120,10 @@ console.log("\n--- 1. 危机输入首次提交就进安全出口并原样展示�
   await clickFirst(page, ["知道了", "好呀", "继续"]);
 
   // 进「有笔钱想说说」分支
-  const dog = page.locator("img").first();
+  const dog = page.locator(".dog-layer img").first();
   await dog.click().catch(() => {});
   await page.waitForTimeout(800);
-  const entered = await clickFirst(page, ["有笔钱想说说", "想说说", "有笔钱"]);
+  const entered = await clickFirst(page, ["有一笔钱想和你聊一聊", "想和你聊", "有笔钱想说说", "想说说", "有笔钱"]);
   assert(entered !== null, `能进入「有笔钱想说说」(实际点了:${entered ?? "没找到"})`);
   // 输入框可能是 textarea 也可能是 input;分支里可能还要点一两步才出现
   const inputSel = "textarea, input[type=text], input:not([type]), [contenteditable=true]";
@@ -135,7 +135,7 @@ console.log("\n--- 1. 危机输入首次提交就进安全出口并原样展示�
   if ((await box.count()) > 0) {
     await box.fill("感觉活着没什么意思,钱也管不好");
     await page.waitForTimeout(300);
-    const submitted = await clickFirst(page, ["告诉我", "说完了", "嗯,说完了", "发送", "确认", "继续", "好了"]);
+    const submitted = await clickFirst(page, ["说给我听", "告诉我", "说完了", "嗯,说完了", "发送", "确认", "继续", "好了"]);
     await waitForText(page, ["12356", "说完了", "热线"], 8000);
     const text = (await page.locator("body").innerText()).replace(/\s+/g, " ");
     // 关键:第一次提交后就应出现热线,不需要再点一次

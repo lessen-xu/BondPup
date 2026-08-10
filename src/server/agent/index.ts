@@ -212,7 +212,9 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutpu
   const failuresOf = (o: AgentTaskOutput) => {
     if (o.task === "companion_reply") {
       if (safeInput.task === "companion_reply" && safeInput.scene === "decision") {
-        return validateDecisionReply(o.result.text);
+        return safeInput.noteContext?.conversation.length
+          ? validateReplyText(o.result.text, { maxSentences: 3 })
+          : validateDecisionReply(o.result.text);
       }
       const budget = safeInput.task === "companion_reply" && safeInput.scene === "review_note" ? 2 : 3;
       return validateReplyText(o.result.text, { maxSentences: budget });

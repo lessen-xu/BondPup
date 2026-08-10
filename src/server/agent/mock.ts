@@ -44,22 +44,30 @@ function mockReply(input: Extract<AgentTaskInput, { task: "companion_reply" }>):
     case "greet":
       return {
         text: "我在呢。今天想聊聊钱,还是就坐一会儿?",
-        bubbles: ["帮我看看要不要买", "有笔钱想说说"],
+        bubbles: ["帮我看看要不要买", "记一笔钱"],
         requiresConfirmation: false,
       };
     case "decision": {
-      const line =
-        comfort !== undefined
-          ? `我这里记的安心罐还有 ${comfort % 100 === 0 ? comfort / 100 : (comfort / 100).toFixed(2)} 元,这部分是可以放心用的。`
-          : "我这里还没有记这个月的安排,不过可以先聊聊这件东西。";
+      const line = comfort !== undefined
+        ? `我这里记的安心罐还有 ${comfort % 100 === 0 ? comfort / 100 : (comfort / 100).toFixed(2)} 元。`
+        : "我听着呢。";
+      const isFollowUp = Boolean(input.noteContext?.conversation.length);
       return {
-        text: `听起来你已经想了一会儿了。${line}你可以现在买,也可以放到明天,或者这次先不买——三个都行。`,
+        text: isFollowUp
+          ? `嗯,你还在想着这件东西。${line}还想说什么就接着说吧。`
+          : `嗯,你还在想着这件东西。${line}现在买、放到明天、这次先不买,都可以,你来定。`,
         requiresConfirmation: false,
       };
     }
     case "note":
+      if (input.noteContext?.stories[0]) {
+        return {
+          text: `嗯,我听着。你之前也跟我说过「${input.noteContext.stories.at(-1)?.intent}」,这次听起来又有些不一样。你还想说什么,就接着说吧。`,
+          requiresConfirmation: false,
+        };
+      }
       return {
-        text: "临时改变安排,心里有点不踏实很正常。想记下来的话告诉我金额,只想说说也可以。",
+        text: "嗯,我听着。你还想说什么,就接着说吧。",
         requiresConfirmation: false,
       };
     case "review_note":

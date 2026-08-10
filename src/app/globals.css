@@ -585,6 +585,9 @@ button { color: inherit; font: inherit; }
 .talk-record { align-items: flex-end; gap: 6%; margin-top: 3%; }
 .talk-record input { background: transparent; background-image: url('/assets/输入框横线.png'); background-position: bottom center; background-repeat: no-repeat; background-size: 100% auto; border: 0; color: var(--ink); flex: 1 1 auto; font: inherit; min-width: 0; outline: 0; padding: 2% 0 5%; width: auto; }
 .talk-record button { flex: 0 0 auto; white-space: nowrap; }
+.talk-conversation { display: flex; flex-direction: column; gap: clamp(8px, 3vw, 16px); margin: 2% auto 0; max-height: 30dvh; overflow-y: auto; padding: 1% 4%; width: 92%; }
+.talk-conversation .decision-user-bubble { align-self: flex-end; }
+.talk-conversation .decision-dog-bubble { align-self: flex-start; }
 .companion-home-entry { background: transparent; border: 0; bottom: 5%; color: var(--muted); cursor: pointer; font-size: clamp(11px, 2.8vw, 13px); padding: 4px; position: absolute; right: 7%; }
 .talk-page .companion-home-entry,
 .talk-page .companion-entry { display: none; }
@@ -613,6 +616,9 @@ button { color: inherit; font: inherit; }
 .buy-decision-page .decision-dialog { margin: -28% auto 0; }
 .buy-decision-page .decision-dialog { max-height: none; overflow: visible; padding: 58px 2% 3%; }
 .buy-decision-page .decision-dog-bubble { max-width: 78%; position: relative; transform: translateY(-174px); }
+.buy-decision-page > .buy-balance-bubble { max-width: 56%; position: absolute; right: 3%; top: clamp(62px, 9dvh, 82px); transform: none; z-index: 4; }
+.buy-decision-page .buy-arrange-step { margin-top: clamp(44px, 13vw, 72px); }
+.buy-decision-page .buy-arrange-step .decision-dog-bubble { transform: none; }
 .buy-decision-page .buy-item-step .decision-input { margin-top: 44px; }
 .decision-dialog-below-dog { margin-top: 2%; }
 .decision-step { align-items: center; display: flex; flex-direction: column; gap: clamp(8px, 3vw, 16px); }
@@ -640,6 +646,14 @@ button { color: inherit; font: inherit; }
 .decision-result.decision-dog-bubble { margin-left: auto; }
 .money-note-model-bubble { animation: note-bubble-fade-in 200ms ease-out both; }
 .money-note-thinking-bubble { min-height: 46px; width: 96px; }
+.money-note-conversation { width: 100%; }
+.money-note-follow-up { align-items: center; display: flex; flex-direction: column; gap: clamp(8px, 3vw, 16px); width: 100%; }
+.buy-decision-chat { display: flex; flex-direction: column; gap: clamp(10px, 3vw, 16px); margin-top: clamp(12px, 4vw, 22px); width: 100%; }
+.buy-decision-conversation { display: flex; flex-direction: column; gap: clamp(8px, 3vw, 16px); width: 100%; }
+.buy-decision-conversation .decision-user-bubble { align-self: flex-end; }
+.buy-decision-conversation .decision-dog-bubble { align-self: flex-start; }
+.buy-decision-follow-up { align-items: center; background: linear-gradient(to bottom, rgba(249, 245, 235, 0), rgba(249, 245, 235, .94) 24%); bottom: 0; display: flex; flex-direction: column; gap: 8px; padding: 18px 0 8px; position: sticky; width: 100%; z-index: 6; }
+.buy-decision-follow-up .decision-option { width: min(92%, 300px); }
 @keyframes note-bubble-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -694,6 +708,10 @@ button { color: inherit; font: inherit; }
 .principle-edit-input { width: min(86%, 320px); }
 .decision-source-options { flex-direction: column; }
 .decision-source-options .decision-option { width: 100%; }
+.money-direction-options { gap: clamp(20px, 5.5vw, 32px); margin-top: clamp(28px, 8vw, 48px); }
+.decision-source-choice { align-items: center; display: flex; flex-direction: column; width: 100%; }
+.decision-source-choice small { color: var(--muted); font-size: clamp(10px, 2.8vw, 12px); margin-top: -2%; }
+.decision-source-confirm { align-items: center; display: flex; flex-direction: column; gap: clamp(8px, 3vw, 16px); width: 100%; }
 .decision-buy-actions { gap: 2%; }
 .decision-buy-action {
   align-items: center;
@@ -860,6 +878,9 @@ button { color: inherit; font: inherit; }
 .flow-balance-status { align-items: center; display: flex; gap: 4%; justify-content: center; margin: 2% 0; }
 .flow-balance-status span { color: var(--ink); font-size: clamp(12px, 3.4vw, 15px); line-height: 1.6; }
 .flow-balance-status button { background: transparent; border: 0; color: var(--muted); cursor: pointer; font: inherit; min-height: 44px; padding: 2%; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.flow-source-choice { flex-wrap: wrap; }
+.flow-source-choice .decision-source-choice { width: auto; }
+.flow-source-choice small { color: var(--muted); font-size: clamp(10px, 2.8vw, 12px); }
 .flow-submit-error { margin: 3% auto; max-width: 92%; }
 .flow-record { margin: 3% 0; padding-left: 3%; }
 .flow-record p, .flow-record strong { display: block; font-size: clamp(13px, 3.6vw, 16px); line-height: 1.75; margin: 0 0 3%; }
@@ -919,6 +940,8 @@ button { color: inherit; font: inherit; }
 .flow-future-image { z-index: 1; }
 .flow-jar-gems { bottom: 4%; height: 88%; left: 5%; object-fit: contain; position: absolute; width: 90%; z-index: 3; }
 .flow-jar-edit { display: grid; font-size: clamp(12px, 3.4vw, 15px); margin: 2% 0; }
+.jar-live-summary { color: var(--ink); font-size: clamp(11px, 3.1vw, 14px); line-height: 1.6; margin-top: 1%; }
+.flow-jar-edit .future-low { color: var(--muted); font-size: clamp(11px, 3.1vw, 14px); line-height: 1.6; }
 .future-question { margin-top: 2%; }
 .future-question > p { font-size: clamp(12px, 3.4vw, 15px); line-height: 1.5; margin: 0 0 2%; }
 .future-options { gap: 3%; justify-content: stretch; margin: 2% 0; }
