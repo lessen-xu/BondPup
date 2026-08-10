@@ -29,3 +29,5 @@ SOFTWARE.
 - Long Cang(long-cang-v1.woff2,正文手写体)
 - Caveat(caveat.woff2,西文)
 - Yozai(manman-symbols.woff2 的来源,补充主字体缺失的符号字形)
+- ZCOOL XiaoWei / 站酷小薇(manman-hand.woff2 的来源,作为 Long Cang 缺字时的回落字体;
+  子集由 scripts/subset-fonts.py 与 scripts/subset-font.mjs 从 raw-fonts/ZCOOLXiaoWei-Regular.ttf 生成)
