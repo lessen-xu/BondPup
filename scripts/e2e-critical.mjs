@@ -210,9 +210,11 @@ console.log("\n--- 3. 未完成入口不暴露给评委 ---");
   const home = (await page.locator("body").innerText()).replace(/\s+/g, " ");
   assert(!/还在做|敬请期待|开发中/.test(home), "首页不出现「还在做」类占位");
 
-  // 只认明确的占位文案(纯插画页如 /companion 的睡觉小狗是完整内容,不因文字少而误判)
+  // 只认明确的占位文案(纯插画页如 /companion 的睡觉小狗是完整内容,不因文字少而误判)。
+  // /leftover 的首页入口是 aria-label「查看结余」的碎钻按钮(碎钻>0 才渲染);
+  // 「小金库」按钮去的是 /vault(真实页面),曾被误认成 /leftover 入口
   const placeholders = [];
-  for (const [path, entry] of [["/leftover", "小金库"], ["/outfit", "装扮"], ["/companion", "陪伴"]]) {
+  for (const [path, entry] of [["/leftover", "查看结余"], ["/outfit", "装扮"], ["/companion", "陪伴"]]) {
     await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded", timeout: 60000 });
     await page.waitForTimeout(1200);
     const t = (await page.locator("body").innerText()).replace(/\s+/g, " ").trim();
@@ -226,11 +228,13 @@ console.log("\n--- 3. 未完成入口不暴露给评委 ---");
     let clickable = false;
     for (const el of await page.getByRole("button").all()) {
       const text = norm(await el.innerText().catch(() => ""));
-      if (text.includes(norm(entry)) && (await el.isEnabled().catch(() => false))) clickable = true;
+      const aria = norm((await el.getAttribute("aria-label").catch(() => "")) ?? "");
+      if ((text.includes(norm(entry)) || aria.includes(norm(entry))) && (await el.isEnabled().catch(() => false))) clickable = true;
     }
     for (const el of await page.getByRole("link").all()) {
       const text = norm(await el.innerText().catch(() => ""));
-      if (text.includes(norm(entry))) clickable = true;
+      const aria = norm((await el.getAttribute("aria-label").catch(() => "")) ?? "");
+      if (text.includes(norm(entry)) || aria.includes(norm(entry))) clickable = true;
     }
     assert(!clickable, `首页没有可点击的未完成页面入口 ${path}(「${entry}」)`);
     if (clickable) console.log(`   ${path} 当前内容:「${sample}」`);

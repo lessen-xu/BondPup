@@ -252,13 +252,38 @@ const SessionOut = z.looseObject({
   moneyState: MoneyStateOut,
 });
 
+/** 核心业务对象的输出形状(looseObject:新增字段透传;金额一律为分) */
+const PlanOut = z.looseObject({
+  living: z.number().int().describe("生活罐计划(分)"),
+  comfort: z.number().int().describe("安心罐计划(分);shortfall>0 时为 0"),
+  dream: z.number().int(),
+  future: z.number().int(),
+  shortfall: z.number().int().describe(">0 表示安排超出可安排金额,只能预览不能确认"),
+  dreamMonthly: z.number().int().optional().describe("梦想目标折算的月供(分)"),
+});
+
+const StoryOut = z.looseObject({
+  id: z.string(),
+  intent: z.string(),
+  action: z.string().describe("buy_now|defer|skip_this_time|note_only"),
+  status: z.string().describe("open|reviewed"),
+  amount: z.number().int().optional(),
+});
+
+const PrincipleOut = z.looseObject({
+  id: z.string(),
+  statement: z.string(),
+  evidenceIds: z.array(z.string()).describe("2-3 条已回看故事 id"),
+  status: z.string().describe("candidate|confirmed|edited|deferred"),
+});
+
 const PlanJarsOut = z.looseObject({
   sessionId: z.string(),
   preview: z.boolean().optional(),
   confirmed: z.boolean().optional(),
   idempotent: z.boolean().optional(),
-  plan: z.unknown().optional(),
-  note: z.unknown().optional(),
+  plan: PlanOut.optional(),
+  note: z.string().optional(),
   requiresConfirmation: z.boolean().optional(),
   howToConfirm: z.string().optional(),
   moneyState: MoneyStateOut,
@@ -292,25 +317,40 @@ const ConfirmOut = z.looseObject({
   undoToken: z.string().optional(),
   storyId: z.string().optional(),
   undone: z.boolean().optional(),
-  story: z.unknown().optional(),
-  appliedDebit: z.unknown().optional(),
+  story: StoryOut.optional(),
+  appliedDebit: z
+    .looseObject({ jarKind: z.string(), amount: z.number().int() })
+    .optional()
+    .describe("回看补记账时实际扣掉的罐与金额(分)"),
   reviewedCount: z.number().optional(),
-  principle: z.unknown().optional(),
+  principle: PrincipleOut.optional(),
   overPlanNote: z.string().optional(),
   moneyState: MoneyStateOut,
 });
 
 const OverviewOut = z.looseObject({
   sessionId: z.string(),
-  cycle: z.unknown().optional(),
-  jars: z.array(z.unknown()),
-  leftover: z.number(),
+  cycle: z
+    .looseObject({ cycle: z.string(), disposable: z.number().int(), confirmedAt: z.string().optional() })
+    .nullable()
+    .optional(),
+  jars: z.array(
+    z.looseObject({
+      kind: z.string().describe("living|comfort|dream|future"),
+      label: z.string(),
+      planned: z.number().int(),
+      actual: z.number().int(),
+    })
+  ),
+  leftover: z.number().int().describe("碎钻(上期结余,分)"),
   leftoverHistory: z.unknown().optional(),
-  cycleReview: z.unknown().optional(),
-  dueReviews: z.array(z.unknown()),
+  cycleReview: z.unknown().optional().describe("跨周期时的新周期提案,confirm_action(confirm_cycle) 确认"),
+  dueReviews: z.array(z.looseObject({ storyId: z.string(), intent: z.string(), reviewAt: z.string().optional() })),
   reviewedCount: z.number(),
-  principleCandidate: z.unknown().optional(),
-  principles: z.array(z.string()),
+  principleCandidate: z
+    .looseObject({ statement: z.string(), evidenceIds: z.array(z.string()), howToAdopt: z.string().optional() })
+    .optional(),
+  principles: z.array(z.string()).describe("已确认原则原文"),
   unit: z.string(),
   moneyState: MoneyStateOut,
 });
@@ -424,7 +464,7 @@ export function registerBondPupTools(server: McpServer): void {
       inputSchema: z.object({
         ...SessionRef,
         description: z.string().min(1).max(500),
-        amount: Cents.optional(),
+        amount: Cents.min(1).optional().describe("金额(分,≥1);0 元不构成扣罐候选,不带则按「只说说」处理"),
         jarHint: JarKind.optional(),
       }),
       outputSchema: MomentOut,

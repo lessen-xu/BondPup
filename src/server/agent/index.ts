@@ -69,14 +69,56 @@ export interface DegradeInfo {
   reason: string;
 }
 
+/**
+ * 任务级总预算:一次 API 调用里的所有模型尝试(首发+重试)共享同一个 deadline,
+ * 而不是每次各拿 8s——客户端 10s 放弃时服务端必已结束,不产生看不见的白计费。
+ * 剩余预算不足以像样地跑一次模型时,直接走确定性兜底。
+ */
+const TOTAL_BUDGET_MS = 9000;
+const MIN_ATTEMPT_MS = 1200;
+
+function remainingBudget(deadline: number): number {
+  return deadline - Date.now();
+}
+
+/**
+ * 公开 Agent API 的总成本护栏:每实例每日模型调用上限(MODEL_DAILY_BUDGET,默认 2000)。
+ * 限流挡的是频率,这里挡总量;超限降级确定性 Mock,体验不断、账单可控。
+ */
+let dailyModelCalls = 0;
+let dailyBudgetDate = "";
+
+function underDailyBudget(): boolean {
+  const today = new Date().toISOString().slice(0, 10);
+  if (today !== dailyBudgetDate) {
+    dailyBudgetDate = today;
+    dailyModelCalls = 0;
+  }
+  const cap = Number(process.env.MODEL_DAILY_BUDGET ?? 2000);
+  if (dailyModelCalls >= cap) return false;
+  dailyModelCalls++;
+  return true;
+}
+
 async function runProviderTask(
-  input: AgentTaskInput
+  input: AgentTaskInput,
+  timeoutMs?: number
 ): Promise<{ out: AgentTaskOutput; provider: AgentProvider; degraded?: DegradeInfo }> {
   const provider = pickProvider();
   if (provider !== "mock") {
+    if (!underDailyBudget()) {
+      console.error(JSON.stringify({ event: "model_daily_budget_exhausted", provider, task: input.task }));
+      return {
+        out: runMockAgentTask(input),
+        provider: "mock",
+        degraded: { from: provider, reason: "daily_budget_exhausted" },
+      };
+    }
     try {
       const out =
-        provider === "anthropic" ? await runAnthropicTask(input) : await runCompatTask(input);
+        provider === "anthropic"
+          ? await runAnthropicTask(input, timeoutMs)
+          : await runCompatTask(input, timeoutMs);
       return { out, provider };
     } catch (e) {
       // 超时/限流/解析失败 → 确定性 Mock 降级,体验不断;原因入日志(不含用户输入),不静默
@@ -171,9 +213,17 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutpu
     if (o.task === "decompose_wish") return validateConcernsOutput(o.result.concerns);
     return [];
   };
-  const { out, provider, degraded } = await runProviderTask(safeInput);
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  const { out, provider, degraded } = await runProviderTask(
+    safeInput,
+    Math.min(8000, remainingBudget(deadline))
+  );
   if (failuresOf(out).length > 0) {
-    const retry = await runProviderTask(safeInput);
+    const left = remainingBudget(deadline);
+    const retry =
+      left >= MIN_ATTEMPT_MS
+        ? await runProviderTask(safeInput, Math.min(8000, left))
+        : { out, provider, degraded };
     if (failuresOf(retry.out).length === 0) {
       return {
         ...retry.out,
@@ -256,8 +306,14 @@ async function runPrincipleTask(
   }
   const allowedIds = new Set(input.stories.map((s) => s.id));
   const check = (c: GeneratePrincipleOutput) => validatePrincipleWithIds(c, allowedIds).length === 0;
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const { out, provider, degraded } = await runProviderTask({ ...input, attempt });
+    const left = remainingBudget(deadline);
+    if (left < MIN_ATTEMPT_MS) break; // 预算耗尽:直接走兜底/宁缺毋滥,不让总时长超过客户端等待
+    const { out, provider, degraded } = await runProviderTask(
+      { ...input, attempt },
+      Math.min(8000, left)
+    );
     if (out.task === "generate_principle" && check(out.result)) {
       if (provider !== "mock" && isVague(out.result.statement, input.stories)) {
         continue; // 正确的废话:宁可重试/不提,也不给一条对谁都成立的原则

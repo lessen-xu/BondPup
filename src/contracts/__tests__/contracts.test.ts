@@ -54,6 +54,18 @@ describe("契约收紧(评估修正)", () => {
     }
   });
 
+  it("已确认周期的四罐恒等式在 schema 层锁死(链回 Σplanned≠disposable 的恶意状态被拒)", () => {
+    const s = applyJarPlan({ disposable: 650000, livingPlanned: 220000, confirmed: true }).state;
+    const evil = {
+      ...s,
+      jars: s.jars.map((j) => (j.kind === "living" ? { ...j, planned: j.planned + 1 } : j)),
+    };
+    const parsed = MoneyState.safeParse(evil);
+    expect(parsed.success).toBe(false);
+    // 未确认的短缺预览态不受此约束(本来就带缺口,不写库)
+    expect(MoneyState.safeParse(applyJarPlan({ disposable: 10000, livingPlanned: 20000 }).state).success).toBe(true);
+  });
+
   it("有周期时四罐必须齐全:缺未来罐被拒,0 元也保留", () => {
     const s = applyJarPlan({ disposable: 650000, livingPlanned: 220000 }).state;
     expect(s.jars.map((j) => j.kind).sort()).toEqual(["comfort", "dream", "future", "living"]);
