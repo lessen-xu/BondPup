@@ -88,13 +88,20 @@ function remainingBudget(deadline: number): number {
 let dailyModelCalls = 0;
 let dailyBudgetDate = "";
 
+/** 环境变量误配时回到有界默认值；0 是显式支持的「始终 Mock」。 */
+export function normalizeDailyModelBudget(raw: string | undefined): number {
+  if (raw === undefined || raw.trim() === "") return 2000;
+  const parsed = Number(raw);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : 2000;
+}
+
 function underDailyBudget(): boolean {
   const today = new Date().toISOString().slice(0, 10);
   if (today !== dailyBudgetDate) {
     dailyBudgetDate = today;
     dailyModelCalls = 0;
   }
-  const cap = Number(process.env.MODEL_DAILY_BUDGET ?? 2000);
+  const cap = normalizeDailyModelBudget(process.env.MODEL_DAILY_BUDGET);
   if (dailyModelCalls >= cap) return false;
   dailyModelCalls++;
   return true;

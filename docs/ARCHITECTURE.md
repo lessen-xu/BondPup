@@ -36,10 +36,10 @@ OPENAI_COMPAT_* 三件套存在    → OpenAI 兼容端点(当前:DeepSeek v4-fl
 都没有 / 调用失败 / 超时       → 确定性 Mock(评测「无密钥可跑」,也是降级路径)
 ```
 
-- 单次调用预算 8 秒,provider 层不重试;失败即降级 Mock,体验不断,降级原因入日志(不含用户输入)。
-- 客户端默认超时 10 秒 > 服务端 8 秒:网页放弃时服务端一定已结束,不产生白计费。
+- 每个任务共享 9 秒总 deadline;首发最多 8 秒,只有输出闸失败且剩余至少 1.2 秒才在同一 deadline 内重试;provider 自身不重试,失败即降级 Mock,降级原因入日志(不含用户输入)。
+- 客户端默认超时 10 秒 > 服务端 9 秒总预算:网页放弃时服务端一定已结束,不产生白计费。
 - DeepSeek 默认开思考模式,复杂 JSON 任务会长考近千 reasoning token(实测 9.2s);对 deepseek 端点显式关闭 thinking 后 1.4s。
-- 成本护栏:`max_tokens: 1000`;公开只读的 MCP `get_money_overview` 里候选原则固定用确定性 Mock 生成,真实模型额度只服务产品内交互;`/api/agent` 每 IP 每分钟 30 次限流。
+- 成本护栏:`max_tokens: 1000`;每实例每天真实模型调用上限由 `MODEL_DAILY_BUDGET` 控制(默认 2000,超限降级 Mock);公开只读的 MCP `get_money_overview` 里候选原则固定用确定性 Mock 生成,真实模型额度只服务产品内交互;`/api/agent` 每 IP 每分钟 30 次限流。
 
 ## 安全层:两道闸
 

@@ -6,7 +6,7 @@ import {
   type McpServer,
 } from "@modelcontextprotocol/server";
 import { z } from "zod";
-import { Cents, JarKind, MoneyState } from "@/contracts";
+import { Cents, CycleId, JarKind, MoneyState, PrincipleStatus, StoryAction } from "@/contracts";
 import { DomainError } from "@/contracts/errors";
 import { LivingItems } from "@/server/domain/living";
 import { commitJarDebit, makeUndoToken, undoJarDebit } from "@/server/domain/debit";
@@ -246,6 +246,53 @@ const MoneyStateOut = z
   .unknown()
   .describe("完整 moneyState,原样链回下一次调用(跨实例主路径)");
 
+const GoalOut = z.looseObject({
+  name: z.string(),
+  amount: Cents,
+  saved: Cents,
+  targetMonth: CycleId,
+});
+
+const LeftoverEntryOut = z.looseObject({
+  cycle: CycleId,
+  amount: Cents,
+  fromJar: JarKind,
+});
+
+const CycleLeftoverOut = z.looseObject({
+  total: Cents,
+  entries: z.array(LeftoverEntryOut),
+});
+
+const SafetyReplyOut = z.looseObject({
+  flagged: z.boolean(),
+  exit: z.boolean(),
+});
+
+const SafetyEventOut = z.looseObject({
+  riskType: z.string(),
+  triggeredRule: z.string(),
+  responseTaken: z.string(),
+});
+
+const CycleReviewOut = z.looseObject({
+  previousCycle: CycleId,
+  newCycle: CycleId,
+  disposablePrevious: Cents,
+  livingPlanned: Cents,
+  comfortPrevious: Cents,
+  futurePlanned: Cents,
+  dreamMonthly: Cents.nullable(),
+  previousDreamMonthly: Cents.nullable(),
+  monthlyDirection: z.enum(["up", "down", "same"]).nullable(),
+  dreamSavedAfterFold: Cents.nullable(),
+  monthsRemaining: z.number().int().min(0).nullable(),
+  goalReached: z.boolean(),
+  deadlinePassed: z.boolean(),
+  leftover: CycleLeftoverOut,
+  howToConfirm: z.string(),
+});
+
 const SessionOut = z.looseObject({
   sessionId: z.string(),
   greeting: z.string(),
@@ -254,27 +301,27 @@ const SessionOut = z.looseObject({
 
 /** 核心业务对象的输出形状(looseObject:新增字段透传;金额一律为分) */
 const PlanOut = z.looseObject({
-  living: z.number().int().describe("生活罐计划(分)"),
-  comfort: z.number().int().describe("安心罐计划(分);shortfall>0 时为 0"),
-  dream: z.number().int(),
-  future: z.number().int(),
-  shortfall: z.number().int().describe(">0 表示安排超出可安排金额,只能预览不能确认"),
-  dreamMonthly: z.number().int().optional().describe("梦想目标折算的月供(分)"),
+  living: Cents.describe("生活罐计划(分)"),
+  comfort: Cents.describe("安心罐计划(分);shortfall>0 时为 0"),
+  dream: Cents,
+  future: Cents,
+  shortfall: Cents.describe(">0 表示安排超出可安排金额,只能预览不能确认"),
+  dreamMonthly: Cents.optional().describe("梦想目标折算的月供(分)"),
 });
 
 const StoryOut = z.looseObject({
   id: z.string(),
   intent: z.string(),
-  action: z.string().describe("buy_now|defer|skip_this_time|note_only"),
-  status: z.string().describe("open|reviewed"),
-  amount: z.number().int().optional(),
+  action: StoryAction,
+  status: z.enum(["open", "reviewed"]),
+  amount: Cents.optional(),
 });
 
 const PrincipleOut = z.looseObject({
   id: z.string(),
   statement: z.string(),
   evidenceIds: z.array(z.string()).describe("2-3 条已回看故事 id"),
-  status: z.string().describe("candidate|confirmed|edited|deferred"),
+  status: PrincipleStatus,
 });
 
 const PlanJarsOut = z.looseObject({
@@ -296,17 +343,17 @@ const MomentOut = z.looseObject({
   proposal: z
     .looseObject({
       proposalId: z.string(),
-      jarKind: z.string(),
-      amount: z.number(),
+      jarKind: JarKind,
+      amount: z.number().int().min(1),
       intent: z.string(),
-      stateVersion: z.number(),
+      stateVersion: z.number().int().min(1),
       sig: z.string(),
     })
     .optional()
     .describe("候选动作,原样传给 confirm_action(confirm_debit),不要改任何字段"),
   requiresConfirmation: z.boolean().optional(),
-  safety: z.unknown().optional(),
-  safetyEvent: z.unknown().optional(),
+  safety: SafetyReplyOut.optional(),
+  safetyEvent: SafetyEventOut.optional(),
   moneyState: MoneyStateOut,
 });
 
@@ -319,7 +366,7 @@ const ConfirmOut = z.looseObject({
   undone: z.boolean().optional(),
   story: StoryOut.optional(),
   appliedDebit: z
-    .looseObject({ jarKind: z.string(), amount: z.number().int() })
+    .looseObject({ jarKind: JarKind, amount: z.number().int().min(1) })
     .optional()
     .describe("回看补记账时实际扣掉的罐与金额(分)"),
   reviewedCount: z.number().optional(),
@@ -331,22 +378,31 @@ const ConfirmOut = z.looseObject({
 const OverviewOut = z.looseObject({
   sessionId: z.string(),
   cycle: z
-    .looseObject({ cycle: z.string(), disposable: z.number().int(), confirmedAt: z.string().optional() })
+    .looseObject({
+      cycle: CycleId,
+      disposable: Cents,
+      confirmedAt: z.iso.datetime().optional(),
+      updatedAt: z.iso.datetime(),
+    })
     .nullable()
     .optional(),
   jars: z.array(
     z.looseObject({
-      kind: z.string().describe("living|comfort|dream|future"),
+      kind: JarKind,
       label: z.string(),
-      planned: z.number().int(),
-      actual: z.number().int(),
+      planned: Cents,
+      actual: Cents,
+      updatedAt: z.iso.datetime(),
+      goal: GoalOut.optional(),
     })
   ),
-  leftover: z.number().int().describe("碎钻(上期结余,分)"),
-  leftoverHistory: z.unknown().optional(),
-  cycleReview: z.unknown().optional().describe("跨周期时的新周期提案,confirm_action(confirm_cycle) 确认"),
-  dueReviews: z.array(z.looseObject({ storyId: z.string(), intent: z.string(), reviewAt: z.string().optional() })),
-  reviewedCount: z.number(),
+  leftover: Cents.describe("碎钻(上期结余,分)"),
+  leftoverHistory: z.array(LeftoverEntryOut).optional(),
+  cycleReview: CycleReviewOut.optional().describe("跨周期时的新周期提案,confirm_action(confirm_cycle) 确认"),
+  dueReviews: z.array(
+    z.looseObject({ storyId: z.string(), intent: z.string(), reviewAt: z.iso.datetime().optional() })
+  ),
+  reviewedCount: z.number().int().min(0),
   principleCandidate: z
     .looseObject({ statement: z.string(), evidenceIds: z.array(z.string()), howToAdopt: z.string().optional() })
     .optional(),

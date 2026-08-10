@@ -4,7 +4,7 @@
 
 - 产品(带示例数据):<https://bondpup.vercel.app/?demo=1> —— 三分钟评测路径见 [README](../README.md#三分钟评测路径)
 - MCP 端点:`https://bondpup.vercel.app/mcp`(5 工具,无密钥可完整走通,契约见 [MCP.md](MCP.md))
-- 一键端到端断言(32 次真实调用、29 条断言):
+- 一键端到端断言(32 次真实调用、30 条断言):
   ```bash
   node scripts/smoke-mcp.mjs https://bondpup.vercel.app
   ```
@@ -19,12 +19,12 @@
 | 安全红线命中 | ~0.02s | 输入闸直返,不调模型 |
 | MCP 全闭环 smoke | 32 次调用全过 | 分配→扣罐→撤销→回看→原则→引用→删除 |
 
-超时预算链:服务端单次 8s(不重试,失败降级 Mock)< 客户端 10s——网页放弃时服务端必已结束,无白计费。
+超时预算链:服务端每个任务共享 9s 总 deadline;首发最多 8s,只有输出闸失败且剩余至少 1.2s 才在同一 deadline 内重试;客户端 10s——网页放弃时服务端必已结束,无白计费。
 
 ## 质量闸门
 
-- 141 个单元测试(契约/域计算/安全层/API 契约/注入契约),`tsc --noEmit`,`next build`,全部进 CI;约定红灯不合并(过程中曾有一次红灯误合并,当日发现当日修复,详见 PR #42/#43)
-- MCP smoke 覆盖:恒等式、四罐齐全、乐观锁冲突、幂等重放、proposal 验签/过期/篡改、413 体积上限、structuredContent 与 text 同源
+- 145 个单元测试(契约/域计算/安全层/API 契约/注入契约/超时与成本护栏),`tsc --noEmit`,`next build`,全部进 CI;约定红灯不合并(过程中曾有一次红灯误合并,当日发现当日修复,详见 PR #42/#43)
+- MCP smoke 覆盖:恒等式、四罐齐全、乐观锁冲突、幂等重放、proposal 验签/过期/篡改、413 体积上限、structuredContent 与 text 同源、具名 output schema 与金额边界
 
 ## 真实模型上线当天的输出闸战绩
 
