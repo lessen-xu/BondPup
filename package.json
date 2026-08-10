@@ -9,8 +9,9 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "verify": "npm run lint && tsc --noEmit && npm run scan:copy && npm test && next build",
+    "verify": "npm run lint && tsc --noEmit && npm run scan:copy && npm test && next build && npm run smoke:local",
     "scan:copy": "node scripts/scan-copy.mjs",
+    "smoke:local": "node scripts/smoke-local.mjs",
     "verify:browser": "node scripts/e2e-critical.mjs"
   },
   "dependencies": {
