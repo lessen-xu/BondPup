@@ -33,17 +33,17 @@
     "endToEnd": {
       "command": "node scripts/smoke-mcp.mjs https://bondpup.vercel.app",
       "calls": 32,
-      "assertions": 29,
-      "covers": "分配→扣罐→撤销→回看→候选原则→确认→引用→删除,含乐观锁/幂等/proposal 与撤销令牌验签/跨会话 proposal 拒绝/统一错误契约/if-then 公开 schema/413/四罐齐全"
+      "assertions": 30,
+      "covers": "分配→扣罐→撤销→回看→候选原则→确认→引用→删除,含乐观锁/幂等/proposal 与撤销令牌验签/跨会话 proposal 拒绝/统一错误契约/if-then 与具名 output schema/413/四罐齐全"
     },
-    "unitTests": 141,
+    "unitTests": 145,
     "commands": [
       "npm ci",
       "npm test",
       "npx tsc --noEmit",
       "npm run build"
     ],
-    "ci": "https://github.com/lessen-xu/BondPup/actions/workflows/ci.yml (job \"verify\" on every PR; red never merged)",
+    "ci": "https://github.com/lessen-xu/BondPup/actions/workflows/ci.yml (job \"verify\" on every PR; PR #42 was accidentally merged red and PR #43 fixed it the same day)",
     "browser": {
       "command": "npm run verify:browser",
       "covers": "危机首击热线/演示原则闭环/未完成入口",

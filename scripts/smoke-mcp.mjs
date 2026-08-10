@@ -372,13 +372,32 @@ assert(
     }),
   });
   const rpc = await res.json();
-  const confirmTool = rpc.result.tools.find((t) => t.name === "confirm_action");
+  const tools = rpc.result.tools;
+  const confirmTool = tools.find((t) => t.name === "confirm_action");
   const conds = confirmTool?.inputSchema?.allOf ?? [];
   assert(
     conds.some(
       (c) => c.if?.properties?.action?.const === "note_only" && c.then?.required?.includes("intent")
     ) && conds.some((c) => c.if?.properties?.action?.const === "undo" && c.then?.required?.includes("undoToken")),
     "tools/list 公开 schema 含 if-then 条件必填(note_only→intent,undo→undoToken)"
+  );
+  const plan = tools.find((t) => t.name === "plan_jars")?.outputSchema?.properties?.plan?.properties;
+  const proposal = tools.find((t) => t.name === "record_money_moment")?.outputSchema?.properties?.proposal?.properties;
+  const confirm = confirmTool?.outputSchema?.properties;
+  const overview = tools.find((t) => t.name === "get_money_overview")?.outputSchema?.properties;
+  assert(
+    plan?.living?.type === "integer" &&
+      plan.living.minimum === 0 &&
+      proposal?.amount?.type === "integer" &&
+      proposal.amount.minimum === 1 &&
+      Array.isArray(confirm?.story?.properties?.action?.enum) &&
+      Array.isArray(confirm?.principle?.properties?.status?.enum) &&
+      confirm?.appliedDebit?.properties?.amount?.minimum === 1 &&
+      Array.isArray(overview?.jars?.items?.properties?.kind?.enum) &&
+      overview?.leftover?.minimum === 0 &&
+      overview?.leftoverHistory?.items?.properties?.fromJar &&
+      overview?.cycleReview?.properties?.leftover?.properties?.entries,
+    "tools/list 输出 schema 具名有型(plan/story/principle/appliedDebit/overview)"
   );
 }
 
