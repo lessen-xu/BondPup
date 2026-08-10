@@ -59,10 +59,13 @@ function parseTaskOutput(input: AgentTaskInput, text: string): AgentTaskOutput {
   }
 }
 
-export async function runAnthropicTask(input: AgentTaskInput): Promise<AgentTaskOutput> {
+export async function runAnthropicTask(
+  input: AgentTaskInput,
+  timeoutMs: number = TIMEOUT_MS
+): Promise<AgentTaskOutput> {
   const client = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
-    timeout: TIMEOUT_MS,
+    timeout: timeoutMs,
     maxRetries: 0,
   });
   const { instruction, payload } = buildTaskPrompt(input);
@@ -83,7 +86,10 @@ export async function runAnthropicTask(input: AgentTaskInput): Promise<AgentTask
   return parseTaskOutput(input, text);
 }
 
-export async function runCompatTask(input: AgentTaskInput): Promise<AgentTaskOutput> {
+export async function runCompatTask(
+  input: AgentTaskInput,
+  timeoutMs: number = TIMEOUT_MS
+): Promise<AgentTaskOutput> {
   const base = process.env.OPENAI_COMPAT_BASE_URL!.replace(/\/$/, "");
   const { instruction, payload } = buildTaskPrompt(input);
   let lastError: unknown;
@@ -109,7 +115,7 @@ export async function runCompatTask(input: AgentTaskInput): Promise<AgentTaskOut
           Authorization: `Bearer ${process.env.OPENAI_COMPAT_API_KEY}`,
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       if (!res.ok) throw new Error(`兼容端点 ${res.status}`);
       const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };

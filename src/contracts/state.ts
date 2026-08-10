@@ -36,6 +36,17 @@ export const MoneyState = z
           ctx.addIssue({ code: "custom", message: `有周期时四种罐子必须齐全,0 元也保留(缺 ${kind})` });
         }
       }
+      // 四罐恒等式在 schema 层锁死(仅已确认周期:短缺预览态本来就带缺口,不写库):
+      // MCP 依赖客户端链回状态,曾实测 Σplanned=650001、disposable=650000 的恶意状态被原样接受
+      if (s.cycle.confirmedAt) {
+        const planned = s.jars.reduce((a, j) => a + j.planned, 0);
+        if (planned !== s.cycle.disposable) {
+          ctx.addIssue({
+            code: "custom",
+            message: `四罐恒等式不成立:计划总和 ${planned} ≠ 可安排 ${s.cycle.disposable}`,
+          });
+        }
+      }
     }
   });
 export type MoneyState = z.infer<typeof MoneyState>;

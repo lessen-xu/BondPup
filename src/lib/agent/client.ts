@@ -4,7 +4,7 @@ export type AgentRequestResult =
   | { ok: true; payload: unknown }
   | { ok: false; issue: AgentIssue };
 
-/** 与服务端 provider 单次预算 8s 对齐(>8s):网页放弃时服务端也已结束,不产生白计费 */
+/** 与服务端任务级总预算 9s 对齐(>9s):所有模型尝试共享一个 deadline,网页放弃时服务端必已结束 */
 const DEFAULT_TIMEOUT_MS = 10000;
 
 export async function requestAgent(
