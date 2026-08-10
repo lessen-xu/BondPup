@@ -36,7 +36,7 @@
       "assertions": 30,
       "covers": "分配→扣罐→撤销→回看→候选原则→确认→引用→删除,含乐观锁/幂等/proposal 与撤销令牌验签/跨会话 proposal 拒绝/统一错误契约/if-then 与具名 output schema/413/四罐齐全"
     },
-    "unitTests": 145,
+    "unitTests": 152,
     "commands": [
       "npm ci",
       "npm test",
@@ -91,7 +91,8 @@
   "knownGaps": [
     "网页面的 CYCLE_REVIEW 与结余碎钻尚未接入(MCP 面可用)",
     "真实目标用户试用尚未完成,文档未作任何用户结论声称",
-    "已确认原则的修改/删除后端与 MCP 已就绪,网页 UI 接入中"
+    "已确认原则的修改/删除后端与 MCP 已就绪,网页 UI 接入中",
+    "候选原则的证据筛选只判 status === \"reviewed\",未额外校验 outcome 非空;当前数据不会产生「已回看但无结果」的故事,判定归复赛修"
   ],
   "performance": {
     "measuredAt": "2026-08-10",
