@@ -116,7 +116,7 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
     setTransitionIndex(random[0] % DAILY_NOTE.transitions.length);
     setSafety(null);
     setSafetyText(null);
-    setStep("listen");
+    void requestModelReply(next, true);
   }
 
   function readModelReply(payload: unknown): string {
@@ -133,7 +133,7 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
     return typeof result?.text === "string" ? result.text : null;
   }
 
-  async function requestModelReply() {
+  async function requestModelReply(userText = story, initialSubmit = false) {
     if (modelLoading) return;
     const currentRequest = requestId.current + 1;
     requestId.current = currentRequest;
@@ -142,7 +142,7 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
     setModelReply(null);
     setStep("model");
     setDogThinking(true);
-    const result = await requestAgent({ task: "companion_reply", scene: "note", userText: story });
+    const result = await requestAgent({ task: "companion_reply", scene: "note", userText });
     if (requestId.current !== currentRequest) return;
     let nextSafety: ReturnType<typeof safetyKind> = null;
     if (result.ok) {
@@ -176,7 +176,11 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
     }
     setDogThinking(false);
     setModelLoading(false);
-    if (nextSafety === "offTopic") setStep("safety-offtopic");
+    if (nextSafety === "offTopic") {
+      setStep("safety-offtopic");
+    } else if (initialSubmit && nextSafety === null) {
+      setStep("listen");
+    }
   }
 
   function continueAfterModelReply() {
@@ -236,7 +240,7 @@ export function MoneyNoteFlow({ initialStory = "" }: { initialStory?: string }) 
         {timeReminderVisible && <aside className="time-reminder" aria-live="polite"><p>{SAFETY.timeReminder.line}</p><p>{SAFETY.timeReminder.body}</p><div><button type="button" onClick={() => setTimeReminderVisible(false)}>{SAFETY.timeReminder.ack}</button><button type="button" onClick={() => setTimeReminderVisible(false)}>{SAFETY.timeReminder.continue}</button></div></aside>}
         <section className="decision-dialog" aria-live="polite">
           {step === "story" && <div className="decision-step"><p className="decision-dog-bubble">{DAILY_NOTE.intro}</p><input autoFocus className="decision-input" value={storyInput} onChange={(event) => setStoryInput(event.target.value)} placeholder={DAILY_NOTE.placeholder} aria-label={DAILY_NOTE.placeholder} /><p className="talk-status">{DAILY_NOTE.hint.replace("{alias}", alias)}</p><button className="decision-text-action" type="button" onClick={submitStory}>{DAILY_NOTE.submit}<HandDrawnUnderline /></button></div>}
-          {step === "listen" && <div className="decision-step"><p className="decision-user-bubble">{story}</p><p className="decision-dog-bubble">{DAILY_NOTE.responses[category].replace("{alias}", alias)}</p><p className="decision-dog-bubble">{DAILY_NOTE.transitions[transitionIndex]}</p><button className="decision-option" type="button" onClick={requestModelReply}>{DAILY_NOTE.done}</button></div>}
+          {step === "listen" && <div className="decision-step"><p className="decision-user-bubble">{story}</p><p className="decision-dog-bubble">{DAILY_NOTE.responses[category].replace("{alias}", alias)}</p><p className="decision-dog-bubble">{DAILY_NOTE.transitions[transitionIndex]}</p><button className="decision-option" type="button" onClick={() => setStep("model")}>{DAILY_NOTE.done}</button></div>}
           {step === "model" && <div className="decision-step"><p className="decision-user-bubble">{story}</p>{modelLoading ? <p className="decision-dog-bubble money-note-thinking-bubble" aria-hidden="true">{NOTE_MODEL_REPLY.thinkingHint}</p> : <>{issue ? <><p className="decision-dog-bubble">{issue === "offline" ? ERRORS.offline.line : ERRORS.timeout.line}</p><p className="decision-dog-bubble">{issue === "offline" ? ERRORS.offline.sub : ERRORS.timeout.sub}</p></> : null}<p className="decision-dog-bubble money-note-model-bubble">{modelReply}</p><button className="flow-primary-action money-note-continue" type="button" onClick={continueAfterModelReply}>{NOTE_MODEL_REPLY.continueLabel}</button></>}</div>}
           {step === "safety-offtopic" && <div className="decision-step"><p className="decision-dog-bubble">{safetyText ?? SAFETY.offTopic.line}</p><div className="decision-options"><button className="decision-option" type="button" onClick={() => chooseOffTopic("yes")}>{SAFETY.offTopic.options.yes}</button><button className="decision-option" type="button" onClick={() => chooseOffTopic("no")}>{SAFETY.offTopic.options.no}</button></div></div>}
           {step === "safety-stopped" && <div className="decision-step"><p className="decision-dog-bubble">{offTopicResponse ?? SAFETY.offTopic.noResponse}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>返回首页<HandDrawnUnderline /></button></div>}
