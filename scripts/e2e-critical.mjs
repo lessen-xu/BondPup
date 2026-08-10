@@ -119,16 +119,26 @@ console.log("\n--- 1. 危机输入首次提交就进安全出口并原样展示�
   await waitForText(page, ["知道了", "生活罐", "戳一戳"]);
   await clickFirst(page, ["知道了", "好呀", "继续"]);
 
-  // 进「有笔钱想说说」分支
+  // 进「有一笔钱想和你聊一聊」自由对话(危机首击契约所在:第一次提交就必须分流;
+  // 「记一笔钱」现在是纯记账流程,先问金额,不接倾诉文本)
   const dog = page.locator(".dog-layer img").first();
   await dog.click().catch(() => {});
-  await page.waitForTimeout(800);
-  const entered = await clickFirst(page, ["有一笔钱想和你聊一聊", "想和你聊", "有笔钱想说说", "想说说", "有笔钱"]);
-  assert(entered !== null, `能进入「有笔钱想说说」(实际点了:${entered ?? "没找到"})`);
-  // 输入框可能是 textarea 也可能是 input;分支里可能还要点一两步才出现
+  // 首页文案可能提前命中关键词,以「按钮真的可点」为准,带重试窗口等导航+水合完成
+  let entered = null;
+  {
+    const t0 = Date.now();
+    while (!entered && Date.now() - t0 < 12000) {
+      entered = await clickFirst(page, ["有一笔钱想和你聊一聊", "有笔钱想说说", "想说说"]);
+      if (!entered) await page.waitForTimeout(500);
+    }
+  }
+  assert(entered !== null, `能进入自由对话(实际点了:${entered ?? "没找到"})`);
+  // 输入框可能是 textarea 也可能是 input;渲染晚于导航,先等再找,还没有就点一两步
   const inputSel = "textarea, input[type=text], input:not([type]), [contenteditable=true]";
+  await page.waitForSelector(inputSel, { timeout: 10000 }).catch(() => {});
   for (let i = 0; i < 3 && (await page.locator(inputSel).count()) === 0; i++) {
     if (!(await clickFirst(page, ["告诉我", "说说看", "想说说", "继续"]))) break;
+    await page.waitForSelector(inputSel, { timeout: 5000 }).catch(() => {});
   }
 
   const box = page.locator(inputSel).first();
