@@ -313,7 +313,8 @@ const StoryOut = z.looseObject({
   id: z.string(),
   intent: z.string(),
   action: StoryAction,
-  status: z.enum(["open", "reviewed"]),
+  // pending 由网页「记一笔待确认」产生;MCP 虽不产出,但 overview 会回读——漏了会输出校验失败
+  status: z.enum(["open", "pending", "reviewed"]),
   amount: Cents.optional(),
 });
 
