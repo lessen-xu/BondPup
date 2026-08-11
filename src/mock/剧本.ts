@@ -168,6 +168,26 @@ export const DECISION_REFERENCE = {
   close: "收起",
 } as const;
 
+/** 碎钻详情页(结余):不催不庆祝不计数,挪走说成好事,为 0 空着也很好 */
+export const LEFTOVER_PAGE = {
+  title: "碎钻",
+  intro: "上个周期没花完的钱，我把它们收成了这一小堆。",
+  amountLine: "这里一共 {amount} 元。",
+  fromLine: "{cycle}从{jar}剩下的 {amount} 元",
+  hint: "它们不属于任何罐子。想挪就挪，不挪也很好。",
+  empty: "现在这里是空的。空着也很好。",
+  moveEntry: "挪一点去罐子里",
+  chooseJar: "想放进哪个罐子？",
+  amountQuestion: "挪多少呢？",
+  amountAll: "全部挪过去",
+  amountNext: "就挪这些",
+  confirm: "把 {amount} 元放进{jar}，好吗？",
+  confirmYes: "就这样",
+  confirmNo: "再想想",
+  moveFailed: "这次没挪动。要不再试一次？",
+  back: "返回首页",
+} as const;
+
 /** 已确认/已修改/暂不确定的原则,在放大视图里的管理动作——原则归用户所有,随时可改可删 */
 export const PRINCIPLE_MANAGE = {
   delete: "删掉这张",
