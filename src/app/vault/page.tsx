@@ -7,9 +7,9 @@ import { useRouter } from "next/navigation";
 import { Dog } from "@/components/Dog";
 import { LoadingState } from "@/components/LoadingState";
 import { useMoneyState } from "@/lib/state/money-store";
-import { resolvePrinciple } from "@/server/domain/principle";
+import { removePrinciple, resolvePrinciple } from "@/server/domain/principle";
 import { script, withAlias } from "@/mock/script";
-import { CARDS_PAGE, moneyNoteScript, PRINCIPLE_CANDIDATE } from "@/mock/剧本";
+import { CARDS_PAGE, moneyNoteScript, PRINCIPLE_CANDIDATE, PRINCIPLE_MANAGE } from "@/mock/剧本";
 
 export default function VaultPage() {
   const router = useRouter();
@@ -17,6 +17,9 @@ export default function VaultPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+  const [dialogMode, setDialogMode] = useState<"view" | "edit" | "delete">("view");
+  const [dialogEditText, setDialogEditText] = useState("");
+  const [dialogEditError, setDialogEditError] = useState(false);
   const alias = state?.profile.dogName?.trim() || "慢慢";
 
   if (!ready) return <LoadingState />;
@@ -70,6 +73,47 @@ export default function VaultPage() {
     }
   }
 
+  function closeDialog() {
+    setExpandedId(null);
+    setDialogMode("view");
+    setDialogEditText("");
+    setDialogEditError(false);
+  }
+
+  /** 放大视图里的改说法:任何 status 均合法,校验失败(禁用词/超 25 字等)温和提示 */
+  function saveDialogEdit(id: string) {
+    if (!state) return;
+    try {
+      const result = resolvePrinciple(state, {
+        id,
+        decision: "edit",
+        editedText: dialogEditText,
+        expectedStateVersion: state.stateVersion,
+        idempotencyKey: globalThis.crypto.randomUUID(),
+      });
+      commit(result.state);
+      setDialogMode("view");
+      setDialogEditText("");
+      setDialogEditError(false);
+    } catch {
+      setDialogEditError(true);
+    }
+  }
+
+  function deletePrinciple(id: string) {
+    if (!state) return;
+    try {
+      const result = removePrinciple(state, {
+        id,
+        expectedStateVersion: state.stateVersion,
+        idempotencyKey: globalThis.crypto.randomUUID(),
+      });
+      commit(result.state);
+    } finally {
+      closeDialog();
+    }
+  }
+
   function renderPrincipleCard(principle: (typeof principleCards)[number]) {
     const isCandidate = principle.status === "candidate";
     const content = <article className="principle-card"><p>{principle.label}</p><strong>{principle.title}</strong><span>{principle.body}</span>{isCandidate && <div className="principle-card-actions" onClick={(event) => event.stopPropagation()}>{editingId === principle.id ? <><input className="principle-card-edit-input" value={editText} onChange={(event) => setEditText(event.target.value)} aria-label={principle.body} /><button type="button" onClick={() => applyPrinciple(principle.id, "edit")}>{PRINCIPLE_CANDIDATE.saveEdit}</button><button type="button" onClick={() => applyPrinciple(principle.id, "defer")}>{PRINCIPLE_CANDIDATE.actions.defer}</button></> : <><button type="button" onClick={() => applyPrinciple(principle.id, "like_me")}>{PRINCIPLE_CANDIDATE.actions.like}</button><button type="button" onClick={() => applyPrinciple(principle.id, "edit")}>{PRINCIPLE_CANDIDATE.actions.edit}</button><button type="button" onClick={() => applyPrinciple(principle.id, "defer")}>{PRINCIPLE_CANDIDATE.actions.defer}</button></>}</div>}</article>;
@@ -96,13 +140,36 @@ export default function VaultPage() {
           <section className="vault-illustration vault-dog-art" aria-label={alias}><Dog page="原则卡" alias={alias} message={null} /></section>
         </div>
         {expandedCard && (
-          <div className="principle-card-backdrop" role="dialog" aria-modal="true" aria-label="放大的纸条" onClick={() => setExpandedId(null)}>
+          <div className="principle-card-backdrop" role="dialog" aria-modal="true" aria-label="放大的纸条" onClick={closeDialog}>
             <div className="principle-card-dialog" onClick={(event) => event.stopPropagation()}>
-              <button className="simple-back principle-card-close" type="button" onClick={() => setExpandedId(null)} aria-label="关闭纸条">关闭</button>
+              <button className="simple-back principle-card-close" type="button" onClick={closeDialog} aria-label="关闭纸条">关闭</button>
               <article className={`principle-card principle-card-expanded ${expandedCard.type === "welcome" ? "vault-welcome-card" : ""}`}>
                 {expandedCard.type !== "welcome" && <><p>{expandedCard.label}</p><strong>{expandedCard.title}</strong></>}
-                <span>{expandedCard.body}</span>
+                {dialogMode === "edit" && expandedCard.type === "principle"
+                  ? <span className="principle-dialog-edit"><input className="principle-card-edit-input" value={dialogEditText} onChange={(event) => { setDialogEditText(event.target.value); setDialogEditError(false); }} aria-label={expandedCard.body} />{dialogEditError && <em className="principle-dialog-edit-error">{PRINCIPLE_MANAGE.editRejected}</em>}</span>
+                  : <span>{expandedCard.body}</span>}
               </article>
+              {expandedCard.type === "principle" && dialogMode === "view" && (
+                <div className="principle-card-actions principle-dialog-actions">
+                  <button type="button" onClick={() => { setDialogMode("edit"); setDialogEditText(expandedCard.body); }}>{PRINCIPLE_CANDIDATE.actions.edit}</button>
+                  <button type="button" onClick={() => setDialogMode("delete")}>{PRINCIPLE_MANAGE.delete}</button>
+                </div>
+              )}
+              {expandedCard.type === "principle" && dialogMode === "edit" && (
+                <div className="principle-card-actions principle-dialog-actions">
+                  <button type="button" onClick={() => saveDialogEdit(expandedCard.id)}>{PRINCIPLE_CANDIDATE.saveEdit}</button>
+                  <button type="button" onClick={() => { setDialogMode("view"); setDialogEditError(false); }}>{PRINCIPLE_MANAGE.deleteNo}</button>
+                </div>
+              )}
+              {expandedCard.type === "principle" && dialogMode === "delete" && (
+                <section className="confirm-copy principle-dialog-actions" aria-live="polite">
+                  <p>{PRINCIPLE_MANAGE.deleteConfirm}</p>
+                  <div className="decision-options">
+                    <button type="button" onClick={() => deletePrinciple(expandedCard.id)}>{PRINCIPLE_MANAGE.deleteYes}</button>
+                    <button type="button" onClick={() => setDialogMode("view")}>{PRINCIPLE_MANAGE.deleteNo}</button>
+                  </div>
+                </section>
+              )}
             </div>
           </div>
         )}
