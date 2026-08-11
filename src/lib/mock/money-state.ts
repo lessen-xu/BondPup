@@ -99,7 +99,15 @@ export const mockMoneyState: MoneyState = MoneyState.parse({
       updatedAt: T,
     },
   ],
-  leftover: { amount: 0, history: [] },
+  // 上期(2026-07)结余 320 元:让「多周期 + 碎钻」在演示里可见(medium 档);
+  // 首页碎钻按钮 amount>0 才渲染,demo 一进来就能点
+  leftover: {
+    amount: 32000,
+    history: [
+      { cycle: "2026-07", amount: 22000, fromJar: "comfort" },
+      { cycle: "2026-07", amount: 10000, fromJar: "living" },
+    ],
+  },
   // 两条已回看 + 一条已到期:评审可当场完成第三次回看(reviewed≥3)触发候选原则
   stories: [
     {
