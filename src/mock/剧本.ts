@@ -231,16 +231,18 @@ export const DEMO = {
   enterLine: "这些数字是我编的，不是你的。",
   enterSub: "你先随便点点，想真的开始了告诉我。",
   badge: "示例数据",
-  exitLabel: "清掉示例，从零开始",
-  exitConfirm: "要把示例的数字都清掉吗？清了就从头来。",
+  exitLabel: "清掉示例数据",
+  exitConfirm: "要把示例的数字都清掉吗？你自己的记录不受影响。",
   exitYes: "清掉",
   exitNo: "再逛逛",
-  exitDone: "好，清干净了。我们从头开始吧。",
+  exitDone: "好，清干净了。",
 } as const;
 
 export const SETTINGS = {
   title: "设置",
   exportData: "导出我的数据",
+  importData: "导入我的数据",
+  importError: "这份文件没读出来。看看是不是之前导出的那一份？",
   clearData: "清空所有数据",
   clearConfirm: "真的要清空吗？清空后会回到欢迎页。",
   clearYes: "确认清空",
