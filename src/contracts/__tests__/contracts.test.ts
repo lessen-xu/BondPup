@@ -29,6 +29,21 @@ describe("契约收紧(评估修正)", () => {
     expect(r.success).toBe(false);
   });
 
+  it("status=reviewed 但无 outcome 被拒(已回看必有结果,导出手改再导回也进不来)", () => {
+    const base = {
+      id: "s1",
+      intent: "一件外套",
+      action: "defer",
+      status: "reviewed",
+      createdAt: "2026-08-06T00:00:00Z",
+    };
+    expect(DecisionStory.safeParse(base).success).toBe(false);
+    expect(DecisionStory.safeParse({
+      ...base,
+      outcome: { reviewedAt: "2026-08-08T00:00:00Z", happened: false },
+    }).success).toBe(true);
+  });
+
   it("旧版状态(无 safetyEvents 字段)仍能解析(default 兼容)", () => {
     const s = applyJarPlan({ disposable: 650000, livingPlanned: 220000 }).state;
     const legacy = JSON.parse(JSON.stringify(s)) as Record<string, unknown>;

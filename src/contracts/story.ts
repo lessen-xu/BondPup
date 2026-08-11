@@ -28,6 +28,11 @@ export const DecisionStory = z.object({
   emotionSummary: z.string().max(120).optional(),
   status: z.enum(["open", "pending", "reviewed"]),
   createdAt: z.iso.datetime(),
+}).refine((story) => story.status !== "reviewed" || story.outcome !== undefined, {
+  // 「已回看必有结果」在契约层锁死:completeReview 必写 outcome,唯一能造出
+  // 无 outcome 的 reviewed 是导出 JSON 手改再导回——在 parse 边界直接拒绝,
+  // 四处 status==="reviewed" 筛选(reviewedCount/证据池/ReviewFlow/evidence 校验)自动安全
+  message: "已回看的故事必须带 outcome",
 });
 export type DecisionStory = z.infer<typeof DecisionStory>;
 
