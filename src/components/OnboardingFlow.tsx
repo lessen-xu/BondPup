@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { JarKind } from "@/contracts";
+import { concernsForComfortCopy } from "@/lib/onboarding/concern-copy";
 import { applyJarPlan, type ApplyJarPlanResult } from "@/lib/plan/apply-jar-plan";
 import { createInitialMoneyState } from "@/lib/mock/money-state";
 import { useMoneyState } from "@/lib/state/money-store";
@@ -182,16 +183,21 @@ export function OnboardingFlow() {
   const livingTotal = useMemo(() => computeLivingJar(draft.livingItems), [draft.livingItems]);
   const livingPlanned = draft.useLivingItems ? livingTotal : draft.livingPlanned;
   const activeConcerns = useMemo(() => selectedConcerns(draft), [draft]);
-  const concernReference = activeConcerns.length > 2
+  // 安心罐归属文案要排除已成为梦想罐目标的 concern(它的钱在梦想罐);expressionPrefs 仍存全量
+  const comfortConcerns = useMemo(
+    () => concernsForComfortCopy(activeConcerns, draft.hasGoal === true, draft.goal.name, draft.dreamLabel),
+    [activeConcerns, draft.hasGoal, draft.goal.name, draft.dreamLabel],
+  );
+  const concernReference = comfortConcerns.length > 2
     ? script.steps.jars.concernRefMore
-      .replace("{concern1}", activeConcerns[0])
-      .replace("{concern2}", activeConcerns[1])
-    : activeConcerns.length === 2
+      .replace("{concern1}", comfortConcerns[0])
+      .replace("{concern2}", comfortConcerns[1])
+    : comfortConcerns.length === 2
       ? script.steps.jars.concernRef
-        .replace("{concern1}", activeConcerns[0])
-        .replace("{concern2}", activeConcerns[1])
-      : activeConcerns.length === 1
-        ? script.steps.jars.concernRefSingle.replace("{concern1}", activeConcerns[0])
+        .replace("{concern1}", comfortConcerns[0])
+        .replace("{concern2}", comfortConcerns[1])
+      : comfortConcerns.length === 1
+        ? script.steps.jars.concernRefSingle.replace("{concern1}", comfortConcerns[0])
         : null;
   const livingCheck = useMemo(() => computeJars({
     disposable: draft.disposable,
