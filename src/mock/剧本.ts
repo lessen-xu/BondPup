@@ -168,6 +168,15 @@ export const DECISION_REFERENCE = {
   close: "收起",
 } as const;
 
+/** 已确认/已修改/暂不确定的原则,在放大视图里的管理动作——原则归用户所有,随时可改可删 */
+export const PRINCIPLE_MANAGE = {
+  delete: "删掉这张",
+  deleteConfirm: "这句话就不要了吗？删掉后我不会再提起它。",
+  deleteYes: "删掉",
+  deleteNo: "先留着",
+  editRejected: "这句话我先没能记下。要不换个说法试试？",
+} as const;
+
 export const REVIEW_ACTION_LABELS = {
   buy_now: "现在买",
   defer: "放到明天",
