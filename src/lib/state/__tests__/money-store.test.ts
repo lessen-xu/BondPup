@@ -34,6 +34,12 @@ beforeEach(() => {
 });
 
 describe("演示/真实双键隔离", () => {
+  it("演示态周期动态设为上个月:周期回顾入口在演示里始终可见", async () => {
+    const { cycleAfter } = await import("@/lib/mock/money-state");
+    const demo = store.loadDemoState();
+    expect(demo.cycle?.cycle).toBe(cycleAfter(-1));
+  });
+
   it("进入演示不覆盖真实数据;演示态优先加载", () => {
     store.saveMoneyState(realState());
     const savedReal = local.getItem(REAL_KEY);

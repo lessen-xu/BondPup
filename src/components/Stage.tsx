@@ -9,8 +9,9 @@ import { useRouter } from "next/navigation";
 import type { DecisionStory, JarKind, MoneyState } from "@/contracts";
 import { layout } from "@/config/layout";
 import { script, withAlias } from "@/mock/script";
-import { DEMO, HOME_REVIEW_CARD, REVIEW_CARD } from "@/mock/剧本";
+import { CYCLE_REVIEW, DEMO, HOME_REVIEW_CARD, REVIEW_CARD } from "@/mock/剧本";
 import { useMoneyState } from "@/lib/state/money-store";
+import { isNewCycle } from "@/server/domain/cycle";
 import { Dog } from "./Dog";
 import { JarGroup } from "./JarGroup";
 import { Leftover } from "./Leftover";
@@ -48,6 +49,8 @@ export function Stage({ state, demoIntro = false, onDismissDemoIntro }: StagePro
       return record;
     }, null);
   }, [now, state.stories]);
+  // 新周期第一次打开:出「新的一个月了」纸条,与到期回看纸条可并存(位置错开)
+  const cycleDue = useMemo(() => (now === null ? false : isNewCycle(state, new Date(now))), [now, state]);
   const dueReviewQuestion = dueReview
     ? REVIEW_CARD.body[
         dueReview.action === "buy_now"
@@ -110,6 +113,13 @@ export function Stage({ state, demoIntro = false, onDismissDemoIntro }: StagePro
           <button className="review-entry" type="button" onClick={(event) => { event.stopPropagation(); router.push(`/review?id=${encodeURIComponent(dueReview.id)}`); }}>
             <span>{HOME_REVIEW_CARD.subtitle}</span>
             <strong>{dueReviewQuestion}</strong>
+          </button>
+        )}
+
+        {cycleDue && (
+          <button className="review-entry cycle-entry" type="button" onClick={(event) => { event.stopPropagation(); router.push("/cycle"); }}>
+            <span>{CYCLE_REVIEW.entry.label}</span>
+            <strong>{CYCLE_REVIEW.entry.sub}</strong>
           </button>
         )}
       </section>

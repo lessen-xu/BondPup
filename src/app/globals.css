@@ -492,6 +492,20 @@ button { color: inherit; font: inherit; }
 .review-entry span { color: #b79a55; font-size: clamp(9px, 2.5vw, 11px); line-height: 1.45; }
 .review-entry strong { font-size: clamp(11px, 3vw, 14px); font-weight: 400; line-height: 1.6; overflow-wrap: anywhere; }
 
+/* 周期回顾纸条:与到期回看纸条并存时错开位置,反向微倾 */
+.cycle-entry { bottom: 33.5%; left: 50%; transform: rotate(-1.4deg); }
+
+/* 周期回顾页 */
+.cycle-review-page { display: flex; flex-direction: column; gap: clamp(14px, 4vw, 22px); }
+.cycle-step { display: flex; flex-direction: column; gap: clamp(10px, 3vw, 16px); }
+.cycle-line { font-size: clamp(15px, 4.2vw, 19px); line-height: 1.7; }
+.cycle-sub { color: var(--muted); font-size: clamp(12px, 3.4vw, 15px); line-height: 1.7; }
+.cycle-previous { display: flex; flex-direction: column; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.cycle-previous li { display: flex; justify-content: space-between; }
+.cycle-previous strong { font-weight: 400; }
+.cycle-edit-row { align-items: center; display: flex; gap: 10px; justify-content: space-between; }
+.cycle-edit-row span { flex: 0 0 auto; font-size: clamp(12px, 3.4vw, 15px); }
+
 .simple-page-shell {
   min-height: 100dvh;
   overflow-x: hidden;
