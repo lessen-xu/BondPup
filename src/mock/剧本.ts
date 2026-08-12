@@ -304,6 +304,12 @@ export const CYCLE_REVIEW = {
   },
 } as const;
 
+/** 换装页(展示版):穿脱都是中性动作,不夸不奖励 */
+export const OUTFIT_PAGE = {
+  hint: "点一下就戴上，再点一下就摘下来。",
+  back: "返回首页",
+} as const;
+
 export const SETTINGS = {
   title: "设置",
   exportData: "导出我的数据",

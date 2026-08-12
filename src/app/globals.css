@@ -566,9 +566,18 @@ button { color: inherit; font: inherit; }
 .vault-illustration { margin: 2% auto 0; width: min(36%, 14dvh); }
 .vault-illustration img { display: block; height: auto; width: 100%; }
 .vault-empty-copy { color: var(--muted); font-size: clamp(11px, 3.2vw, 14px); line-height: 1.6; margin: 1% auto 0; text-align: center; }
-.outfit-dog { margin: 10% auto 0; width: 48%; }
-.outfit-options { display: flex; gap: 2%; justify-content: center; margin-top: 8%; }
-.outfit-options button { flex: 1; font-size: clamp(11px, 3vw, 14px); padding: 5% 2%; }
+/* 换装展示版:狗立绘容器 + 百分比定位的配饰覆盖层 + 底部货架 */
+.outfit-page { display: flex; flex-direction: column; }
+.outfit-stage { margin: 13% auto 0; position: relative; width: 58%; }
+.outfit-dog-image { display: block; width: 100%; }
+.outfit-item-overlay { pointer-events: none; position: absolute; }
+.outfit-hint { color: var(--muted); font-size: clamp(12px, 3.5vw, 14px); margin: 4% 0 0; text-align: center; }
+.outfit-shelf { display: grid; gap: 3% 2%; grid-template-columns: repeat(4, 1fr); margin-top: 5%; }
+.outfit-shelf-item { align-items: center; background: rgba(255, 252, 242, .4); border: 0; border-radius: 10px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; padding: 8px 4px 6px; transition: transform 150ms ease-out; }
+.outfit-shelf-item:active { transform: scale(.97); }
+.outfit-shelf-item.is-selected { box-shadow: inset 0 0 0 2px var(--line); }
+.outfit-shelf-item img { height: 44px; object-fit: contain; width: 80%; }
+.outfit-shelf-item span { color: var(--ink); font-size: clamp(11px, 3vw, 13px); }
 
 .stage-shell.flow-layout-shell { align-items: flex-start; height: auto; min-height: 100dvh; overflow-x: hidden; overflow-y: auto; }
 .buy-decision-shell { height: 100dvh; min-height: 100dvh; overflow-x: hidden; overflow-y: auto; }
