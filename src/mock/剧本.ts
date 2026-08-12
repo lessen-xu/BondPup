@@ -2,7 +2,8 @@ export const NOTE_MODEL_REPLY = {
   fallback: "嗯,我都听着了。",
   thinkingHint: "",
   followUpPlaceholder: "还想说什么就直接打字",
-  followUpSubmit: "说给我听",
+  // 真实用户反馈(2026-08-13):「说给我听」的「我」分不清是谁——带上狗的名字
+  followUpSubmit: "说给{alias}听",
   continueLabel: "嗯,说完了",
 } as const;
 
@@ -423,7 +424,7 @@ export const DAILY_NOTE = {
 export const DAILY_TALK = {
   prompt: "今天想聊什么?",
   freePlaceholder: "说什么都可以〜{alias}听着呢",
-  submit: "说给我听",
+  submit: "说给{alias}听",
   detected: "咦,你说的这个,要不要我们一起看看?还是你就是想随便聊聊?",
   together: "一起看看",
   casual: "随便聊聊",
