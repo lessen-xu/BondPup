@@ -100,7 +100,7 @@ export function Stage({ state, demoIntro = false, onDismissDemoIntro }: StagePro
             <button type="button" onClick={(event) => { event.stopPropagation(); router.push("/settings"); }}>{script.home.settings}</button>
           </span>
           <span className="utility-link">
-            <button type="button" disabled aria-disabled="true">{script.home.outfit}</button>
+            <button type="button" onClick={(event) => { event.stopPropagation(); router.push("/outfit"); }}>{script.home.outfit}</button>
           </span>
         </nav>
 
