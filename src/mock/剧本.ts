@@ -267,6 +267,42 @@ export const DEMO = {
   exitDone: "好，清干净了。",
 } as const;
 
+/** 周期回顾(CYCLE_REVIEW)三分支文案(A 供稿 2026-08-12)。
+ *  硬约束:期限到了绝不说「没完成/没达成」;月供上涨必须给两个方向;庆祝的是安排成了,不夸存得多。 */
+export const CYCLE_REVIEW = {
+  entry: { label: "新的一个月了", sub: "这个月还想这么分吗？" },
+  goalReached: {
+    line: "「{goal}」存够啦！这一笔你自己攒下来的。",
+    keep: "先放着，我帮你收好",
+    note: "想用它的时候随时来取，这张纸条我先帮你贴着。",
+  },
+  deadlinePassed: {
+    line: "说好的时间到了，「{goal}」还差 {amount} 元。时间可以往后挪一挪，也可以就用现在这些先去。",
+    extend: "往后挪一挪",
+    useNow: "就用现在这些",
+  },
+  direction: {
+    previous: "上个月是这样分的：",
+    monthlyUp: "「{goal}」这个月要放 {amount} 元。比上个月多一点，想的话可以放这个数，也可以把时间往后挪一个月，两个都行。",
+    keepMonthly: "放这个数",
+    extendMonth: "把时间往后挪一个月",
+    same: "还是这么分",
+    change: "我想改一下",
+  },
+  edit: {
+    disposable: "这个月能安排多少？",
+    dreamMonthly: "「{goal}」月供",
+    comfortNote: "剩下的进安心罐：{amount} 元",
+    confirm: "就这么安排",
+    back: "再想想",
+  },
+  done: {
+    line: "好，这个月就这么安排。",
+    leftoverNote: "上个月没花完的 {amount} 元，变成碎钻收在垫子上了。",
+    home: "返回首页",
+  },
+} as const;
+
 export const SETTINGS = {
   title: "设置",
   exportData: "导出我的数据",

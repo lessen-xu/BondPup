@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { MoneyState } from "@/contracts";
-import { mockMoneyState } from "@/lib/mock/money-state";
+import { cycleAfter, mockMoneyState } from "@/lib/mock/money-state";
 
 /**
  * 前端 localStorage 是 MoneyState 的真源;服务端不持久化。
@@ -73,9 +73,14 @@ export function clearMoneyState(): void {
   notify();
 }
 
-/** 演示模式:载入合成示例(demo:true,独立键存储,退出即回落真实数据) */
+/** 演示模式:载入合成示例(demo:true,独立键存储,退出即回落真实数据)。
+ *  周期动态设为上个月:「新的一个月了」入口与周期回顾在演示里始终可见(复赛演示需求);
+ *  这里是事件时调用(enterDemo/进入 ?demo=1),不在渲染路径,允许取当前时间。 */
 export function loadDemoState(): MoneyState {
-  const demo = MoneyState.parse({ ...mockMoneyState });
+  const demo = MoneyState.parse({
+    ...mockMoneyState,
+    cycle: mockMoneyState.cycle ? { ...mockMoneyState.cycle, cycle: cycleAfter(-1) } : null,
+  });
   saveMoneyState(demo);
   return demo;
 }
