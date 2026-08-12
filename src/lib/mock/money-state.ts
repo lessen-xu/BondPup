@@ -66,7 +66,9 @@ export const mockMoneyState: MoneyState = MoneyState.parse({
       label: "生活罐",
       renamable: false,
       planned: 220000,
-      actual: 0,
+      // 上月房租吃饭已花 1900:周期回顾的「上月没花完」才是合理小数目,
+      // 不然 actual 全 0 时整月 6500 全变碎钻,评委会当成 bug
+      actual: 190000,
       updatedAt: T,
     },
     {
@@ -75,7 +77,8 @@ export const mockMoneyState: MoneyState = MoneyState.parse({
       label: "安心罐",
       renamable: false,
       planned: 350000,
-      actual: 0,
+      // 与 story-demo-1 自洽:那双 399 的鞋已回看、确实买了
+      actual: 39900,
       updatedAt: T,
     },
     {
@@ -84,7 +87,8 @@ export const mockMoneyState: MoneyState = MoneyState.parse({
       label: "去看海",
       renamable: true,
       planned: 80000,
-      actual: 0,
+      // 本期月供已放入(周期回顾时折进 saved);goal.saved 是更早存下的一期
+      actual: 80000,
       updatedAt: T,
       // 演示态:已存一期月供,还差 8800 元;(9600-800)÷11 个月 = 800 与月供自洽
       goal: { name: "去看海", amount: 960000, saved: 80000, targetMonth: "2027-07" },
