@@ -131,7 +131,7 @@ function TalkLanding() {
           <TextEntry onClick={() => { setFreeMode(true); setMessage(replaceNames(DAILY_TALK.prompt, alias, user)); }}>{script.home.chatEntry}</TextEntry>
         </section>}
         {freeMode && <section className="talk-conversation" aria-live="polite">{conversation.map((turn, index) => <p key={`${turn.role}-${index}`} className={turn.role === "user" ? "decision-user-bubble" : "decision-dog-bubble"}>{turn.text}</p>)}{chatLoading && <p className="decision-dog-bubble money-note-thinking-bubble" aria-hidden="true"> </p>}</section>}
-        {freeMode && !chatStopped && <form className="talk-record" onSubmit={(event) => { event.preventDefault(); void submitFreeTalk(); }}><input disabled={chatLoading} value={input} onChange={(event) => { setInput(event.target.value); window.sessionStorage.setItem(TALK_DRAFT_KEY, event.target.value); }} placeholder={replaceNames(DAILY_TALK.freePlaceholder, alias, user)} aria-label={replaceNames(DAILY_TALK.freePlaceholder, alias, user)} /><button type="submit" disabled={chatLoading || !input.trim()}>{DAILY_TALK.submit}</button></form>}
+        {freeMode && !chatStopped && <form className="talk-record" onSubmit={(event) => { event.preventDefault(); void submitFreeTalk(); }}><input disabled={chatLoading} value={input} onChange={(event) => { setInput(event.target.value); window.sessionStorage.setItem(TALK_DRAFT_KEY, event.target.value); }} placeholder={replaceNames(DAILY_TALK.freePlaceholder, alias, user)} aria-label={replaceNames(DAILY_TALK.freePlaceholder, alias, user)} /><button type="submit" disabled={chatLoading || !input.trim()}>{replaceNames(DAILY_TALK.submit, alias, user)}</button></form>}
       </section>
     </main>
   );
