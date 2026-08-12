@@ -100,6 +100,32 @@ describe("validateConcernsOutput(decompose 输出闸:此前这条路径 5/5 漏�
     const fails = validateConcernsOutput(["想拿工资去炒股翻倍"]);
     expect(fails.some((f) => f.rule === "risk")).toBe(true);
   });
+
+  describe("数字保真(真实用户回归:目标 30000 元被模型写成「300万日元」)", () => {
+    const source = "想存钱去日本 去日本 30000 元 12 个月";
+
+    it("原案例:编造的数字与货币都被拒", () => {
+      const fails = validateConcernsOutput(["去日本的这笔钱,12个月攒到300万日元"], source);
+      expect(fails.some((f) => f.rule === "amount_fidelity" && f.message.includes("日元"))).toBe(true);
+      expect(fails.some((f) => f.rule === "amount_fidelity" && f.message.includes("300万"))).toBe(true);
+    });
+
+    it("数字原样引用通过;「3万」与「30000」互认", () => {
+      expect(validateConcernsOutput(["12 个月攒到 30000 元去日本"], source)).toEqual([]);
+      expect(validateConcernsOutput(["为去日本攒 3万"], source)).toEqual([]);
+      expect(validateConcernsOutput(["带逗号的 30,000 也一样"], source)).toEqual([]);
+    });
+
+    it("不带数字的条目不受影响;纯中文数字输入没有就拒", () => {
+      expect(validateConcernsOutput(["想去日本看看"], source)).toEqual([]);
+      const fails = validateConcernsOutput(["攒够三万就出发"], source);
+      expect(fails.some((f) => f.rule === "amount_fidelity")).toBe(true);
+    });
+
+    it("不传 sourceText 时保持旧行为(数字不校验)", () => {
+      expect(validateConcernsOutput(["12个月攒到300万日元"])).toEqual([]);
+    });
+  });
 });
 
 describe("validatePrincipleCandidate", () => {
