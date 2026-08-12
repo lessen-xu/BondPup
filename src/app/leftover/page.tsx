@@ -66,10 +66,13 @@ export default function LeftoverPage() {
     <main className="stage-shell flow-layout-shell">
       <section className="simple-page leftover-page-shell" aria-label={LEFTOVER_PAGE.title}>
         <button className="simple-back" type="button" onClick={() => router.push("/")}>{LEFTOVER_PAGE.back}</button>
-        <section className="leftover-art" aria-hidden="true">
-          <img className="leftover-nest-art" src="/assets/leftover-nest.png" alt="" />
-          {tier && <img className="leftover-pile-art" src={LEFTOVER_TIER_IMAGES[tier]} alt="" />}
-        </section>
+        {/* 一档一张完整图,不叠加(叠加会露出紧裁图的硬边);large 用带留白阴影的完整版。
+            三档大小 = 三档宽度;为 0 不显示钻石(spec:变少不失落,为 0 不显示) */}
+        {tier && (
+          <section className={`leftover-art leftover-art-${tier}`} aria-hidden="true">
+            <img className="leftover-nest-art" src={tier === "large" ? "/assets/leftover-nest.png" : LEFTOVER_TIER_IMAGES[tier]} alt="" />
+          </section>
+        )}
         {leftover.amount === 0 && step !== "done" && <p className="leftover-line">{LEFTOVER_PAGE.empty}</p>}
 
         {leftover.amount > 0 && step === "view" && (
