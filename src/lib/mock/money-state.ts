@@ -77,8 +77,9 @@ export const mockMoneyState: MoneyState = MoneyState.parse({
       label: "安心罐",
       renamable: false,
       planned: 350000,
-      // 与 story-demo-1 自洽:那双 399 的鞋已回看、确实买了
-      actual: 39900,
+      // 已花 2000(那双 399 的鞋 + 日常):余额 1500,评委输两三千就能看到
+      // 差额来源分支——「从哪个罐子出」是决策流程最有说服力的画面
+      actual: 200000,
       updatedAt: T,
     },
     {
@@ -87,8 +88,9 @@ export const mockMoneyState: MoneyState = MoneyState.parse({
       label: "去看海",
       renamable: true,
       planned: 80000,
-      // 本期月供已放入(周期回顾时折进 saved);goal.saved 是更早存下的一期
-      actual: 80000,
+      // 本期月供未放:让差额分支能给出「从『去看海』出」这个来源,
+      // 选中它会显示对目标的影响提示——决策流程最有说服力的画面
+      actual: 0,
       updatedAt: T,
       // 演示态:已存一期月供,还差 8800 元;(9600-800)÷11 个月 = 800 与月供自洽
       goal: { name: "去看海", amount: 960000, saved: 80000, targetMonth: "2027-07" },
