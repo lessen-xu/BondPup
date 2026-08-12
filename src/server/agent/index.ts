@@ -10,6 +10,7 @@ import {
 import { detectHardRisk, detectSafetyRisk, safetyReplyFor } from "@/server/safety/risk";
 import { principleContext, principleEligible } from "@/server/domain/principle";
 import type { AgentTaskInput, AgentTaskOutput, GeneratePrincipleOutput } from "./types";
+import { decomposeSourceText } from "./prompts";
 import { runMockAgentTask } from "./mock";
 import { runAnthropicTask, runCompatTask } from "./providers";
 
@@ -219,7 +220,12 @@ export async function runAgentTask(input: AgentTaskInput): Promise<AgentRunOutpu
       const budget = safeInput.task === "companion_reply" && safeInput.scene === "review_note" ? 2 : 3;
       return validateReplyText(o.result.text, { maxSentences: budget });
     }
-    if (o.task === "decompose_wish") return validateConcernsOutput(o.result.concerns);
+    if (o.task === "decompose_wish") {
+      return validateConcernsOutput(
+        o.result.concerns,
+        safeInput.task === "decompose_wish" ? decomposeSourceText(safeInput) : undefined
+      );
+    }
     return [];
   };
   const deadline = Date.now() + TOTAL_BUDGET_MS;

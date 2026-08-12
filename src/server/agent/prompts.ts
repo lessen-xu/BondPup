@@ -27,8 +27,17 @@ export const MANMAN_SYSTEM = `你是慢慢,一只可以聊钱的小狗,陪第一
 她:「我是不是花太多了」→「你是不是花太多,我说了不算〜你自己觉得舒服就继续,觉得紧了就调一下。我陪着你呢。」`;
 
 /** 分 → 元展示文本(与 apply-jar-plan 同规则):整数元不带小数 */
-function fmtYuan(cents: number): string {
+export function fmtYuan(cents: number): string {
   return cents % 100 === 0 ? `${cents / 100} 元` : `${(cents / 100).toFixed(2)} 元`;
+}
+
+/** decompose 数字保真闸的比对源:用户原话 + 已换算成元的目标金额(与 payload 一致) */
+export function decomposeSourceText(input: { wish: string; nearChoice?: string; goal?: { name: string; amount: number; monthsRemaining: number } }): string {
+  return [
+    input.wish,
+    input.nearChoice ?? "",
+    input.goal ? `${input.goal.name} ${fmtYuan(input.goal.amount)} ${input.goal.monthsRemaining} 个月` : "",
+  ].join(" ");
 }
 
 /** 每个任务的指令与载荷;要求 JSON 的任务必须只输出 JSON */
@@ -37,8 +46,20 @@ export function buildTaskPrompt(input: AgentTaskInput): { instruction: string; p
     case "decompose_wish":
       return {
         instruction:
-          "把用户模糊的愿望拆成 3-4 条具体「在意的事」,每条一句短话、用户视角、不含建议。只输出 JSON:{\"concerns\":[\"...\"]}",
-        payload: JSON.stringify({ wish: input.wish, nearChoice: input.nearChoice ?? null, goal: input.goal ?? null }),
+          "把用户模糊的愿望拆成 3-4 条具体「在意的事」,每条一句短话、用户视角、不含建议。" +
+          "数字铁律:条目里的数字只能原样照抄 payload 里出现的数字文本(goal.amountText 已经是人民币展示文本);" +
+          "绝不换算、绝不改写数字、绝不出现日元美元等任何其他货币;条目能不带数字就不带。" +
+          "只输出 JSON:{\"concerns\":[\"...\"]}",
+        payload: JSON.stringify({
+          wish: input.wish,
+          nearChoice: input.nearChoice ?? null,
+          // 金额由代码换算成展示文本再进 prompt(与 companion_reply 同规则)。
+          // 之前把分单位整数直接塞进 payload:30000 元存成 3000000,
+          // 真实用户实测模型把它写成了「300万日元」——原始分值绝不能给模型看
+          goal: input.goal
+            ? { name: input.goal.name, amountText: fmtYuan(input.goal.amount), monthsRemaining: input.goal.monthsRemaining }
+            : null,
+        }),
       };
     case "companion_reply": {
       // 金额由代码换算成展示文本再进 prompt,模型永远不做数字计算

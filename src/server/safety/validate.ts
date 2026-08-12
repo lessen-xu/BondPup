@@ -8,7 +8,7 @@ import { detectHardRisk } from "./risk";
  */
 
 export interface ValidationFailure {
-  rule: "forbidden_words" | "max_sentences" | "max_length" | "first_person" | "evidence" | "three_actions" | "vague" | "risk";
+  rule: "forbidden_words" | "max_sentences" | "max_length" | "first_person" | "evidence" | "three_actions" | "vague" | "risk" | "amount_fidelity";
   message: string;
 }
 
@@ -77,13 +77,35 @@ export function validatePrincipleStatement(statement: string): ValidationFailure
   return failures;
 }
 
+const FOREIGN_CURRENCY_WORDS = ["日元", "美元", "美金", "欧元", "英镑", "港币", "韩元", "泰铢"];
+
+/** 数字 token:归一化逗号空格后抓「数字(+万/千)」,同时记录原样与展开值(3万 → 3 和 30000) */
+function numberTokens(text: string): { raw: Set<string>; expanded: Set<string> } {
+  const t = text.replace(/[,，\s]/g, "");
+  const raw = new Set<string>();
+  const expanded = new Set<string>();
+  const re = /(\d+(?:\.\d+)?)([万千])?/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(t)) !== null) {
+    raw.add(m[1]);
+    const mult = m[2] === "万" ? 10000 : m[2] === "千" ? 1000 : 1;
+    expanded.add(String(parseFloat(m[1]) * mult));
+  }
+  return { raw, expanded };
+}
+
 /**
  * decompose_wish 输出闸:拆出来的每条「在意的事」都要过——
  * 无禁用词(不说教)、≤40 字、用户视角(不以「你」开头)、无硬红线语义。
  * 此前这条路径完全没有输出闸,真模型连续 5/5 输出过含「应该」的条目。
+ *
+ * sourceText 提供时另加数字保真:输出里的每个数字都必须能在输入里找到
+ * (「3万」与「30000」互认),外币词输入没有就不许出现。
+ * 真实用户实测:目标 30000 元被模型写成「300万日元」——数字与货币都是编的。
  */
-export function validateConcernsOutput(concerns: string[]): ValidationFailure[] {
+export function validateConcernsOutput(concerns: string[], sourceText?: string): ValidationFailure[] {
   const failures: ValidationFailure[] = [];
+  const source = sourceText === undefined ? null : numberTokens(sourceText);
   for (const c of concerns) {
     const s = c.trim();
     const hits = findForbiddenWords(s);
@@ -98,6 +120,30 @@ export function validateConcernsOutput(concerns: string[]): ValidationFailure[] 
     }
     if (detectHardRisk(s)) {
       failures.push({ rule: "risk", message: "包含不适合写进在意的事的内容" });
+    }
+    if (source && sourceText !== undefined) {
+      for (const word of FOREIGN_CURRENCY_WORDS) {
+        if (s.includes(word) && !sourceText.includes(word)) {
+          failures.push({ rule: "amount_fidelity", message: `出现输入里没有的货币:${word}` });
+        }
+      }
+      const t = s.replace(/[,，\s]/g, "");
+      const re = /(\d+(?:\.\d+)?)([万千])?/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(t)) !== null) {
+        const mult = m[2] === "万" ? 10000 : m[2] === "千" ? 1000 : 1;
+        const expandedValue = String(parseFloat(m[1]) * mult);
+        if (!source.raw.has(m[1]) && !source.expanded.has(expandedValue)) {
+          failures.push({ rule: "amount_fidelity", message: `出现输入里没有的数字:${m[0]}` });
+        }
+      }
+      // 纯中文数字(三万/五千)不做换算:输入没有原样出现就拒
+      const cn = s.match(/[一二两三四五六七八九十]+[万千]/g) ?? [];
+      for (const token of cn) {
+        if (!sourceText.includes(token)) {
+          failures.push({ rule: "amount_fidelity", message: `出现输入里没有的数字:${token}` });
+        }
+      }
     }
   }
   return failures;
