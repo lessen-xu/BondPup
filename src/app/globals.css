@@ -568,6 +568,8 @@ button { color: inherit; font: inherit; }
 .vault-empty-copy { color: var(--muted); font-size: clamp(11px, 3.2vw, 14px); line-height: 1.6; margin: 1% auto 0; text-align: center; }
 /* 换装展示版:狗立绘容器 + 百分比定位的配饰覆盖层 + 底部货架 */
 .outfit-page { display: flex; flex-direction: column; }
+/* flex 列布局会把返回按钮拉伸成整行,箭头图 contain 居中显得又大又居中——贴左收小 */
+.outfit-page .simple-back { align-self: flex-start; min-height: 36px; padding: 6px 0; width: 64px; }
 .outfit-stage { margin: 13% auto 0; position: relative; width: 58%; }
 .outfit-dog-image { display: block; width: 100%; }
 .outfit-item-overlay { pointer-events: none; position: absolute; }
