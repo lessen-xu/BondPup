@@ -114,8 +114,23 @@ export const mockMoneyState: MoneyState = MoneyState.parse({
       { cycle: "2026-07", amount: 10000, fromJar: "living" },
     ],
   },
-  // 两条已回看 + 一条已到期:评审可当场完成第三次回看(reviewed≥3)触发候选原则
+  // 两条已回看 + 一条已到期:评审可当场完成第三次回看(reviewed≥3)触发候选原则。
+  // 另有一条 note_only(无 reviewAt,不进回看队列):带 noteQuotes,
+  // 让「聊一聊的原话参与原则生成」在 demo 里可讲可查
   stories: [
+    {
+      id: "story-demo-note",
+      intent: "和朋友吃了顿人均 300 的饭，有点心疼但很开心",
+      action: "note_only",
+      noteQuotes: [
+        "去之前我犹豫了好久，觉得有点贵",
+        "坐下来那一刻就觉得来对了",
+        "回来路上又有点心疼，这种矛盾好奇怪",
+      ],
+      emotionSummary: "hesitation",
+      status: "open",
+      createdAt: "2026-08-05T13:00:00.000Z",
+    },
     {
       id: "story-demo-1",
       intent: "那双白色的鞋",
