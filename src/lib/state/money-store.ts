@@ -8,6 +8,8 @@ import { cycleAfter, mockMoneyState } from "@/lib/mock/money-state";
  * 前端 localStorage 是 MoneyState 的真源;服务端不持久化。
  * 只存必要结构化状态与短摘要(长度上限在 contracts 层强制),
  * 不存真实姓名/证件/银行账户/完整倾诉原文。
+ * 聊钱对话仅保留用户侧截断片段(story.noteQuotes,≤120 字 × ≤6 条),
+ * 不存狗的回复与完整对话记录——边界与用途见 contracts/story。
  */
 const STORAGE_KEY = "bondpup.moneyState.v1";
 const DEMO_KEY = "bondpup.moneyState.demo.v1";

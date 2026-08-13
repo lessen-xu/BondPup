@@ -58,6 +58,29 @@ describe("createDecisionStory", () => {
     expect(result.story.reviewAt).toBeUndefined();
     expect(dueReviews(result.state)).toEqual([]);
   });
+
+  it("noteQuotes 清洗:去空白、每条截断 120 字、最多留 6 条;空数组不落字段", () => {
+    const s = base();
+    const long = "字".repeat(150);
+    const result = createDecisionStory(s, {
+      intent: "买了一个很贵的包",
+      action: "note_only",
+      noteQuotes: ["  其实买完有点愧疚  ", "", "   ", long, "a", "b", "c", "d", "e"],
+      expectedStateVersion: s.stateVersion,
+      idempotencyKey: "note-q1",
+    });
+    expect(result.story.noteQuotes).toHaveLength(6);
+    expect(result.story.noteQuotes![0]).toBe("其实买完有点愧疚");
+    expect([...result.story.noteQuotes![1]]).toHaveLength(120);
+    const bare = createDecisionStory(result.state, {
+      intent: "又一笔",
+      action: "note_only",
+      noteQuotes: ["", "  "],
+      expectedStateVersion: result.state.stateVersion,
+      idempotencyKey: "note-q2",
+    });
+    expect(bare.story.noteQuotes).toBeUndefined();
+  });
 });
 
 describe("completeReview", () => {

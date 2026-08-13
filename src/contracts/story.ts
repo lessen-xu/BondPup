@@ -26,6 +26,12 @@ export const DecisionStory = z.object({
   reviewAt: z.iso.datetime().optional(),
   outcome: StoryOutcome.optional(),
   emotionSummary: z.string().max(120).optional(),
+  /**
+   * 聊这笔钱时用户侧的截断引用(每条 ≤120 字,最多 6 条;只存用户的话,
+   * 不存狗的回复、不存完整对话)。用途仅一个:原则生成的理解背景——
+   * 校验层保证它进不了 evidence,也不会被展示。
+   */
+  noteQuotes: z.array(z.string().min(1).max(120)).max(6).optional(),
   status: z.enum(["open", "pending", "reviewed"]),
   createdAt: z.iso.datetime(),
 }).refine((story) => story.status !== "reviewed" || story.outcome !== undefined, {

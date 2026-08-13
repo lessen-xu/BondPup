@@ -121,6 +121,12 @@ export const GeneratePrincipleInput = z.object({
    */
   concerns: z.array(z.string().max(100)).max(6).default([]),
   /**
+   * 「记一笔钱」聊天里她说过的原话片段(note_only 故事的 intent+noteQuotes):
+   * 与 concerns 同一地位——只作理解背景,不能作 evidence(note_only 故事
+   * 不在 stories 池里,校验层天然引用不到)。上限防公开 API 灌长文。
+   */
+  noteBackground: z.array(z.string().max(150)).max(8).default([]),
+  /**
    * 两轮生成都不合规时是否用确定性候选兜底。默认 false = v7.4「宁缺毋滥」:
    * 再失败就不提。演示模式由前端显式传 true(评委路径不断)。
    */

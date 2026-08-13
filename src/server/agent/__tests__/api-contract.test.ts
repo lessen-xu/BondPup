@@ -71,6 +71,7 @@ describe("generate_principle 统一编排(网页与 MCP 同一条路径)", () =>
       stories,
       existingStatements: [],
       concerns: ["想攒钱去看海"],
+      noteBackground: [],
       deterministicFallback: true,
       attempt: 0,
     });
@@ -97,6 +98,21 @@ describe("generate_principle 统一编排(网页与 MCP 同一条路径)", () =>
         stories: risky,
         existingStatements: [],
         concerns: [],
+        noteBackground: [],
+        deterministicFallback: true,
+        attempt: 0,
+      })
+    ).rejects.toThrow();
+  });
+
+  it("noteBackground(聊钱原话片段)含硬红线同样不生成——新入模字符串必须过同一道闸", async () => {
+    await expect(
+      runAgentTask({
+        task: "generate_principle",
+        stories,
+        existingStatements: [],
+        concerns: [],
+        noteBackground: ["买东西的时候感觉活着没什么意思"],
         deterministicFallback: true,
         attempt: 0,
       })
@@ -110,6 +126,7 @@ describe("generate_principle 统一编排(网页与 MCP 同一条路径)", () =>
         stories,
         existingStatements: [],
         concerns: ["想借网贷周转一下"],
+        noteBackground: [],
         deterministicFallback: true,
         attempt: 0,
       })
@@ -123,6 +140,7 @@ describe("generate_principle 统一编排(网页与 MCP 同一条路径)", () =>
         stories: [stories[0]],
         existingStatements: [],
         concerns: [],
+        noteBackground: [],
         deterministicFallback: false,
         attempt: 0,
       })

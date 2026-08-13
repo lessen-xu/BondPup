@@ -15,6 +15,8 @@ export interface CreateStoryRequest {
   candidateJar?: JarKind;
   confirmedJar?: JarKind;
   emotionSummary?: string;
+  /** 聊这笔钱时用户侧的原话片段;超长截断、超量丢弃,见 contracts/story 的边界说明 */
+  noteQuotes?: string[];
   /** 用户同意的回看时间(1 天或 3 天);不约则不设 reviewAt,提醒可关闭 */
   reviewInDays?: 1 | 3;
   expectedStateVersion: number;
@@ -51,6 +53,13 @@ export function createDecisionStory(state: MoneyState, req: CreateStoryRequest):
       ? { reviewAt: new Date(now.getTime() + req.reviewInDays * 86400000).toISOString() }
       : {}),
     ...(req.emotionSummary ? { emotionSummary: req.emotionSummary } : {}),
+    ...(() => {
+      const quotes = (req.noteQuotes ?? [])
+        .map((quote) => quote.trim().slice(0, 120))
+        .filter(Boolean)
+        .slice(0, 6);
+      return quotes.length ? { noteQuotes: quotes } : {};
+    })(),
     status: req.action === "pending_confirmation" ? "pending" : "open",
     createdAt: now.toISOString(),
   });
