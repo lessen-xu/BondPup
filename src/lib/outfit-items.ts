@@ -16,7 +16,7 @@ export type OutfitItem = {
 export const OUTFIT_ITEMS: OutfitItem[] = [
   { id: "beret", label: "贝雷帽", slot: "hat", image: "/assets/outfit-beret.png", pos: { top: "-6%", left: "14%", width: "52%", rotate: "-6deg" } },
   { id: "party-hat", label: "生日帽", slot: "hat", image: "/assets/outfit-party-hat.png", pos: { top: "-17%", left: "33%", width: "30%" } },
-  { id: "cap-green", label: "绿帽子", slot: "hat", image: "/assets/outfit-cap-green.png", pos: { top: "-10%", left: "17%", width: "50%" } },
+  { id: "cap-green", label: "邮差帽", slot: "hat", image: "/assets/outfit-cap-green.png", pos: { top: "-10%", left: "17%", width: "50%" } },
   { id: "glasses", label: "圆眼镜", slot: "face", image: "/assets/outfit-glasses.png", pos: { top: "30%", left: "21%", width: "50%" } },
   { id: "bow", label: "蝴蝶结", slot: "clip", image: "/assets/outfit-bow.png", pos: { top: "1%", left: "58%", width: "26%", rotate: "14deg" } },
   { id: "flower-clip", label: "小花夹", slot: "clip", image: "/assets/outfit-flower-clip.png", pos: { top: "9%", left: "7%", width: "22%", rotate: "-12deg" } },
