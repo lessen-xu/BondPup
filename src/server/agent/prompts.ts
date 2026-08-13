@@ -162,6 +162,7 @@ export function buildTaskPrompt(input: AgentTaskInput): { instruction: string; p
         instruction:
           "基于这几条已回看的选择故事,提炼一条候选金钱原则:第一人称、描述倾向而非规则、带暂时语气(好像/也许)、不超过 20 个字(含标点,超长会被丢弃)、不与 existingStatements 重复。evidenceIds 从故事 id 里选 2-3 条。" +
           "concerns 是她开始时说过的在意的事:只用来理解她是什么样的人,不要把它复述或改写成原则,更不能当作证据。" +
+          "noteBackground 是她平时聊某笔钱时说过的原话片段:同样只作理解背景——她实际怎么想、怎么犹豫、怎么后悔,比故事条目更真;但绝不能复述进原则、不能当证据,和 stories 对不上时以 stories 为准。" +
           "重点:如果 concerns 和 stories 对不上,那个落差本身就是最有价值的原则——比如她说想攒钱但三次都买了,原则可以是「我好像更需要允许自己花,而不是攒」。写她实际是怎么做的,不是她以为自己该怎么做。" +
           "statement 必须落在具体线索上:物品类别、场景、金额档位或时间(放一晚/想了很久这类),从 stories 里来;禁止只由「想买/值得/需要/喜欢」这类抽象词组成——「你还是想买你真正想买的」对任何人都成立,等于什么都没说,这种会被丢弃。" +
           "只输出 JSON:{\"statement\":\"...\",\"evidenceIds\":[\"...\"]}",
@@ -169,6 +170,7 @@ export function buildTaskPrompt(input: AgentTaskInput): { instruction: string; p
           stories: input.stories,
           existingStatements: input.existingStatements,
           concerns: input.concerns,
+          noteBackground: input.noteBackground,
         }),
       };
   }

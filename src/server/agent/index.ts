@@ -314,6 +314,8 @@ async function runPrincipleTask(
     ...input.stories.flatMap((s) => [s.intent, s.feelingNote ?? ""]),
     ...input.existingStatements,
     ...input.concerns,
+    // zod default 只在 API parse 边界生效;MCP/测试直调时可能没有这个字段——防御性兜底
+    ...(input.noteBackground ?? []),
   ];
   if (modelBound.some((t) => t && detectHardRisk(t))) {
     console.error(JSON.stringify({ event: "principle_input_risk_refused", task: input.task }));
@@ -378,6 +380,16 @@ export async function generatePrincipleCandidate(
     existingStatements,
     // 起点问卷「在意的事」同源接入(与网页路径同一字段);只作背景,校验层保证不进 evidence
     concerns: state.profile.expressionPrefs ?? [],
+    // 「记一笔钱」聊天原话片段:她怎么说一笔钱,是原则最真实的原料(用户反馈 2026-08-13)。
+    // note_only 故事不在 evidence 池里,只走背景通道;新近优先,上限 8 条
+    noteBackground: state.stories
+      .filter((s) => s.action === "note_only")
+      .slice(-4)
+      .reverse()
+      .flatMap((s) => [s.intent, ...(s.noteQuotes ?? [])])
+      .filter(Boolean)
+      .slice(0, 8)
+      .map((quote) => quote.slice(0, 150)),
     deterministicFallback: false,
     attempt: 0,
   };

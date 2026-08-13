@@ -65,6 +65,30 @@ describe("原则触发与生成编排", () => {
     });
     expect(dropped).toBeNull();
   });
+
+  it("聊钱片段进 noteBackground 背景通道;note_only 故事仍然当不了证据", async () => {
+    let s = stateWithReviewed(3);
+    s = createDecisionStory(s, {
+      intent: "买了一个很贵的包",
+      action: "note_only",
+      noteQuotes: ["其实买完有点愧疚", "但那天真的很想要"],
+      expectedStateVersion: s.stateVersion,
+      idempotencyKey: "note1",
+    }).state;
+    let seen: { noteBackground?: string[] } | null = null;
+    const ok = { statement: "我放一晚再决定,好像更踏实", evidenceIds: ["story-c0", "story-c1"] };
+    await generatePrincipleCandidate(s, async (input) => {
+      seen = input;
+      return ok;
+    });
+    expect(seen!.noteBackground).toEqual(["买了一个很贵的包", "其实买完有点愧疚", "但那天真的很想要"]);
+    // 背景通道不给引用资格:evidence 指向 note_only 故事 → 整条丢弃
+    const dropped = await generatePrincipleCandidate(s, async () => ({
+      statement: ok.statement,
+      evidenceIds: ["story-note1", "story-c1"],
+    }));
+    expect(dropped).toBeNull();
+  });
 });
 
 describe("候选写入与三动作", () => {

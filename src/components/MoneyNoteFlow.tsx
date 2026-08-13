@@ -252,6 +252,14 @@ export function MoneyNoteFlow({ initialStory = "", recordOnly = false }: { initi
     setStep(choice === "yes" ? "choices" : "safety-stopped");
   }
 
+  /** 聊天里用户侧的原话片段(开头那句已是 intent,去重;上限交给域层截断) */
+  function collectNoteQuotes(): string[] {
+    return conversation
+      .filter((turn) => turn.role === "user" && turn.text.trim() && turn.text.trim() !== story.trim())
+      .map((turn) => turn.text)
+      .slice(-6);
+  }
+
   function rememberOnly() {
     if (!state || submitting) return;
     setSubmitting(true);
@@ -259,6 +267,7 @@ export function MoneyNoteFlow({ initialStory = "", recordOnly = false }: { initi
       const result = createDecisionStory(state, {
         intent: story.slice(0, 120),
         action: "note_only",
+        noteQuotes: collectNoteQuotes(),
         emotionSummary: category,
         expectedStateVersion: state.stateVersion,
         idempotencyKey: globalThis.crypto.randomUUID(),
@@ -316,6 +325,7 @@ export function MoneyNoteFlow({ initialStory = "", recordOnly = false }: { initi
       const withStory = createDecisionStory(changed.state, {
         intent: story.slice(0, 120),
         action: "note_only",
+        noteQuotes: collectNoteQuotes(),
         amount,
         confirmedJar: selectedJar,
         emotionSummary: category,
