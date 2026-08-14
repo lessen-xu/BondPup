@@ -16,7 +16,15 @@ export function findForbiddenWords(text: string): string[] {
   return FORBIDDEN_WORDS.filter((w) => text.includes(w));
 }
 
-/** 对话回应:无禁用词、句数不超预算(默认 3;decision 场景摆情况+三选项+交还决定权,预算 5) */
+/**
+ * 每句的码点预算。句数闸只数句号问号叹号,模型用「〜」「…」或换行连写就能把
+ * 一大段变成「1 句」蒙混过关(唯一边界是 max_tokens 1000),投到 390px 手机屏上
+ * 就是一堵墙。总上限 = 句数预算 × 这个数,跟着已有的预算概念走,不另立常数。
+ * 实测现有合法回应最长 72 码点(自伤安全回应),默认预算 3 → 120,留足余量。
+ */
+const CODEPOINTS_PER_SENTENCE = 40;
+
+/** 对话回应:无禁用词、句数不超预算(默认 3;decision 场景摆情况+三选项+交还决定权,预算 5)、总长不超预算 */
 export function validateReplyText(
   text: string,
   opts?: { maxSentences?: number }
@@ -27,10 +35,16 @@ export function validateReplyText(
   if (hits.length > 0) {
     failures.push({ rule: "forbidden_words", message: `包含禁用词:${hits.join("、")}` });
   }
-  // ！？ 是全角!?,用转义写死——肉眼分不清全半角,之前就在这里看走眼过
-  const sentences = text.split(/[。!?！？]/).filter((s) => s.trim().length > 0);
+  // ！？ 是全角!?,用转义写死——肉眼分不清全半角,之前就在这里看走眼过。
+  // 换行也算句界:模型常用换行分句而不加句号
+  const sentences = text.split(/[。!?！？\n]/).filter((s) => s.trim().length > 0);
   if (sentences.length > maxSentences) {
     failures.push({ rule: "max_sentences", message: `超过 ${maxSentences} 句(${sentences.length} 句)` });
+  }
+  const maxCodepoints = maxSentences * CODEPOINTS_PER_SENTENCE;
+  const length = [...text].length; // 中文按码点数,.length 数的是 UTF-16 单元
+  if (length > maxCodepoints) {
+    failures.push({ rule: "max_length", message: `超过 ${maxCodepoints} 字(${length} 字)` });
   }
   return failures;
 }

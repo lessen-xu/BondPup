@@ -8,7 +8,7 @@ import { commitJarDebit } from "@/server/domain/debit";
 import { recordSafetyEvent } from "@/server/safety/risk";
 import type { JarKind, SafetyRiskType } from "@/contracts";
 import { loadMoneyState, useMoneyState } from "@/lib/state/money-store";
-import { ERRORS, DAILY_NOTE, NOTE_MODEL_REPLY, SAFETY } from "@/mock/剧本";
+import { ERRORS, DAILY_NOTE, moneyNoteScript, NOTE_MODEL_REPLY, SAFETY } from "@/mock/剧本";
 import { requestAgent, type AgentIssue } from "@/lib/agent/client";
 import { setDogThinking } from "@/lib/state/dog-state";
 import { Dog } from "./Dog";
@@ -102,6 +102,8 @@ export function MoneyNoteFlow({ initialStory = "", recordOnly = false }: { initi
   const [savedCopy, setSavedCopy] = useState<string>(DAILY_NOTE.received);
   const [transitionIndex, setTransitionIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  /** 写库失败(非版本冲突)的可见反馈:此前 catch 只处理冲突,其余静默吞掉,确认键看着就是死的 */
+  const [saveError, setSaveError] = useState<string | null>(null);
   const requestId = useRef(0);
   const reminderShown = useRef(false);
   const [timeReminderVisible, setTimeReminderVisible] = useState(false);
@@ -263,6 +265,7 @@ export function MoneyNoteFlow({ initialStory = "", recordOnly = false }: { initi
   function rememberOnly() {
     if (!state || submitting) return;
     setSubmitting(true);
+    setSaveError(null); // 重试前清掉上一次的错误提示
     try {
       const result = createDecisionStory(state, {
         intent: story.slice(0, 120),
@@ -280,6 +283,10 @@ export function MoneyNoteFlow({ initialStory = "", recordOnly = false }: { initi
         const latest = loadMoneyState();
         if (latest) commit(latest);
         setIssue(null);
+        setSaveError(`${ERRORS.conflict.line} ${ERRORS.conflict.sub}`);
+      } else {
+        // 其余异常此前被完全吞掉:不换 step、不给提示,用户只看到按钮没反应
+        setSaveError(moneyNoteScript.fallbackError);
       }
     } finally {
       setSubmitting(false);
@@ -307,6 +314,7 @@ export function MoneyNoteFlow({ initialStory = "", recordOnly = false }: { initi
   function confirmAdjustment() {
     if (!state || !direction || !selectedJar || amount <= 0 || submitting) return;
     setSubmitting(true);
+    setSaveError(null); // 重试前清掉上一次的错误提示
     try {
       const operationKey = globalThis.crypto.randomUUID();
       const changed = direction === "credit"
@@ -340,6 +348,9 @@ export function MoneyNoteFlow({ initialStory = "", recordOnly = false }: { initi
       if (isStateConflict(cause)) {
         const latest = loadMoneyState();
         if (latest) commit(latest);
+        setSaveError(`${ERRORS.conflict.line} ${ERRORS.conflict.sub}`);
+      } else {
+        setSaveError(moneyNoteScript.fallbackError);
       }
       setIssue(null);
     } finally {
@@ -362,7 +373,7 @@ export function MoneyNoteFlow({ initialStory = "", recordOnly = false }: { initi
 
   if (!ready) return <LoadingState />;
   if (safety === "crisis") {
-    return <main className="stage-shell flow-layout-shell safety-exit-shell"><section className="stage talk-page safety-exit-page" aria-label="安全退出"><section className="safety-exit-dog" aria-label={alias}><Dog page="对话" state="idle" alias={alias} message={null} /></section><section className="safety-exit-copy" aria-live="assertive"><p>{safetyText ?? SAFETY.crisis.line}</p></section></section></main>;
+    return <main className="stage-shell flow-layout-shell safety-exit-shell"><section className="stage talk-page safety-exit-page" aria-label="安全退出"><section className="safety-exit-dog" aria-label={alias}><Dog page="对话" state="idle" alias={alias} message={null} /></section><section className="safety-exit-copy" aria-live="assertive"><p>{safetyText ?? SAFETY.crisis.line}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>{SAFETY.crisis.home}<HandDrawnUnderline /></button></section></section></main>;
   }
 
   const jarOptions = (state?.jars ?? []).filter((jar) => direction === "credit" || jar.kind !== "future");
@@ -383,11 +394,12 @@ export function MoneyNoteFlow({ initialStory = "", recordOnly = false }: { initi
           {step === "model" && <div className="decision-step money-note-conversation">{conversation.map((turn, index) => turn.role === "user" ? <p className="decision-user-bubble" key={`${turn.role}-${index}`}>{turn.text}</p> : <p className="decision-dog-bubble money-note-model-bubble" key={`${turn.role}-${index}`}>{turn.text}</p>)}{pendingUserText && <p className="decision-user-bubble">{pendingUserText}</p>}{modelLoading && <p className="decision-dog-bubble money-note-thinking-bubble" aria-hidden="true">{NOTE_MODEL_REPLY.thinkingHint}</p>}{!modelLoading && <>{issue ? <><p className="decision-dog-bubble">{issue === "offline" ? ERRORS.offline.line : ERRORS.timeout.line}</p><p className="decision-dog-bubble">{issue === "offline" ? ERRORS.offline.sub : ERRORS.timeout.sub}</p></> : null}<form className="money-note-follow-up" onSubmit={submitFollowUp}><input className="decision-input" value={followUpInput} onChange={(event) => setFollowUpInput(event.target.value)} placeholder={NOTE_MODEL_REPLY.followUpPlaceholder} aria-label={NOTE_MODEL_REPLY.followUpPlaceholder} /><div className="decision-options"><button className="decision-option" type="submit" disabled={!followUpInput.trim()}>{NOTE_MODEL_REPLY.followUpSubmit.replace("{alias}", alias)}</button><button className="decision-option" type="button" onClick={continueAfterModelReply}>{NOTE_MODEL_REPLY.continueLabel}</button></div></form></>}</div>}
           {step === "safety-offtopic" && <div className="decision-step"><p className="decision-dog-bubble">{safetyText ?? SAFETY.offTopic.line}</p><div className="decision-options"><button className="decision-option" type="button" onClick={() => chooseOffTopic("yes")}>{SAFETY.offTopic.options.yes}</button><button className="decision-option" type="button" onClick={() => chooseOffTopic("no")}>{SAFETY.offTopic.options.no}</button></div></div>}
           {step === "safety-stopped" && <div className="decision-step"><p className="decision-dog-bubble">{offTopicResponse ?? SAFETY.offTopic.noResponse}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>返回首页<HandDrawnUnderline /></button></div>}
-          {step === "choices" && <div className="decision-step">{offTopicResponse && <p className="decision-dog-bubble">{offTopicResponse}</p>}<p className="decision-dog-bubble">{DAILY_NOTE.choicesPrompt}</p><div className="decision-options decision-source-options"><button className="decision-option" type="button" disabled={submitting} onClick={startAdjustment}>{DAILY_NOTE.remember}</button><button className="decision-option" type="button" disabled={submitting} onClick={rememberOnly}>{DAILY_NOTE.talkOnly}</button></div></div>}
+          {step === "choices" && <div className="decision-step">{offTopicResponse && <p className="decision-dog-bubble">{offTopicResponse}</p>}<p className="decision-dog-bubble">{DAILY_NOTE.choicesPrompt}</p>{saveError && <p className="talk-status">{saveError}</p>}<div className="decision-options decision-source-options"><button className="decision-option" type="button" disabled={submitting} onClick={startAdjustment}>{DAILY_NOTE.remember}</button><button className="decision-option" type="button" disabled={submitting} onClick={rememberOnly}>{DAILY_NOTE.talkOnly}</button></div></div>}
           {step === "amount" && <div className="decision-step"><p className="decision-dog-bubble">{DAILY_NOTE.amountQuestion}</p><MoneyAmountInput autoFocus className="decision-input" value={amount} onChange={setAmount} placeholder={DAILY_NOTE.amountPlaceholder} /><button className="decision-text-action" type="button" onClick={() => { if (amount > 0) setStep("direction"); }}>继续<HandDrawnUnderline /></button></div>}
           {step === "direction" && <div className="decision-step"><p className="decision-dog-bubble">{DAILY_NOTE.directionQuestion}</p><div className="decision-options decision-source-options money-direction-options"><button className="decision-option" type="button" onClick={() => chooseDirection("credit")}>{DAILY_NOTE.directions.credit}</button><button className="decision-option" type="button" onClick={() => chooseDirection("debit")}>{DAILY_NOTE.directions.debit}</button></div></div>}
-          {step === "jar" && <div className="decision-step"><p className="decision-dog-bubble">{direction === "credit" ? DAILY_NOTE.jarQuestion : DAILY_NOTE.debitJarQuestion}</p><div className="decision-options decision-source-options money-note-lower-options">{jarOptions.map((jar) => <button key={jar.kind} className="decision-option" type="button" onClick={() => chooseJar(jar.kind)}>{jar.label}</button>)}</div></div>}
-          {step === "confirm" && selectedJar && <div className="decision-step"><p className="decision-dog-bubble">{confirmCopy.replace("{amount}", formatCents(amount)).replace("{jar}", selectedJarLabel)}</p><div className="decision-options decision-source-options money-note-lower-options"><button className="decision-option" type="button" disabled={submitting} onClick={confirmAdjustment}>{DAILY_NOTE.confirm}</button><button className="decision-option" type="button" disabled={submitting} onClick={() => setStep("amount")}>{DAILY_NOTE.modify}</button></div></div>}
+          {step === "jar" && jarOptions.length === 0 && <div className="decision-step"><p className="decision-dog-bubble">{moneyNoteScript.noState}</p><div className="decision-options"><button className="decision-text-action" type="button" onClick={() => router.push("/start")}>{moneyNoteScript.goStart}<HandDrawnUnderline /></button><button className="decision-text-action" type="button" onClick={() => router.push("/")}>{moneyNoteScript.backHome}<HandDrawnUnderline /></button></div></div>}
+          {step === "jar" && jarOptions.length > 0 && <div className="decision-step"><p className="decision-dog-bubble">{direction === "credit" ? DAILY_NOTE.jarQuestion : DAILY_NOTE.debitJarQuestion}</p><div className="decision-options decision-source-options money-note-lower-options">{jarOptions.map((jar) => <button key={jar.kind} className="decision-option" type="button" onClick={() => chooseJar(jar.kind)}>{jar.label}</button>)}</div></div>}
+          {step === "confirm" && selectedJar && <div className="decision-step"><p className="decision-dog-bubble">{confirmCopy.replace("{amount}", formatCents(amount)).replace("{jar}", selectedJarLabel)}</p>{saveError && <p className="talk-status">{saveError}</p>}<div className="decision-options decision-source-options money-note-lower-options"><button className="decision-option" type="button" disabled={submitting} onClick={confirmAdjustment}>{DAILY_NOTE.confirm}</button><button className="decision-option" type="button" disabled={submitting} onClick={() => setStep("amount")}>{DAILY_NOTE.modify}</button></div></div>}
           {step === "done" && <div className="decision-step"><p className="decision-dog-bubble">{savedCopy}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>返回首页<HandDrawnUnderline /></button></div>}
         </section>
       </section>

@@ -41,6 +41,21 @@ describe("validateReplyText", () => {
     const fails = validateReplyText("第一句！第二句？第三句。第四句！");
     expect(fails.some((f) => f.rule === "max_sentences")).toBe(true);
   });
+  it("换行也算句界:模型常用换行分句不加句号", () => {
+    const fails = validateReplyText("第一句\n第二句\n第三句\n第四句");
+    expect(fails.some((f) => f.rule === "max_sentences")).toBe(true);
+  });
+  it("用「〜」连写的长段落被长度闸拦下(句数闸数不出来)", () => {
+    // 只有「〜」当分隔:句数闸看到的是 1 句,此前唯一边界是 max_tokens
+    const wall = `我在想${"这件事真的挺不容易的〜".repeat(20)}`;
+    const fails = validateReplyText(wall);
+    expect(fails.some((f) => f.rule === "max_sentences")).toBe(false); // 句数闸确实拦不住
+    expect(fails.some((f) => f.rule === "max_length")).toBe(true);
+  });
+  it("现有最长的合法回应(自伤安全回应量级,72 字)不误伤", () => {
+    const real = "先不聊钱了,我有点担心你。这样的感觉一个人扛太重了,可以找信任的人说说,或者联系专业的心理支持(24小时心理援助热线12356)。我一直在。";
+    expect(validateReplyText(real)).toEqual([]);
+  });
 });
 
 describe("validateDecisionReply(决策语义闸:三个中性动作缺一不可)", () => {

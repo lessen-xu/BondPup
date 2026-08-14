@@ -134,6 +134,8 @@ export function ReviewFlow() {
   const [note, setNote] = useState("");
   const [reviewReply, setReviewReply] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** 提交中守卫:两个按钮此前都不 disabled,手机上双击会用闭包里的旧 stateVersion 再提交一次 → state_conflict */
+  const [submitting, setSubmitting] = useState(false);
   const [dogState, setDogState] = useState<"ears" | null>(null);
   const [candidate, setCandidate] = useState<MoneyPrinciple | null>(null);
   const [candidateEvidenceOpen, setCandidateEvidenceOpen] = useState(false);
@@ -194,6 +196,9 @@ export function ReviewFlow() {
   }
 
   async function finishReview(includeNote: boolean) {
+    if (submitting) return;
+    setSubmitting(true);
+    setError(null);
     try {
       if (includeNote && note.trim()) {
         setReviewReply(null);
@@ -247,6 +252,8 @@ export function ReviewFlow() {
       } else {
         setError(`${ERRORS.validation.line} ${ERRORS.validation.sub}`);
       }
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -289,7 +296,7 @@ export function ReviewFlow() {
           {step === "response" && <div className="decision-step"><p className="decision-dog-bubble">{responseText}</p>{followUpText && <p className="decision-dog-bubble">{followUpText}</p>}<button className="decision-text-action" type="button" onClick={continueAfterResponse}>{REVIEW_NAV.next}<HandDrawnUnderline /></button></div>}
           {step === "whichJar" && <div className="decision-step"><p className="decision-dog-bubble">{REVIEW_ASK_JAR.question}</p><div className="decision-options review-options">{REVIEW_ASK_JAR.options.map((option) => <button key={option} className="decision-option" type="button" onClick={() => selectJar(option === "不记得了" ? "forgotten" : (Object.entries(JAR_NAMES).find(([, label]) => label === option)?.[0] as JarKind))}>{option}</button>)}</div></div>}
           {step === "confirmDebit" && selectedJar && <div className="decision-step"><p className="decision-dog-bubble">{REVIEW_CONFIRM_DEDUCT.question.replace("{jar}", JAR_NAMES[selectedJar]).replace("{amount}", price)}</p>{error && <p className="talk-status">{error}</p>}<div className="decision-options"><button className="decision-option" type="button" onClick={confirmDebit}>{REVIEW_CONFIRM_DEDUCT.confirm}</button><button className="decision-option" type="button" onClick={() => setStep("whichJar")}>{REVIEW_CONFIRM_DEDUCT.cancel}</button></div></div>}
-          {step === "note" && <div className="decision-step">{noteLead && <p className="decision-dog-bubble">{noteLead}</p>}{reviewReply ? <p className="decision-dog-bubble">{reviewReply}</p> : <><p className="decision-dog-bubble">{noteQuestion}</p><input className="decision-input" value={note} onChange={(event) => setNote(event.target.value)} placeholder={REVIEW_STEP3.placeholder} aria-label={noteQuestion} /></>}{error && <p className="talk-status">{error}</p>}{!reviewReply && <div className="decision-options"><button className="decision-option" type="button" onClick={() => finishReview(true)}>{REVIEW_STEP3.save}</button><button className="decision-option" type="button" onClick={() => finishReview(false)}>{REVIEW_STEP3.skip}</button></div>}</div>}
+          {step === "note" && <div className="decision-step">{noteLead && <p className="decision-dog-bubble">{noteLead}</p>}{reviewReply ? <p className="decision-dog-bubble">{reviewReply}</p> : <><p className="decision-dog-bubble">{noteQuestion}</p><input className="decision-input" value={note} onChange={(event) => setNote(event.target.value)} placeholder={REVIEW_STEP3.placeholder} aria-label={noteQuestion} /></>}{error && <p className="talk-status">{error}</p>}{(!reviewReply || error) && <div className="decision-options"><button className="decision-option" type="button" disabled={submitting} onClick={() => finishReview(true)}>{REVIEW_STEP3.save}</button><button className="decision-option" type="button" disabled={submitting} onClick={() => finishReview(false)}>{REVIEW_STEP3.skip}</button></div>}</div>}
           {step === "principle" && candidate && <div className="decision-step principle-candidate-step"><article className="principle-card principle-candidate-card"><p>{replaceAlias(PRINCIPLE_CANDIDATE.lead, alias)}</p><strong>{candidate.statement}</strong><button className="principle-evidence-toggle" type="button" onClick={() => setCandidateEvidenceOpen((open) => !open)}>{PRINCIPLE_CANDIDATE.evidence} {candidateEvidenceOpen ? "^" : "▾"}</button>{candidateEvidenceOpen && <div className="principle-evidence-list">{candidate.evidenceIds.map((id) => { const story = currentState.stories.find((item) => item.id === id); return <p key={id}>{story ? `${story.intent}${story.outcome?.feelingNote ? ` · ${story.outcome.feelingNote}` : ""}` : id}</p>; })}</div>}</article>{candidateEditing && <input className="decision-input principle-edit-input" value={candidateEditText} onChange={(event) => setCandidateEditText(event.target.value)} aria-label={candidate.statement} />}{candidateEditing ? <div className="decision-options principle-candidate-actions"><button className="decision-option" type="button" onClick={() => resolveCandidate("edit")}>{PRINCIPLE_CANDIDATE.saveEdit}</button><button className="decision-option" type="button" onClick={() => resolveCandidate("defer")}>{PRINCIPLE_CANDIDATE.actions.defer}</button></div> : <div className="decision-options principle-candidate-actions"><button className="decision-option" type="button" onClick={() => resolveCandidate("like_me")}>{PRINCIPLE_CANDIDATE.actions.like}</button><button className="decision-option" type="button" onClick={() => resolveCandidate("edit")}>{PRINCIPLE_CANDIDATE.actions.edit}</button><button className="decision-option" type="button" onClick={() => resolveCandidate("defer")}>{PRINCIPLE_CANDIDATE.actions.defer}</button></div>}</div>}
           {step === "done" && <div className="decision-step"><p className="decision-dog-bubble">{principleSkipped ? PRINCIPLE_CANDIDATE.skipped : REVIEW_STEP4.closing}</p><button className="decision-text-action" type="button" onClick={() => router.push("/")}>{REVIEW_NAV.backHome}<HandDrawnUnderline /></button></div>}
         </section>
