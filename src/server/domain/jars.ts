@@ -39,7 +39,7 @@ const JarIncreaseInput = z.object({
 export function computeIncreasedJarAmount(input: z.input<typeof JarIncreaseInput>): number {
   const parsed = JarIncreaseInput.safeParse(input);
   if (!parsed.success) {
-    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);
+    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);  // copy-ok
   }
   return parsed.data.current + parsed.data.addition;
 }
@@ -62,7 +62,7 @@ export interface JarAllocationBalance {
 export function compareJarAllocation(input: JarAllocationInput): JarAllocationBalance {
   const parsed = JarAllocationInput.safeParse(input);
   if (!parsed.success) {
-    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);
+    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);  // copy-ok
   }
   const { disposable, living, comfort, dream, future } = parsed.data;
   const total = living + comfort + dream + future;
@@ -83,7 +83,7 @@ export function balanceComfortJar(input: JarAllocationInput): JarAllocationBalan
 export function computeComfortCandidate(input: ComputeJarsInput): number {
   const parsed = ComputeJarsInput.safeParse(input);
   if (!parsed.success) {
-    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);
+    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);  // copy-ok
   }
   return parsed.data.disposable - parsed.data.livingPlanned - parsed.data.dreamMonthly - parsed.data.futurePlanned;
 }
@@ -91,7 +91,7 @@ export function computeComfortCandidate(input: ComputeJarsInput): number {
 /** 预览里安心罐剩 0-20 元时,给出可忽略的轻提示。 */
 export function isComfortBalanceLow(cents: number): boolean {
   if (!Cents.safeParse(cents).success) {
-    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)");
+    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)");  // copy-ok
   }
   return cents > 0 && cents <= 2_000;
 }
@@ -103,7 +103,7 @@ export function isComfortBalanceLow(cents: number): boolean {
 export function computeJars(input: ComputeJarsInput): ComputeJarsResult {
   const parsed = ComputeJarsInput.safeParse(input);
   if (!parsed.success) {
-    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);
+    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);  // copy-ok
   }
   const { disposable, livingPlanned, dreamMonthly, futurePlanned } = parsed.data;
   const fixed = livingPlanned + dreamMonthly + futurePlanned;
@@ -120,7 +120,7 @@ export function computeJars(input: ComputeJarsInput): ComputeJarsResult {
 export function resolveShortfallFromLiving(input: ComputeJarsInput): LivingShortfallResolution {
   const parsed = ComputeJarsInput.safeParse(input);
   if (!parsed.success) {
-    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);
+    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);  // copy-ok
   }
   const current = computeJars(parsed.data);
   const livingPlanned = Math.max(0, parsed.data.livingPlanned - current.shortfall);

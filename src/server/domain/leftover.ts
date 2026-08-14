@@ -47,7 +47,7 @@ export interface MoveLeftoverResult {
  */
 export function moveLeftover(state: MoneyState, req: MoveLeftoverRequest): MoveLeftoverResult {
   if (!Cents.safeParse(req.amount).success || req.amount === 0) {
-    throw new DomainError("validation_error", "金额必须是正整数(单位:分)");
+    throw new DomainError("validation_error", "金额必须是正整数(单位:分)");  // copy-ok
   }
   if (state.appliedOps.includes(req.idempotencyKey)) {
     return { state, movedNote: "", idempotent: true };

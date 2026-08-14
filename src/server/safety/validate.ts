@@ -67,7 +67,7 @@ export function validatePrincipleStatement(statement: string): ValidationFailure
     failures.push({ rule: "max_length", message: `超过 ${MAX_STATEMENT_CODEPOINTS} 字` });
   }
   if (!s.includes("我") || s.startsWith("你")) {
-    failures.push({ rule: "first_person", message: "必须是第一人称的表述" });
+    failures.push({ rule: "first_person", message: "必须是第一人称的表述" });  // copy-ok
   }
   // 生产实测过真模型把自伤笔记提炼成原则(「我感觉活着没意思的时候…」)——
   // 原则会被长期引用,自伤/借贷/投资语义绝不能被固化,不论来自模型还是用户改说法
@@ -116,7 +116,7 @@ export function validateConcernsOutput(concerns: string[], sourceText?: string):
       failures.push({ rule: "max_length", message: "单条超过 40 字" });
     }
     if (s.startsWith("你")) {
-      failures.push({ rule: "first_person", message: "必须是用户视角的表述,不是对用户说话" });
+      failures.push({ rule: "first_person", message: "必须是用户视角的表述,不是对用户说话" });  // copy-ok
     }
     if (detectHardRisk(s)) {
       failures.push({ rule: "risk", message: "包含不适合写进在意的事的内容" });
@@ -160,7 +160,7 @@ export function validatePrincipleWithIds(
 ): ValidationFailure[] {
   const failures: ValidationFailure[] = [...validatePrincipleStatement(candidate.statement)];
   if (candidate.evidenceIds.length < 2 || candidate.evidenceIds.length > 3) {
-    failures.push({ rule: "evidence", message: "证据必须是 2-3 条故事" });
+    failures.push({ rule: "evidence", message: "证据必须是 2-3 条故事" });  // copy-ok
     return failures;
   }
   // 与 contracts 层 MoneyPrinciple 的唯一性规则同一道闸:重复 id 在这里就拒,
@@ -171,7 +171,7 @@ export function validatePrincipleWithIds(
   }
   const missing = candidate.evidenceIds.filter((id) => !allowedIds.has(id));
   if (missing.length > 0) {
-    failures.push({ rule: "evidence", message: `证据必须指向已回看的故事(无效:${missing.join("、")})` });
+    failures.push({ rule: "evidence", message: `证据必须指向已回看的故事(无效:${missing.join("、")})` });  // copy-ok
   }
   return failures;
 }

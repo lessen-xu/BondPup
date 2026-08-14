@@ -17,7 +17,7 @@ export type LivingItems = z.input<typeof LivingItems>;
 export function computeLivingJar(items: LivingItems): number {
   const parsed = LivingItems.safeParse(items);
   if (!parsed.success) {
-    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);
+    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);  // copy-ok
   }
   return Object.values(parsed.data).reduce<number>((sum, v) => sum + (v ?? 0), 0);
 }

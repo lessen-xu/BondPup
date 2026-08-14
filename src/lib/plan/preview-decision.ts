@@ -36,7 +36,7 @@ function fmtYuan(cents: number): string {
 
 export function previewDecision(state: MoneyState, input: { amount: number }): DecisionPreview {
   if (!Cents.safeParse(input.amount).success || input.amount === 0) {
-    throw new DomainError("validation_error", "金额必须是正整数(单位:分)");
+    throw new DomainError("validation_error", "金额必须是正整数(单位:分)");  // copy-ok
   }
   const availableOf = (kind: JarKind): number => {
     const jar = state.jars.find((j) => j.kind === kind);

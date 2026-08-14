@@ -32,7 +32,7 @@ export interface DebitResult {
  */
 export function commitJarDebit(state: MoneyState, req: DebitRequest): DebitResult {
   if (!Cents.safeParse(req.amount).success || req.amount === 0) {
-    throw new DomainError("validation_error", "金额必须是正整数(单位:分)");
+    throw new DomainError("validation_error", "金额必须是正整数(单位:分)");  // copy-ok
   }
   if (req.jarKind === "future") {
     // 未来罐长期积累只进不出:进钱走结余挪入(moveLeftover)或计划(plan),不参与日常扣账

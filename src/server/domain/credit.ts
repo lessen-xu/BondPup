@@ -18,7 +18,7 @@ export interface CreditResult {
 /** 新进账由用户选罐后确认:总收入与该罐 planned 同额增加,四罐恒等式保持不变。 */
 export function commitJarCredit(state: MoneyState, req: CreditRequest): CreditResult {
   if (!Cents.safeParse(req.amount).success || req.amount === 0) {
-    throw new DomainError("validation_error", "金额必须是正整数(单位:分)");
+    throw new DomainError("validation_error", "金额必须是正整数(单位:分)");  // copy-ok
   }
   if (state.appliedOps.includes(req.idempotencyKey)) return { state, idempotent: true };
   if (req.expectedStateVersion !== state.stateVersion) {

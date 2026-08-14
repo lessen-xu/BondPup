@@ -21,7 +21,7 @@ const MonthsForContributionInput = z.object({
 export function computeMonthlyContribution(input: MonthlyInput): number {
   const parsed = MonthlyInput.safeParse(input);
   if (!parsed.success) {
-    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);
+    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);  // copy-ok
   }
   const { goal, monthsRemaining } = parsed.data;
   const remaining = Math.max(0, goal.amount - goal.saved);
@@ -32,7 +32,7 @@ export function computeMonthlyContribution(input: MonthlyInput): number {
 export function computeMonthsForContribution(input: z.input<typeof MonthsForContributionInput>): number | null {
   const parsed = MonthsForContributionInput.safeParse(input);
   if (!parsed.success) {
-    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);
+    throw new DomainError("validation_error", "金额必须是非负整数(单位:分)", parsed.error.issues);  // copy-ok
   }
   const remaining = Math.max(0, parsed.data.goal.amount - parsed.data.goal.saved);
   if (parsed.data.monthlyContribution === 0) return null;

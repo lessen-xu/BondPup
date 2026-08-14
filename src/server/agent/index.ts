@@ -339,7 +339,7 @@ async function runPrincipleTask(
   ];
   if (modelBound.some((t) => t && detectHardRisk(t))) {
     console.error(JSON.stringify({ event: "principle_input_risk_refused", task: input.task }));
-    throw new DomainError("validation_error", "这次先不提炼原则,证据还不够");
+    throw new DomainError("validation_error", "这次先不提炼原则,再多几次回看");
   }
   const allowedIds = new Set(input.stories.map((s) => s.id));
   const check = (c: GeneratePrincipleOutput) => validatePrincipleWithIds(c, allowedIds).length === 0;
@@ -364,7 +364,7 @@ async function runPrincipleTask(
       return { ...fallback, provider: "mock", source: "rule" };
     }
   }
-  throw new DomainError("validation_error", "这次先不提炼原则,证据还不够");
+  throw new DomainError("validation_error", "这次先不提炼原则,再多几次回看");
 }
 
 type PrincipleGenerator = (

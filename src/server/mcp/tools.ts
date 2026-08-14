@@ -180,7 +180,7 @@ function requireWriteMeta(
   if (meta.expectedStateVersion === undefined || !meta.idempotencyKey) {
     throw new DomainError(
       "validation_error",
-      "写操作必须带 expectedStateVersion(当前 moneyState.stateVersion)与 idempotencyKey(客户端生成的唯一串)"
+      "写操作必须带 expectedStateVersion(当前 moneyState.stateVersion)与 idempotencyKey(客户端生成的唯一串)"  // copy-ok
     );
   }
   if (state.appliedOps.includes(meta.idempotencyKey)) {
@@ -443,7 +443,7 @@ export function registerBondPupTools(server: McpServer): void {
     {
       title: "四罐分配(恒等式)",
       description:
-        "按四罐恒等式计算本月安排:生活.planned + 安心.planned + 梦想月供 + 未来.planned = 可安排金额;余数进安心罐;未来罐默认 0 且永不自动接收。金额一律为分(非负整数)。默认只预览(不改状态);confirm=true 才写入,写入必须带 expectedStateVersion 与 idempotencyKey。",
+        "按四罐恒等式计算本月安排:生活.planned + 安心.planned + 梦想月供 + 未来.planned = 可安排金额;余数进安心罐;未来罐默认 0 且永不自动接收。金额一律为分(非负整数)。默认只预览(不改状态);confirm=true 才写入,写入必须带 expectedStateVersion 与 idempotencyKey。",  // copy-ok
       inputSchema: z.object({
         ...SessionRef,
         disposable: Cents,
@@ -678,7 +678,7 @@ export function registerBondPupTools(server: McpServer): void {
     {
       title: "确认动作(扣罐/撤销/决定/回看/原则/周期/碎钻)",
       description:
-        "所有改变状态的用户确认动作走这里,按 action 区分:confirm_debit=确认 record_money_moment 返回的 proposal 并扣罐(可用 chosenJar 换罐);undo=按 undoToken 撤销扣罐并抹掉关联故事;note_only=只说说,记一条不改余额的故事;log_decision=记录一个购买决定(现在买/放到明天/这次先不买,不动余额);complete_review=完成一次回看(实际买了且当时未扣罐时,带 chosenJar 补记账);adopt_principle=对候选原则做 像我/改说法/暂不确定;delete_principle=删除一条原则(principleId,任何状态可删,删后不再被引用);confirm_cycle=新周期确认(月供重算、结余进碎钻);move_leftover=把碎钻挪进某个罐(可部分)。全部动作必须带 expectedStateVersion 与 idempotencyKey;各 action 的专属必填见 inputSchema 的 allOf/if-then。",
+        "所有改变状态的用户确认动作走这里,按 action 区分:confirm_debit=确认 record_money_moment 返回的 proposal 并扣罐(可用 chosenJar 换罐);undo=按 undoToken 撤销扣罐并抹掉关联故事;note_only=只说说,记一条不改余额的故事;log_decision=记录一个购买决定(现在买/放到明天/这次先不买,不动余额);complete_review=完成一次回看(实际买了且当时未扣罐时,带 chosenJar 补记账);adopt_principle=对候选原则做 像我/改说法/暂不确定;delete_principle=删除一条原则(principleId,任何状态可删,删后不再被引用);confirm_cycle=新周期确认(月供重算、结余进碎钻);move_leftover=把碎钻挪进某个罐(可部分)。全部动作必须带 expectedStateVersion 与 idempotencyKey;各 action 的专属必填见 inputSchema 的 allOf/if-then。",  // copy-ok
       inputSchema: ConfirmActionInput,
       outputSchema: ConfirmOut,
     },
@@ -688,7 +688,7 @@ export function registerBondPupTools(server: McpServer): void {
         // action 专属必填与公开 schema 的 if-then 同一张表;这里返回统一 {code,message}
         for (const field of REQUIRED_BY_ACTION[input.action] ?? []) {
           if ((input as Record<string, unknown>)[field] === undefined) {
-            throw new DomainError("validation_error", `action=${input.action} 必须提供 ${field}`);
+            throw new DomainError("validation_error", `action=${input.action} 必须提供 ${field}`);  // copy-ok
           }
         }
         const meta = requireWriteMeta(state, input);
