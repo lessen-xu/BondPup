@@ -5,7 +5,8 @@
  *
  * 1. 危机首击:第一次提交就进安全出口,且原样展示热线 12356
  * 2. 演示原则闭环:回看 → 候选原则 → 确认 → 下次决策被引用
- * 3. 死入口:碎钻为 0 不可进、未完成页面不暴露给评委
+ * 3. 入口页真有内容(正面断言 DOM/文案,不是「没出现占位串」)+ 占位页不暴露入口
+ * 4. 决策主线:演示态走到三个中性动作,且三者呈现一致
  *
  * 依赖 playwright-core(已在 devDependencies,npm ci 即可)+ 系统已装的 Edge/Chrome(不下载浏览器)。
  * 断言失败会打印当前页面可见按钮,方便定位选择器漂移。
@@ -148,7 +149,10 @@ console.log("\n--- 1. 危机输入首次提交就进安全出口并原样展示�
   if ((await box.count()) > 0) {
     await box.fill("感觉活着没什么意思,钱也管不好");
     await page.waitForTimeout(300);
-    const submitted = await clickFirst(page, ["说给我听", "告诉我", "说完了", "嗯,说完了", "发送", "确认", "继续", "好了"]);
+    // 「说给」而非「说给我听」:#77 把按钮改成「说给{alias}听」(渲染为「说给慢慢听」),
+    // 写死旧全名会点不中 → 永远提交不出去 → 这条危机断言从 8/13 起一直假红。
+    // clickFirst 是子串匹配,用不含 alias 的稳定片段才不会随狗名漂移。
+    const submitted = await clickFirst(page, ["说给", "告诉我", "说完了", "发送", "确认", "继续", "好了"]);
     await waitForText(page, ["12356", "说完了", "热线"], 8000);
     const text = (await page.locator("body").innerText()).replace(/\s+/g, " ");
     // 关键:第一次提交后就应出现热线,不需要再点一次
@@ -216,28 +220,50 @@ console.log("\n--- 2. 演示数据回看 → 候选原则 → 确认 ---");
 // ---------- 3. 死入口 ----------
 console.log("\n--- 3. 未完成入口不暴露给评委 ---");
 {
-  const { ctx, page } = await newPage();
+  const { ctx, page, errors } = await newPage();
   await page.goto(`${BASE}/?demo=1`, { waitUntil: "domcontentloaded", timeout: 60000 });
   await waitForText(page, ["知道了", "生活罐", "戳一戳"]);
   await clickFirst(page, ["知道了", "好呀"]);
   const home = (await page.locator("body").innerText()).replace(/\s+/g, " ");
   assert(!/还在做|敬请期待|开发中/.test(home), "首页不出现「还在做」类占位");
 
-  // 只认明确的占位文案(纯插画页如 /companion 的睡觉小狗是完整内容,不因文字少而误判)。
-  // /leftover 的首页入口是 aria-label「查看结余」的碎钻按钮(碎钻>0 才渲染);
-  // 「小金库」按钮去的是 /vault(真实页面),曾被误认成 /leftover 入口
+  // 正面断言每页真有内容,而不是「没出现占位串」——占位串早已从 src 里删光,
+  // 旧写法的 placeholders 恒为空数组、整个循环从不执行,页面变白屏也照样打印通过。
+  // 每项:[路径, 首页入口名, 该页必须存在的关键选择器, 必须出现的关键文案]
+  const ENTRY_PAGES = [
+    ["/leftover", "查看结余", ".leftover-amount", null],
+    ["/outfit", "装扮", ".outfit-shelf-item", null],
+    ["/cycle", "新的一个月了", null, "这个月还想这么分吗"],
+    ["/companion", null, ".simple-back", null], // 纯插画页:只要求能回得去
+  ];
+  // 必须沿用已进过 ?demo=1 的同一个上下文:这些页面读 localStorage 里的演示态,
+  // 换新 context 直连会看到空态(/leftover 显示「现在这里是空的」、/cycle 掉回起点)。
   const placeholders = [];
-  for (const [path, entry] of [["/leftover", "查看结余"], ["/outfit", "装扮"], ["/companion", "陪伴"]]) {
+  for (const [path, entry, selector, keyword] of ENTRY_PAGES) {
+    errors.length = 0; // 按页归零,才能把控制台错误归到具体页面
     await page.goto(`${BASE}${path}`, { waitUntil: "domcontentloaded", timeout: 60000 });
-    await page.waitForTimeout(1200);
-    const t = (await page.locator("body").innerText()).replace(/\s+/g, " ").trim();
-    if (/还在做|敬请期待|开发中/.test(t)) placeholders.push([path, entry, t.slice(0, 40)]);
+    if (keyword) await waitForText(page, [keyword], 12000);
+    await page.waitForTimeout(800);
+    const t = norm(await page.locator("body").innerText().catch(() => ""));
+    const hasSelector = selector ? (await page.locator(selector).count()) > 0 : true;
+    const hasKeyword = keyword ? t.includes(norm(keyword)) : true;
+    // 有选择器/关键词要求时,命中即证明有内容;两者都没给才退回「正文不能是空的」
+    const ok = selector || keyword ? hasSelector && hasKeyword : t.length >= 10;
+    assert(ok, `${path} 渲染出真实内容${selector ? `(${selector})` : ""}`);
+    if (!ok) {
+      console.log(`   当前正文:「${t.slice(0, 80)}」 选择器命中=${hasSelector} 关键词命中=${hasKeyword}`);
+      placeholders.push([path, entry, t.slice(0, 40)]);
+    }
+    // 旧写法把 newPage() 的 errors 丢掉了:页面报错也不失败
+    assert(errors.length === 0, `${path} 控制台零错误(${errors.length})`);
+    if (errors.length) console.log("   ", errors.slice(0, 2).join(" / "));
   }
   // 暴露 = 首页存在【可点击】的入口;禁用按钮不算暴露
   await page.goto(`${BASE}/?demo=1`, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForTimeout(2000);
   await clickFirst(page, ["知道了", "好呀"]);
   for (const [path, entry, sample] of placeholders) {
+    if (!entry) continue; // 该页首页无入口,无所谓暴露
     let clickable = false;
     for (const el of await page.getByRole("button").all()) {
       const text = norm(await el.innerText().catch(() => ""));
@@ -252,7 +278,49 @@ console.log("\n--- 3. 未完成入口不暴露给评委 ---");
     assert(!clickable, `首页没有可点击的未完成页面入口 ${path}(「${entry}」)`);
     if (clickable) console.log(`   ${path} 当前内容:「${sample}」`);
   }
-  if (placeholders.length === 0) console.log("   三个页面都有内容,无需隐藏入口");
+  if (placeholders.length === 0) console.log("   入口页均有真实内容,无需隐藏入口");
+  await ctx.close();
+}
+
+// ---------- 4. 决策主线:三个中性动作必须真的摆出来 ----------
+// 产品主线与口播核心(「三个完全平等的选项」),此前整条零覆盖——
+// 演示态余额过期把三个按钮整体藏掉、且 stale 分支没有补救 UI,
+// 主线断在「现在大概还剩多少」那一屏,而流水线全绿。
+console.log("\n--- 4. 演示态「要不要买」走到三个中性动作 ---");
+{
+  const { ctx, page, errors } = await newPage();
+  await page.goto(`${BASE}/?demo=1`, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await waitForText(page, ["知道了", "生活罐", "戳一戳"]);
+  await clickFirst(page, ["知道了", "好呀"]);
+
+  const entered = await clickFirst(page, ["要不要买", "帮我看看"]);
+  assert(entered !== null, `能进入决策流程(实际点了:${entered ?? "没找到"})`);
+
+  const inputSel = "input.decision-input, textarea, input[type=text], input:not([type])";
+  await page.waitForSelector(inputSel, { timeout: 10000 }).catch(() => {});
+  await page.locator(inputSel).first().fill("一个投影仪");
+  await clickFirst(page, ["告诉我", "继续"]);
+  await page.locator(inputSel).first().fill("500");
+  await clickFirst(page, ["告诉我", "继续"]);
+  await waitForText(page, ["现在买", "想现在决定"], 15000);
+
+  const body = norm(await page.locator("body").innerText().catch(() => ""));
+  // 余额新鲜度过期会把三个按钮整体藏起来,页面停在这句上且无路可走
+  assert(!body.includes("有段时间没跟你对过了"), "演示态余额是新鲜的(没有掉进无出口的 stale 分支)");
+
+  for (const label of ["现在买", "放到明天", "这次先不买"]) {
+    const btn = page.locator(`.decision-buy-action:has-text("${label}")`);
+    const ok = (await btn.count()) > 0 && (await btn.first().isVisible().catch(() => false));
+    assert(ok, `三个中性动作都在:「${label}」`);
+  }
+  if (!body.includes("现在买")) console.log("   当前页面文本:", body.slice(0, 200));
+
+  // 三个动作必须同一个类、同一种呈现(不预选、不推荐——冻结红线)
+  const cls = await page.locator(".decision-buy-action").evaluateAll((els) => els.map((e) => e.className.trim()));
+  assert(cls.length === 3 && new Set(cls).size === 1, `三个动作样式完全一致(${cls.length} 个,${new Set(cls).size} 种样式)`);
+
+  assert(errors.length === 0, `控制台零错误(${errors.length})`);
+  if (errors.length) console.log("   ", errors.slice(0, 3).join(" / "));
   await ctx.close();
 }
 
