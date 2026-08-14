@@ -51,6 +51,22 @@ describe("演示/真实双键隔离", () => {
     }
   });
 
+  it("真实态清空连附属键一起删;退出演示不动它们", () => {
+    // 「一键清空」承诺覆盖调用轨迹与聊天草稿,不能留尾巴
+    local.setItem("bondpup.agentTrace.v1", "[]");
+    session.setItem("bondpup.unfinishedTalk", "草稿");
+
+    store.saveMoneyState(store.loadDemoState()); // 演示态在场
+    store.clearMoneyState(); // 只退出演示
+    expect(local.getItem("bondpup.agentTrace.v1")).not.toBeNull();
+    expect(session.getItem("bondpup.unfinishedTalk")).not.toBeNull();
+
+    store.saveMoneyState(realState());
+    store.clearMoneyState(); // 真实态清空
+    expect(local.getItem("bondpup.agentTrace.v1")).toBeNull();
+    expect(session.getItem("bondpup.unfinishedTalk")).toBeNull();
+  });
+
   it("进入演示不覆盖真实数据;演示态优先加载", () => {
     store.saveMoneyState(realState());
     const savedReal = local.getItem(REAL_KEY);

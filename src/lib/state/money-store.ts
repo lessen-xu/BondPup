@@ -63,12 +63,20 @@ export function saveMoneyState(state: MoneyState): void {
   notify();
 }
 
+/** 附属键:不属于 MoneyState,但「清空」承诺覆盖它们(材料写的是「一键清空」,不能留尾巴)。
+ *  键名与 src/lib/agent/client.ts(TRACE_KEY)、src/app/talk/page.tsx(TALK_DRAFT_KEY)保持一致 */
+const AGENT_TRACE_KEY = "bondpup.agentTrace.v1";
+const TALK_DRAFT_KEY = "bondpup.unfinishedTalk";
+
 export function clearMoneyState(): void {
   // 演示态退出只删演示键,真实数据不受影响;真实态清空才删真实键
   if (window.localStorage.getItem(DEMO_KEY) !== null) {
     window.localStorage.removeItem(DEMO_KEY);
   } else {
     window.localStorage.removeItem(STORAGE_KEY);
+    // 真实态清空连附属数据一起:调用轨迹(不含用户文本)与聊天草稿(含用户输入)
+    window.localStorage.removeItem(AGENT_TRACE_KEY);
+    window.sessionStorage.removeItem(TALK_DRAFT_KEY);
   }
   window.sessionStorage.removeItem(ONBOARDING_DRAFT_KEY);
   cached = undefined; // 重新加载:退出演示后若有真实数据则回落到它
