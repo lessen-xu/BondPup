@@ -1,6 +1,7 @@
 import { JarKind, MoneyState } from "@/contracts";
 import { Cents } from "@/contracts/money";
 import { DomainError } from "@/contracts/errors";
+import { appendOp } from "@/contracts/state";
 
 export interface CreditRequest {
   jarKind: JarKind;
@@ -45,7 +46,7 @@ export function commitJarCredit(state: MoneyState, req: CreditRequest): CreditRe
           ? { ...item, planned: item.planned + req.amount, updatedAt: now }
           : item
       ),
-      appliedOps: [...state.appliedOps.slice(-19), req.idempotencyKey],
+      appliedOps: appendOp(state.appliedOps, req.idempotencyKey),
     }),
   };
 }
