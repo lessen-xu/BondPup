@@ -60,6 +60,9 @@ async function waitForText(page, keywords, timeoutMs = 15000) {
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) {
     const text = norm(await page.locator("body").innerText().catch(() => ""));
+    // 全局回归网:字面 {alias}/{user} 出现在页面上=某个使用点漏了插值(生产真实翻过车:#77 改模板时漏了决策追问按钮)
+    const leaked = text.match(/.{0,12}\{(alias|user)\}.{0,12}/);
+    if (leaked) { assert(false, `未插值模板泄漏到页面: 「${leaked[0]}」`); return false; }
     for (const k of keywords) if (text.includes(norm(k))) return true;
     await page.waitForTimeout(300);
   }
