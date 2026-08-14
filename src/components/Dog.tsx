@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { DOG_STATE_ASSETS, 互动姿态, type DogState } from "@/config/dog-states";
 import { useDogState } from "@/lib/state/dog-state";
+import { OUTFIT_ITEMS } from "@/lib/outfit-items";
 import { script } from "@/mock/script";
 import type { 页面主体 } from "@/config/dog-states";
 
@@ -15,7 +16,8 @@ type DogProps = {
   message: string | null;
   onActivate?: () => void;
   talkMode?: boolean;
-  accessory?: "scarf" | "flower" | "hat" | null;
+  /** 已装备的配饰 id(state.outfit.equipped);不传就是不戴 */
+  outfit?: readonly string[];
   alias?: string;
 };
 
@@ -25,7 +27,7 @@ function dogImageSource(dogState: DogState) {
   return DOG_STATE_ASSETS[dogState];
 }
 
-export function Dog({ page, state, message, onActivate, talkMode = false, accessory = null, alias = "慢慢" }: DogProps) {
+export function Dog({ page, state, message, onActivate, talkMode = false, outfit, alias = "慢慢" }: DogProps) {
   const [pokeState, setPokeState] = useState<DogState | null>(null);
   const activeState = useDogState(page, state, pokeState);
   const [displayedState, setDisplayedState] = useState(activeState);
@@ -108,7 +110,19 @@ export function Dog({ page, state, message, onActivate, talkMode = false, access
             <span className="dog-state-frame">
               {previousState && <img className={`dog-state-image dog-state-${previousState} dog-state-image-previous`} src={dogImageSource(previousState)} alt="" aria-hidden="true" />}
               <img key={displayedState} className={`dog-state-image dog-state-${displayedState} dog-state-image-current`} src={dogImageSource(displayedState)} alt={alias} />
-              {accessory && <img className={`dog-accessory dog-accessory-${accessory}`} src={`/assets/配饰${accessory === "scarf" ? "围巾" : accessory === "flower" ? "小花" : "帽子"}.png`} alt="" aria-hidden="true" />}
+              {/* 配饰只在 idle 姿态叠加:pos 是按 idle 立绘标的百分比,
+                  其他姿态换了图且带 --dog-pose-scale(1.03~1.21),叠上去会错位。
+                  首页常态就是 idle,think/ears/jump 只是一两秒的过场。 */}
+              {displayedState === "idle" && outfit && outfit.length > 0 && OUTFIT_ITEMS.filter((item) => outfit.includes(item.id)).map((item) => (
+                <img
+                  key={item.id}
+                  className="outfit-item-overlay"
+                  src={item.image}
+                  alt=""
+                  aria-hidden="true"
+                  style={{ top: item.pos.top, left: item.pos.left, width: item.pos.width, transform: item.pos.rotate ? `rotate(${item.pos.rotate})` : undefined }}
+                />
+              ))}
             </span>
           </span>
         </span>

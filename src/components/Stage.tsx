@@ -80,7 +80,7 @@ export function Stage({ state, demoIntro = false, onDismissDemoIntro }: StagePro
         </section>
 
         <section className="dog-layer" aria-label={alias} onClick={(event) => event.stopPropagation()}>
-          <Dog page="首页" alias={alias} message={withAlias(script.home.bubbleHint, alias)} onActivate={() => router.push("/talk")} />
+          <Dog page="首页" alias={alias} message={withAlias(script.home.bubbleHint, alias)} outfit={state.outfit.equipped} onActivate={() => router.push("/talk")} />
         </section>
 
         <button className="vault-entry" type="button" onClick={(event) => { event.stopPropagation(); router.push("/vault"); }}>

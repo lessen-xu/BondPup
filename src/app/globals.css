@@ -430,10 +430,6 @@ button { color: inherit; font: inherit; }
 .dog-message-bubble { bottom: 76%; left: 72%; transform: rotate(2deg); }
 .poke-bubble { left: 72%; top: -14%; transform: rotate(-4deg); }
 .stage > .dog-layer .dog-message-bubble { bottom: 165%; left: 0; max-width: min(150px, 88%); transform: rotate(-2deg); }
-.dog-accessory { display: block; height: auto; position: absolute; z-index: 4; }
-.dog-accessory-scarf { left: 17%; top: 39%; width: 66%; }
-.dog-accessory-flower { left: 59%; top: 12%; width: 24%; }
-.dog-accessory-hat { left: 10%; top: -13%; width: 80%; }
 .leftover {
   align-items: center;
   background: transparent;

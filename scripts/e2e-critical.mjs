@@ -7,6 +7,7 @@
  * 2. 演示原则闭环:回看 → 候选原则 → 确认 → 下次决策被引用
  * 3. 入口页真有内容(正面断言 DOM/文案,不是「没出现占位串」)+ 占位页不暴露入口
  * 4. 决策主线:演示态走到三个中性动作,且三者呈现一致
+ * 5. 换装上身:装扮页戴上后回首页仍在狗身上
  *
  * 依赖 playwright-core(已在 devDependencies,npm ci 即可)+ 系统已装的 Edge/Chrome(不下载浏览器)。
  * 断言失败会打印当前页面可见按钮,方便定位选择器漂移。
@@ -318,6 +319,31 @@ console.log("\n--- 4. 演示态「要不要买」走到三个中性动作 ---");
   // 三个动作必须同一个类、同一种呈现(不预选、不推荐——冻结红线)
   const cls = await page.locator(".decision-buy-action").evaluateAll((els) => els.map((e) => e.className.trim()));
   assert(cls.length === 3 && new Set(cls).size === 1, `三个动作样式完全一致(${cls.length} 个,${new Set(cls).size} 种样式)`);
+
+  assert(errors.length === 0, `控制台零错误(${errors.length})`);
+  if (errors.length) console.log("   ", errors.slice(0, 3).join(" / "));
+  await ctx.close();
+}
+
+// ---------- 5. 换装上身 ----------
+// Dog 的配饰层曾经没有任何调用方传入:装扮页戴得上,回首页狗是光的。
+console.log("\n--- 5. 装扮戴上后回首页仍在狗身上 ---");
+{
+  const { ctx, page, errors } = await newPage();
+  await page.goto(`${BASE}/?demo=1`, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await waitForText(page, ["知道了", "生活罐", "戳一戳"]);
+  await clickFirst(page, ["知道了", "好呀"]);
+
+  await page.goto(`${BASE}/outfit`, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await waitForText(page, ["贝雷帽"], 12000);
+  await page.locator('.outfit-shelf-item:has-text("贝雷帽")').first().click();
+  await page.waitForTimeout(600);
+  assert((await page.locator(".outfit-stage .outfit-item-overlay").count()) > 0, "装扮页戴上后立绘有配饰层");
+
+  await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await waitForText(page, ["生活罐"], 12000);
+  await page.waitForTimeout(1200);
+  assert((await page.locator(".dog-layer .outfit-item-overlay").count()) > 0, "回首页后配饰仍在狗身上");
 
   assert(errors.length === 0, `控制台零错误(${errors.length})`);
   if (errors.length) console.log("   ", errors.slice(0, 3).join(" / "));
