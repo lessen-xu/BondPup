@@ -228,6 +228,18 @@ export const CLOSING = {
   casual: "好，我收到了。以后想说的时候随时来。",
 } as const;
 
+/**
+ * 兜底错误边界文案(error.tsx / global-error.tsx)。
+ * 「你的罐子和纸条都还在」是实话:状态在 localStorage,渲染崩了不影响数据。
+ * 不推责、不让她觉得是自己操作错了——和不评判是同一条原则。
+ */
+export const APP_ERROR = {
+  line: "我这边好像卡住了。",
+  sub: "不是你的问题。你的罐子和纸条都还在。",
+  retry: "再试一次",
+  home: "回去看看罐子",
+} as const;
+
 export const ERRORS = {
   offline: {
     line: "咦，我这边好像连不上了。",
