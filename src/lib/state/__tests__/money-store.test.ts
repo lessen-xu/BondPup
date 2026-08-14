@@ -40,6 +40,17 @@ describe("演示/真实双键隔离", () => {
     expect(demo.cycle?.cycle).toBe(cycleAfter(-1));
   });
 
+  it("演示态罐子 updatedAt 刷成当前时间:余额不会过期到藏起三个动作", () => {
+    // mock 里的 updatedAt 是固定日期,放过 7 天就越过 BuyDecisionFlow 的
+    // staleBalance 阈值,把「现在买/放到明天/这次先不买」整体藏掉,
+    // 而 stale 分支没有补救 UI——演示主线会断在这一屏。
+    const STALE_MS = 7 * 24 * 60 * 60 * 1000;
+    const demo = store.loadDemoState();
+    for (const jar of demo.jars) {
+      expect(Date.now() - Date.parse(jar.updatedAt)).toBeLessThan(STALE_MS);
+    }
+  });
+
   it("进入演示不覆盖真实数据;演示态优先加载", () => {
     store.saveMoneyState(realState());
     const savedReal = local.getItem(REAL_KEY);

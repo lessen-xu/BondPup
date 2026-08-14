@@ -77,11 +77,16 @@ export function clearMoneyState(): void {
 
 /** 演示模式:载入合成示例(demo:true,独立键存储,退出即回落真实数据)。
  *  周期动态设为上个月:「新的一个月了」入口与周期回顾在演示里始终可见(复赛演示需求);
+ *  罐子 updatedAt 一并刷成当前时间:mock 里是固定日期,放久了会越过决策页
+ *  的 7 天余额新鲜度阈值(BuyDecisionFlow 的 staleBalance),把三个动作按钮
+ *  整体藏掉——演示主线会断在「现在大概还剩多少」这一屏且无路可走。
  *  这里是事件时调用(enterDemo/进入 ?demo=1),不在渲染路径,允许取当前时间。 */
 export function loadDemoState(): MoneyState {
+  const now = new Date().toISOString();
   const demo = MoneyState.parse({
     ...mockMoneyState,
     cycle: mockMoneyState.cycle ? { ...mockMoneyState.cycle, cycle: cycleAfter(-1) } : null,
+    jars: mockMoneyState.jars.map((jar) => ({ ...jar, updatedAt: now })),
   });
   saveMoneyState(demo);
   return demo;
