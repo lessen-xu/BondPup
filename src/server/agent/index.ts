@@ -176,6 +176,26 @@ export function sanitizeCompanionContext(
     delete next.context;
     dropped++;
   }
+  // noteContext 是后加的厚上下文,同样整段进 prompt(buildTaskPrompt 的聊钱分支),
+  // 必须走同一把闸。尤其 conversation:输入闸只看当轮输入,而 debt_loan 这类
+  // exit:false 的风险不会停聊,用户下一轮把上一轮的原文当历史回传,
+  // 不清洗就等于绕过了输入闸(同样的字符串走 recentStories 会被剥掉)。
+  if (next.noteContext) {
+    const nc = next.noteContext;
+    const principles = nc.principles.filter((p) => !detectHardRisk(p.statement));
+    const concerns = nc.concerns.filter((c) => !detectHardRisk(c));
+    const stories = nc.stories.filter(
+      (s) => !detectHardRisk(`${s.intent} ${s.action} ${s.outcome?.feelingNote ?? ""}`)
+    );
+    const conversation = nc.conversation.filter((turn) => !detectHardRisk(turn.text));
+    dropped +=
+      nc.principles.length - principles.length +
+      (nc.concerns.length - concerns.length) +
+      (nc.stories.length - stories.length) +
+      (nc.conversation.length - conversation.length);
+    // jars 只有 kind/label/金额,没有自由文本,无需过闸
+    next.noteContext = { ...nc, principles, concerns, stories, conversation };
+  }
   if (dropped > 0) {
     console.error(JSON.stringify({ event: "risky_context_stripped", task: input.task, dropped }));
   }

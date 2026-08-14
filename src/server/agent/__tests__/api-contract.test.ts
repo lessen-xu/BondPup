@@ -245,6 +245,35 @@ describe("厚上下文背景清洗(P0:输入闸覆盖所有入模字符串)", ()
     });
     expect(out.item).toBeUndefined();
   });
+  it("noteContext 走同一把闸:对话历史里的硬红线条目被剔除", () => {
+    // 可达路径:debt_loan 是 exit:false,首轮命中安全回应但不停聊,
+    // 用户下一轮把上轮原文当 conversation 回传——不清洗就绕过了输入闸。
+    const out = sanitizeCompanionContext({
+      task: "companion_reply",
+      scene: "note",
+      userText: "那这个月怎么安排",
+      noteContext: {
+        jars: [{ kind: "comfort", label: "安心罐", amount: 150000 }],
+        principles: [{ statement: "我放一晚再决定" }, { statement: "借网贷也要买到手" }],
+        concerns: ["周末出去走走", "想去炒股翻倍"],
+        stories: [
+          { intent: "那双白色的鞋", action: "defer" },
+          { intent: "想买比特币", action: "buy_now" },
+        ],
+        conversation: [
+          { role: "user", text: "我欠了网贷还不上" },
+          { role: "assistant", text: "这个我帮不上忙" },
+          { role: "user", text: "那这个月怎么安排" },
+        ],
+      },
+    });
+    const nc = out.noteContext!;
+    expect(nc.principles.map((p) => p.statement)).toEqual(["我放一晚再决定"]);
+    expect(nc.concerns).toEqual(["周末出去走走"]);
+    expect(nc.stories.map((s) => s.intent)).toEqual(["那双白色的鞋"]);
+    expect(nc.conversation.map((t) => t.text)).toEqual(["这个我帮不上忙", "那这个月怎么安排"]);
+    expect(nc.jars).toHaveLength(1); // 纯数字字段不受影响
+  });
 });
 
 describe("decompose_wish 拆解输入", () => {
